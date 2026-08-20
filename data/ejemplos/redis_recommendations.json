@@ -1,0 +1,15 @@
+{
+  "_comment": "Ejemplo del valor almacenado en Redis bajo la clave recommendations:user-123:home, con TTL de 5 a 15 minutos.",
+  "generated_at": "2026-08-19T15:40:00Z",
+  "model_version": "v1",
+  "recommendations": [
+    {
+      "product_id": "product-123",
+      "score": 0.94
+    },
+    {
+      "product_id": "product-456",
+      "score": 0.89
+    }
+  ]
+}
