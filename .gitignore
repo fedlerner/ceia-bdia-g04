@@ -1,1 +1,4 @@
 .DS_Store
+
+# Cada componente define su propio .env a partir de su .env.example.
+.env
