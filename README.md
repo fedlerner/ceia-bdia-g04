@@ -163,9 +163,11 @@ Orden previsto de ejecución una vez implementado:
 5. Registrar eventos de clientes identificados **o** de sesiones anónimas (al menos uno de los dos).
 6. Almacenar los eventos en MongoDB, separados del modelo transaccional, por volumen, frecuencia de
    escritura, inmutabilidad y variabilidad de sus metadatos.
-7. Usar Redis como capa clave-valor para los datos temporales, reconstruibles y sensibles a la
+7. Usar Redis como capa clave-valor para los datos temporales, descartables y sensibles a la
    latencia: cache de recomendaciones, sesiones anónimas, rankings precalculados y rate limit. Redis
-   no es fuente de verdad de ningún dato del modelo.
+   no es fuente de verdad de ningún dato del modelo. La cache, las sesiones y los rankings además se
+   reconstruyen desde los otros motores; los contadores y la cuota en curso no, pero perderlos es
+   aceptable.
 8. No entrenar un modelo de IA ni desarrollar una aplicación completa en esta etapa.
 
 ## Consultas incluidas

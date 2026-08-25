@@ -73,7 +73,7 @@ predeterminados:
 
 | Opción | Valor | Motivo |
 | --- | --- | --- |
-| `--save "" --appendonly no` | Sin persistencia | Redis es una cache y todo su contenido puede reconstruirse desde PostgreSQL, MongoDB y el motor. Persistir agregaría costo de disco sin aportar ninguna garantía que el diseño necesite. |
+| `--save "" --appendonly no` | Sin persistencia | Todo el contenido es descartable. La cache, las sesiones y los rankings se reconstruyen desde PostgreSQL, MongoDB y el motor; los contadores y la cuota de rate limit en curso no, pero perderlos es aceptable. Persistir agregaría costo de disco sin aportar ninguna garantía que el diseño necesite. |
 | `--maxmemory 256mb` | Límite explícito | Sin límite, Redis crece hasta agotar la memoria del equipo. Fijarlo convierte un problema de infraestructura en una política de cache. |
 | `--maxmemory-policy allkeys-lru` | Descarte por recencia | Es la política adecuada cuando todo el contenido es descartable. Las alternativas evaluadas están en [`comandos/05`](comandos/05_expiracion_memoria_y_patrones.md). |
 

@@ -311,7 +311,12 @@ flowchart LR
 ## 2.1 Alcance de la capa clave-valor
 
 Además de la cache de recomendaciones, Redis resuelve otras tres necesidades del caso que comparten
-la misma característica: son datos temporales, reconstruibles y sensibles a la latencia.
+la misma característica: son datos temporales, descartables y sensibles a la latencia.
+
+Las recomendaciones, las sesiones y los rankings son **reconstruibles**: se derivan de PostgreSQL,
+MongoDB y el motor. Los contadores operativos y la cuota de rate limit en curso **no lo son**, porque
+son acumulados propios de Redis. Lo que comparten las cuatro estructuras es que su contenido es
+**descartable**: perderlo es aceptable.
 
 | # | Estructura | Necesidad del caso que resuelve |
 | --- | --- | --- |
@@ -347,6 +352,11 @@ Reglas adoptadas:
    recomendaciones de un cliente registrado.
 4. Los nombres se mantienen cortos: la clave ocupa memoria en cada entrada. Por eso la primera
    versión del documento, que proponía `recommendations:{user_id}:{context}`, se abrevió a `reco:`.
+5. El discriminador `user` / `sess` se aplica a **todas** las estructuras cuyo sujeto puede ser de
+   ambos tipos, no solo a la cache. El rate limit también lo lleva: el motor se invoca igual para un
+   visitante anónimo, de modo que dejarlo sin cuota permitiría saturarlo con tráfico que ni siquiera
+   requiere registrarse. Reutilizar el `session_id` sin discriminador reintroduciría además la
+   colisión de identificadores que el diseño de la clave evita.
 
 ## 2.3 Claves, valores y estructuras
 
@@ -355,7 +365,7 @@ Reglas adoptadas:
 | Cache de recomendaciones | `reco:user:{customer_id}:{contexto}`<br>`reco:sess:{session_id}:{contexto}` | String | Documento JSON con `generated_at`, `model_version`, `source` y la lista `recommendations` ordenada por `score` | TTL fijo de 600 s |
 | Sesión anónima | `session:{session_id}` | Hash | Campos `started_at`, `last_seen_at`, `events_count`, `last_product_id`, `preferred_category` | TTL deslizante de 1800 s |
 | Ranking precalculado | `ranking:productos:vistos:{ventana}` | Sorted Set | Miembro = `product_id`, score = cantidad de visualizaciones | TTL de 3600 s |
-| Rate limit | `ratelimit:reco:{customer_id}:{ventana}` | String (contador) | Cantidad de solicitudes dentro de la ventana | TTL igual a la ventana (60 s) |
+| Rate limit | `ratelimit:reco:user:{customer_id}:{ventana}`<br>`ratelimit:reco:sess:{session_id}:{ventana}` | String (contador) | Cantidad de solicitudes dentro de la ventana | TTL igual a la ventana (60 s) |
 | Contadores operativos | `contador:{reco}:{metrica}` | String (contador) | Acumulado best-effort | Sin expiración, pero sin durabilidad |
 
 Los `{contexto}` previstos son `home`, `product`, `cart` y `category`, que corresponden a la página
@@ -433,7 +443,7 @@ Configuración declarada en [`redis/docker-compose.yml`](redis/docker-compose.ym
 | Parámetro | Valor | Justificación |
 | --- | --- | --- |
 | `maxmemory` | `256mb` | Sin límite explícito, Redis crece hasta agotar la memoria del host. El límite convierte un problema de infraestructura en una política de cache. |
-| `maxmemory-policy` | `allkeys-lru` | Todo el contenido es reconstruible, de modo que descartar por recencia entre todas las claves es aceptable. |
+| `maxmemory-policy` | `allkeys-lru` | Todo el contenido es descartable, de modo que descartar por recencia entre todas las claves es aceptable. No todo es reconstruible: los contadores y la cuota en curso se pierden, y esa pérdida se acepta. |
 | `save` / `appendonly` | deshabilitados | Redis es una cache: persistir agregaría costo de disco sin aportar garantías que el diseño necesite. |
 | `requirepass` | activo | Autenticación mínima; el puerto además se publica solo en `127.0.0.1`. |
 
@@ -467,14 +477,33 @@ Salida real de [`redis/scripts/demo_limite_memoria.sh`](redis/scripts/demo_limit
 con `maxmemory` bajado a 4 MB e inserción de 6000 claves de 1 KB:
 
 ```text
-  DBSIZE                    1250   (se insertaron 6000 claves)
-  evicted_keys              4757   (+4757 en esta corrida)
+Estado antes de llenar
+  DBSIZE                    6
+  used_memory               1.52M
+
+Estado despues de llenar
+  DBSIZE                    1238   (se insertaron 6000 claves)
+  evicted_keys              9536   (+4768 en esta corrida)
   used_memory               4.00M
 
-  reco:user:user-123:home                DESCARTADA por la politica allkeys-lru
-  session:session-456                    DESCARTADA por la politica allkeys-lru
-  ranking:productos:vistos:7d            DESCARTADA por la politica allkeys-lru
+Sobrevivieron las claves del estado inicial?
+  clave                          TTL        estado
+  reco:user:user-123:home        con TTL    DESCARTADA por allkeys-lru
+  reco:sess:session-456:product  con TTL    DESCARTADA por allkeys-lru
+  session:session-456            con TTL    DESCARTADA por allkeys-lru
+  ranking:productos:vistos:7d    con TTL    DESCARTADA por allkeys-lru
+  contador:{reco}:generadas      sin TTL    DESCARTADA por allkeys-lru
+  contador:{reco}:cache_hit      sin TTL    DESCARTADA por allkeys-lru
 ```
+
+Los números cierran: 6 claves iniciales + 6000 insertadas − 4768 descartadas = 1238, que es el
+`DBSIZE` final. `evicted_keys` es un acumulado del servidor desde su arranque; el valor relevante es
+el delta de la corrida, que el script informa entre paréntesis. El script recarga el estado inicial
+antes de medir, de modo que la línea base es siempre 6 y el resultado es reproducible.
+
+Las dos últimas filas son las que sostienen que los contadores son best-effort: no tienen TTL y aun
+así `allkeys-lru` los descarta. El resultado varía entre corridas, porque el descarte depende de la
+recencia de uso de cada clave.
 
 La segunda salida confirma una restricción del diseño: con `allkeys-lru` el descarte alcanza a
 cualquier clave, tenga TTL o no. Ninguna información que deba sobrevivir puede residir únicamente en
@@ -484,9 +513,13 @@ Redis.
 
 - **Minimización:** la sesión anónima guarda comportamiento, no identidad. No almacena dirección IP,
   user agent, correo ni teléfono. El TTL actúa además como política de retención automática.
-- **Qué no se cachea:** ningún dato personal del cliente. El valor de la cache contiene únicamente
-  identificadores de producto y puntuaciones; para resolver una recomendación no hace falta copiar
-  datos del cliente a Redis.
+- **Qué se guarda del cliente:** el **valor** está minimizado por atributos: contiene únicamente
+  identificadores de producto y puntuaciones, sin nombre, correo, teléfono ni ningún dato de
+  contacto. La **clave**, en cambio, sí incorpora un identificador seudónimo del sujeto
+  (`reco:user:{customer_id}:...`), porque es lo que permite resolver el acceso directo. Ese
+  identificador queda protegido por el TTL, que actúa como retención máxima, y por el control de
+  acceso del backend, que es el único componente que debería hablar con Redis. La afirmación correcta
+  es que no se copian atributos personales a Redis, no que Redis desconozca al cliente.
 - **Aislamiento:** el prefijo de la clave separa los espacios de nombres. El discriminador
   `user` / `sess` evita que una sesión anónima resuelva contra la entrada de un cliente registrado.
 - **Acceso:** `requirepass` activo y puerto publicado solo en `127.0.0.1`. Redis no tiene roles ni

@@ -51,10 +51,10 @@ minuto actual?
 
 ```redis
 MULTI
-INCR ratelimit:reco:user-123:202608191542
-EXPIRE ratelimit:reco:user-123:202608191542 60 NX
+INCR ratelimit:reco:user:user-123:202608191542
+EXPIRE ratelimit:reco:user:user-123:202608191542 60 NX
 EXEC
-TTL ratelimit:reco:user-123:202608191542
+TTL ratelimit:reco:user:user-123:202608191542
 ```
 
 Conviene repetir el bloque varias veces seguidas.
@@ -71,6 +71,11 @@ Los dos comandos van dentro de una transacción. Ejecutados por separado, si la 
 entre el `INCR` y el `EXPIRE`, la clave queda **sin TTL** y su contador nunca se reinicia: ese cliente
 quedaría limitado de forma permanente. `MULTI` y `EXEC` garantizan que la creación del contador y su
 vencimiento se apliquen juntos.
+
+La clave lleva el discriminador `user` / `sess`, igual que la cache de recomendaciones. Un visitante
+anónimo también invoca al motor, de modo que su cuota se cuenta en
+`ratelimit:reco:sess:{session_id}:{ventana}`. Sin ese discriminador, un `session_id` y un
+`customer_id` con el mismo texto compartirían contador.
 
 El identificador de la ventana forma parte de la clave y lo calcula la aplicación a partir del reloj,
 con el formato `AAAAMMDDHHmm`. En el ejemplo, `202608191542` corresponde al minuto 15:42 del
@@ -109,11 +114,11 @@ cuando el contador no está disponible.
 > separado. El patrón de producción es el del comando anterior, con `MULTI` y `EXEC`.
 
 ```redis
-DEL ratelimit:reco:user-demo:202608191543
-INCRBY ratelimit:reco:user-demo:202608191543 30
-EXPIRE ratelimit:reco:user-demo:202608191543 60 NX
-GET ratelimit:reco:user-demo:202608191543
-INCR ratelimit:reco:user-demo:202608191543
+DEL ratelimit:reco:user:user-demo:202608191543
+INCRBY ratelimit:reco:user:user-demo:202608191543 30
+EXPIRE ratelimit:reco:user:user-demo:202608191543 60 NX
+GET ratelimit:reco:user:user-demo:202608191543
+INCR ratelimit:reco:user:user-demo:202608191543
 ```
 
 **Resultado esperado:** el último `INCR` devuelve 31.
@@ -135,8 +140,8 @@ limpieza manual.
 **Objetivo:** obtener el estado de la cuota sin producir efectos sobre ella.
 
 ```redis
-GET ratelimit:reco:user-demo:202608191543
-TTL ratelimit:reco:user-demo:202608191543
+GET ratelimit:reco:user:user-demo:202608191543
+TTL ratelimit:reco:user:user-demo:202608191543
 ```
 
 **Resultado esperado:** el valor actual del contador y los segundos que faltan para que la ventana se

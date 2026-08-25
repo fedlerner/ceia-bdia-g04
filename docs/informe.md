@@ -229,10 +229,12 @@ PostgreSQL aporta principalmente información sobre el **estado actual del negoc
 inventario, pedidos, reseñas), donde importan las relaciones y las restricciones de integridad.
 MongoDB aporta información sobre el **comportamiento observado del usuario**, que se genera con mucha
 frecuencia, es inmutable y presenta metadatos variables según el tipo de evento. Redis guarda
-únicamente datos temporales, reconstruibles y sensibles a la latencia: recomendaciones ya calculadas,
-estado de sesiones anónimas, rankings precalculados y contadores de rate limit. Redis no es fuente de verdad de
-ningún dato del modelo: todo su contenido puede reconstruirse desde los otros dos motores y el motor
-de recomendaciones.
+únicamente datos temporales, descartables y sensibles a la latencia: recomendaciones ya calculadas,
+estado de sesiones anónimas, rankings precalculados y contadores de rate limit. Redis no es fuente de
+verdad de ningún dato del modelo. Las recomendaciones, las sesiones y los rankings son **reconstruibles**: se derivan de PostgreSQL,
+MongoDB y el motor. Los contadores operativos y la cuota de rate limit en curso **no lo son**, porque
+son acumulados propios de Redis. Lo que comparten las cuatro estructuras es que su contenido es
+**descartable**: perderlo es aceptable.
 
 Esta separación evita duplicar innecesariamente los datos transaccionales en MongoDB y permite que
 cada tecnología se utilice para el tipo de información para el que resulta más adecuada.
@@ -301,7 +303,7 @@ suficiente escalabilidad para el volumen esperado y mayor flexibilidad para este
 
 ### 7.3 Redis — capa clave-valor
 
-**Tipo de datos y variabilidad:** datos temporales, reconstruibles y de estructura simple, a los que
+**Tipo de datos y variabilidad:** datos temporales, descartables y de estructura simple, a los que
 siempre se accede por un identificador conocido de antemano (cliente, sesión, producto, ventana
 temporal). No requieren relaciones, integridad referencial ni consultas por atributos internos.
 
@@ -452,7 +454,7 @@ riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de 
 | --- | --- |
 | Minimización | La sesión anónima guarda comportamiento, no identidad: `started_at`, `last_seen_at`, `events_count`, `last_product_id` y `preferred_category`. **No** almacena dirección IP, user agent, correo ni teléfono. |
 | Retención | El TTL actúa como política de retención automática: la sesión desaparece sola a los 30 minutos de inactividad, sin proceso de purga. |
-| Qué no se cachea | Ningún dato personal del cliente. El valor de la cache contiene únicamente identificadores de producto y puntuaciones. |
+| Qué se guarda del cliente | El valor está minimizado por atributos: sólo identificadores de producto y puntuaciones, sin nombre, correo ni teléfono. La clave sí incorpora un identificador seudónimo (`reco:user:{customer_id}:...`), acotado por el TTL como retención máxima y protegido por el control de acceso del backend. |
 | Aislamiento | El prefijo de la clave separa los espacios de nombres, y el discriminador `user` / `sess` evita que una sesión anónima resuelva contra la entrada de un cliente registrado. |
 | Acceso | `requirepass` activo y puerto publicado únicamente en `127.0.0.1`. |
 | Protección del motor de IA | El rate limit por cliente y ventana acota cuántas veces puede invocarse el motor de recomendaciones y el modelo, que son los recursos más costosos. |
