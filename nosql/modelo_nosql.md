@@ -407,10 +407,15 @@ alcance es una simplificación deliberada y no una propiedad del diseño.
 | Renovar la sesión | `MULTI` + `HINCRBY` + `HSET` + `EXPIRE` + `EXEC` | O(1) |
 | Top N del ranking | `ZREVRANGE ... WITHSCORES` | O(log n + m) |
 | Actualizar el ranking (incremental) | `ZINCRBY` | O(log n) |
-| Reconstruir el ranking | `MULTI` + `DEL` + `ZADD` + `EXPIRE` + `EXEC` | O(log n) |
+| Reconstruir el ranking | `MULTI` + `DEL` + `ZADD` + `EXPIRE` + `EXEC` | O(n log n) |
 | Filtrar por umbral | `ZCOUNT`, `ZRANGEBYSCORE` | O(log n + m) |
 | Contar solicitudes | `MULTI` + `INCR` + `EXPIRE ... NX` + `EXEC` | O(1) |
 | Recorrer una familia de claves | `SCAN ... MATCH` | incremental |
+
+La reconstrucción del ranking cuesta O(n log n) y no O(log n): `ZADD` es O(log n) **por miembro** y
+la reconstrucción los inserta todos, además del `DEL` del conjunto anterior, que es O(n). Es el
+motivo por el que conviene reservarla para el recálculo periódico y usar `ZINCRBY`, que sí es
+O(log n), para las actualizaciones evento a evento.
 
 Las tres operaciones que escriben más de un comando van dentro de una transacción. No es una
 preferencia de estilo: emitirlos sueltos deja la clave sin TTL si el proceso cae entre medio, lo que
@@ -456,9 +461,16 @@ Configuración declarada en [`redis/docker-compose.yml`](redis/docker-compose.ym
 | `requirepass` | activo | Autenticación mínima; el puerto además se publica solo en `127.0.0.1`. |
 
 Alternativas de política evaluadas y descartadas: `noeviction` convertiría la presión de memoria en
-errores de escritura del backend; `volatile-lru` dejaría crecer sin control los contadores sin TTL;
-`allkeys-lfu` favorecería claves populares históricas frente a recomendaciones recientes, que es lo
-contrario de lo que necesita la personalización.
+errores de escritura del backend; `allkeys-lfu` favorecería claves populares históricas frente a
+recomendaciones recientes, que es lo contrario de lo que necesita la personalización.
+
+`volatile-lru` no deja crecer sin control a las claves sin TTL: el límite de memoria las acota igual.
+Lo que hace es excluirlas del conjunto desalojable, de modo que cuando se agotan las claves con TTL
+que sí puede descartar, Redis rechaza las escrituras que requieren memoria con
+`OOM command not allowed`. Es decir, termina en el mismo fallo operativo que `noeviction`, pero más
+tarde y de forma menos predecible. Comprobado: llenando la base únicamente con claves sin TTL, el
+descarte fue de **0** claves y solo entraron 1240 de 6000; con la mitad de las claves con TTL, se
+descartaron 3000, todas del conjunto con vencimiento.
 
 ## 2.7 Evidencia medida
 

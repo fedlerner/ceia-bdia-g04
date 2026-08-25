@@ -148,5 +148,5 @@ de memoria: descarta páginas de su cache y accede a disco. Redis no tiene disco
 | --- | --- | --- |
 | `allkeys-lru` | Descarta las claves menos usadas recientemente entre todas. | **Elegida.** Todo el contenido de la capa es descartable: la cache, las sesiones y los rankings se reconstruyen, y la pérdida de los contadores y de la cuota en curso se acepta. |
 | `noeviction` | Rechaza las escrituras al alcanzar el límite. | Convertiría un problema de memoria en errores de escritura del backend. |
-| `volatile-lru` | Descarta solo entre las claves que tienen TTL. | Los contadores sin TTL crecerían sin control y podrían agotar la memoria igual. |
+| `volatile-lru` | Descarta solo entre las claves que tienen TTL. | Las claves sin TTL quedan fuera del conjunto desalojable. Al agotarse los candidatos con TTL, Redis rechaza las escrituras con `OOM command not allowed`: el mismo fallo que `noeviction`, pero más tarde y menos predecible. |
 | `allkeys-lfu` | Descarta por frecuencia de uso en lugar de por recencia. | Favorece claves populares históricas frente a recomendaciones recientes, que es lo contrario de lo que necesita la personalización. |

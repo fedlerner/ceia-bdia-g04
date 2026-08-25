@@ -331,8 +331,10 @@ dependerá de cuánto tarde el motor cuando exista.
 | Memcached | Cubre la cache pura y también el rate limit, porque dispone de incremento atómico y de expiración. Lo que no ofrece son estructuras más allá del String: no resolvería la sesión como Hash ni el ranking como Sorted Set, que tendrían que serializarse y reescribirse enteros en cada actualización. |
 | No usar cache | Cada solicitud ejecutaría el motor y el modelo de IA, que son los componentes más costosos de la arquitectura. |
 
-**Complejidad operativa:** baja. Un contenedor, sin esquema que migrar y sin persistencia que
-administrar.
+**Complejidad operativa:** baja. La capa de datos es **un único servidor**, sin esquema que migrar y
+sin persistencia que administrar. El compose levanta además dos contenedores auxiliares que no forman
+parte del despliegue: RedisInsight, que es el visor web, y `demo`, que solo ejecuta el script de
+medición.
 
 **Limitaciones asumidas:** los datos viven en memoria y se pierden al reiniciar; con
 `allkeys-lru` cualquier clave puede ser descartada bajo presión de memoria; y Redis no ofrece control
