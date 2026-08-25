@@ -1,8 +1,8 @@
-# Índices y vistas
+# Índices y vistas PostgreSQL
 
-**Pendiente de implementar.** Índices y vistas justificados por las consultas representativas:
+[`01_indices_vistas.sql`](01_indices_vistas.sql) crea índices asociados a los
+patrones de consulta del trabajo y la vista `v_active_catalog`.
 
-- [ ] Vista `v_active_catalog` — catálogo activo con disponibilidad (consulta 1), si se consultara
-      con frecuencia.
-- [ ] Índice sobre `interaction_event (customer_id, event_type, occurred_at)` — consulta 3.
-- [ ] Índice sobre `inventory (available_qty)` — consulta 4, si el volumen lo requiriera.
+Incluye índices para catálogo, precios, stock, pedidos, movimientos, reseñas,
+recomendaciones y atributos JSONB. No crea índices de eventos porque esos datos
+pertenecen a MongoDB.

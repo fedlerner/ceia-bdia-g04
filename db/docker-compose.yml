@@ -1,0 +1,41 @@
+name: bdia_g04_postgresql
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bdia_g04_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?no definida. Copiar db/.env.example a db/.env}
+      POSTGRES_USER: ${POSTGRES_USER:?no definida. Copiar db/.env.example a db/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?no definida. Copiar db/.env.example a db/.env}
+      TZ: ${TZ:?no definida. Copiar db/.env.example a db/.env}
+      PGTZ: ${TZ:?no definida. Copiar db/.env.example a db/.env}
+    ports:
+      - "127.0.0.1:${POSTGRES_LISTEN_PORT:?no definida. Copiar db/.env.example a db/.env}:5432"
+    volumes:
+      - bdia_postgres_data:/var/lib/postgresql/data
+      - ./estructura/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./indices_vistas/01_indices_vistas.sql:/docker-entrypoint-initdb.d/02_indices_vistas.sql:ro
+      - ./datos/02_sample_data.sql:/docker-entrypoint-initdb.d/03_sample_data.sql:ro
+      - ./consultas/01_catalogo_activo_disponibilidad.sql:/docker-entrypoint-initdb.d/04_01_catalogo.sql:ro
+      - ./consultas/02_ventas_ingresos_por_categoria.sql:/docker-entrypoint-initdb.d/04_02_ventas.sql:ro
+      - ./consultas/03_clientes_frecuencia_valor.sql:/docker-entrypoint-initdb.d/04_03_clientes.sql:ro
+      - ./consultas/04_stock_bajo.sql:/docker-entrypoint-initdb.d/04_04_stock.sql:ro
+      - ./consultas/05_productos_comprados_conjuntamente.sql:/docker-entrypoint-initdb.d/04_05_compra_conjunta.sql:ro
+      - ./validacion/01_validation.sql:/docker-entrypoint-initdb.d/05_validation.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - bdia_g04_network
+
+volumes:
+  bdia_postgres_data:
+
+networks:
+  bdia_g04_network:
+    driver: bridge

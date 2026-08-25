@@ -31,8 +31,8 @@ include:
     env_file: nosql/redis/.env
 
   # PostgreSQL - datos transaccionales y de catalogo.
-  # - path: db/docker-compose.yml
-  #   env_file: db/.env
+  - path: db/docker-compose.yml
+    env_file: db/.env
 
   # MongoDB - eventos de interaccion del usuario.
   # - path: nosql/mongodb/docker-compose.yml
