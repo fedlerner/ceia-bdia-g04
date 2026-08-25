@@ -29,9 +29,9 @@ necesidades del caso. Para los **eventos**, el grupo ya optó por MongoDB (ver
 
 Elementos que podrían vectorizarse y necesidad que resolverían:
 
-- descripciones de productos — similitud semántica entre productos ("productos parecidos a este");
-- textos de reseñas — agrupamiento de opiniones y detección de preferencias;
-- consultas de búsqueda del usuario — recuperación de productos por lenguaje natural en lugar de
+- descripciones de productos: similitud semántica entre productos ("productos parecidos a este");
+- textos de reseñas: agrupamiento de opiniones y detección de preferencias;
+- consultas de búsqueda del usuario: recuperación de productos por lenguaje natural en lugar de
   coincidencia exacta de términos.
 
 ## 4. Pendiente de completar

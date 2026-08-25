@@ -1,6 +1,9 @@
 # 05. Expiración, memoria y patrones de búsqueda
 
 Los comandos de este archivo se ejecutan en la consola de Redis o en el Workbench de RedisInsight.
+Todos son de lectura y no modifican el estado, con una excepción: el comando 5 invoca
+`scripts/demo_limite_memoria.sh`, que llena la base con claves de relleno y al terminar recarga el
+estado inicial.
 
 Este archivo cubre los dos aspectos que la consigna exige específicamente para una base clave-valor:
 los patrones de búsqueda, en el punto 4, y las políticas de expiración, en el punto 7.
@@ -148,5 +151,5 @@ de memoria: descarta páginas de su cache y accede a disco. Redis no tiene disco
 | --- | --- | --- |
 | `allkeys-lru` | Descarta las claves menos usadas recientemente entre todas. | **Elegida.** Todo el contenido de la capa es descartable: la cache, las sesiones y los rankings se reconstruyen, y la pérdida de los contadores y de la cuota en curso se acepta. |
 | `noeviction` | Rechaza las escrituras al alcanzar el límite. | Convertiría un problema de memoria en errores de escritura del backend. |
-| `volatile-lru` | Descarta solo entre las claves que tienen TTL. | Los contadores sin TTL crecerían sin control y podrían agotar la memoria igual. |
+| `volatile-lru` | Descarta solo entre las claves que tienen TTL. | Las claves sin TTL quedan fuera del conjunto desalojable. Al agotarse los candidatos con TTL, Redis rechaza las escrituras con `OOM command not allowed`: el mismo fallo que `noeviction`, pero más tarde y menos predecible. |
 | `allkeys-lfu` | Descarta por frecuencia de uso en lugar de por recencia. | Favorece claves populares históricas frente a recomendaciones recientes, que es lo contrario de lo que necesita la personalización. |

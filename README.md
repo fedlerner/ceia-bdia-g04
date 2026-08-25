@@ -1,29 +1,30 @@
-# Trabajo Práctico Integrador — Bases de Datos para Inteligencia Artificial
+# Trabajo Práctico Integrador: Bases de Datos para Inteligencia Artificial
 
 **Diseño de una capa de datos para recomendaciones personalizadas**
 Tienda online de cosmética y perfumería
 
-Carrera de Especialización en Inteligencia Artificial (CEIA) — FIUBA
-Materia: Bases de Datos para Inteligencia Artificial — Docente: Martín Lacheski — Año: 2026
+Carrera de Especialización en Inteligencia Artificial (CEIA), FIUBA
+Materia: Bases de Datos para Inteligencia Artificial
+Docente: Martín Lacheski
+Año: 2026
 Grupo 04
 
 ---
 
 ## Integrantes del grupo
 
-> **Pendiente de completar.** La consigna exige evidenciar la participación de cada integrante
-> mediante commits en el repositorio; si alguna parte se realizó fuera del repositorio, debe
-> documentarse aquí qué aportes hizo cada uno.
-
-| Integrante | Rol / aportes principales |
+| Integrante | N° SIU |
 | --- | --- |
-| _(completar)_ | _(completar)_ |
+| Abdon, Juan Bautista | a2601 |
+| Lerner, Federico Ezequiel | a2619 |
+| Paredes Ramirez, Luis Jose | a2627 |
+| Ruggeri, César Hernán | a2413 |
 
 ---
 
 ## Caso de uso elegido
 
-**Caso 2 de la consigna — Sistema de recomendación para comercio electrónico**, con la impronta
+**Caso 2 de la consigna: sistema de recomendación para comercio electrónico**, con la impronta
 propia del grupo: una **única tienda online de cosmética y perfumería** que registra su catálogo,
 disponibilidad, ventas, comportamiento de navegación y opiniones de clientes para generar
 recomendaciones personalizadas y apoyar decisiones comerciales.
@@ -115,8 +116,13 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ### Levantar la solución
 
 El [`docker-compose.yml`](docker-compose.yml) de la raíz incorpora el compose de cada componente
-mediante `include:`, de modo que un solo comando levanta toda la solución. Cada componente conserva
-su propio archivo y su propio `.env`.
+mediante `include:`, de modo que un solo comando levanta los que estén incorporados. Cada componente
+conserva su propio archivo y su propio `.env`.
+
+**Hoy levanta PostgreSQL y Redis**, que son los componentes implementados. El bloque de MongoDB está
+escrito y comentado en el compose de la raíz, a la espera de que exista su archivo: cuando se
+incorpore, descomentarlo lo suma sin tocar nada más. El estado de cada componente está en
+[docs/ESTADO.md](docs/ESTADO.md).
 
 > `include:` requiere **Docker Compose 2.20 o posterior**. Con una versión anterior, el comando falla
 > antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
@@ -139,7 +145,7 @@ su implementación.
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
 
-### Redis — implementado
+### Redis (implementado)
 
 Carga del estado inicial y verificación:
 
@@ -150,7 +156,7 @@ docker compose exec redis sh /scripts/00_cargar_datos.sh
 Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
 de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
 
-### PostgreSQL — implementado y validado
+### PostgreSQL (implementado y validado)
 
 PostgreSQL puede levantarse junto con Redis desde la raíz o de manera aislada desde `db/`:
 
@@ -163,17 +169,17 @@ docker compose logs postgres
 
 El contenedor ejecuta en orden:
 
-1. `db/estructura/` — creación de tablas, claves y restricciones.
-2. `db/indices_vistas/` — creación de índices y vistas.
-3. `db/datos/` — carga del catálogo y datos sintéticos.
-4. `db/consultas/` — ejecución de las 5 consultas representativas.
-5. `db/validacion/` — controles automáticos.
+1. `db/estructura/`: creación de tablas, claves y restricciones.
+2. `db/indices_vistas/`: creación de índices y vistas.
+3. `db/datos/`: carga del catálogo y datos sintéticos.
+4. `db/consultas/`: ejecución de las 5 consultas representativas.
+5. `db/validacion/`: controles automáticos.
 
 La validación empírica se realizó el 25/08/2026 con PostgreSQL 16 mediante Docker Compose. El
 contenedor quedó `Up (healthy)` y los catorce controles automáticos devolvieron `OK`. La evidencia y
 el procedimiento reproducible están documentados en [`db/validacion/README.md`](db/validacion/README.md).
 
-### MongoDB — pendiente
+### MongoDB (pendiente)
 
 Falta crear la colección `user_events`, cargar los eventos de ejemplo y registrar la ejecución de
 sus consultas.

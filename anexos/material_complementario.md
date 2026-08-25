@@ -2,7 +2,7 @@
 
 ## Consigna
 
-- `Consignas TP Integrador BDIA_A23_2026.pdf` — consigna del Trabajo Práctico Integrador de la
+- `Consignas TP Integrador BDIA_A23_2026.pdf`: consigna del Trabajo Práctico Integrador de la
   materia Bases de Datos para Inteligencia Artificial (CEIA – FIUBA, 2026, docente Martín Lacheski).
 
 ## Documentos de trabajo del grupo

@@ -4,16 +4,16 @@
 
 La solución combina tres motores. Este documento cubre los dos componentes NoSQL:
 
-- **MongoDB** — eventos de interacción del usuario (base documental / series de tiempo).
+- **MongoDB**: eventos de interacción del usuario (base documental / series de tiempo).
   Modelo definido; implementación pendiente.
-- **Redis** — capa clave-valor: cache de recomendaciones, sesiones anónimas, rankings
+- **Redis**, capa clave-valor: cache de recomendaciones, sesiones anónimas, rankings
   precalculados y rate limit. Modelo e implementación completos en [`redis/`](redis/).
 
 Los datos transaccionales y de catálogo permanecen en **PostgreSQL** (ver [`../db/`](../db/)).
 
 ---
 
-# 1. Eventos de usuario — MongoDB
+# 1. Eventos de usuario en MongoDB
 
 Para el almacenamiento de eventos se selecciona **MongoDB como base de datos documental**.
 
@@ -278,7 +278,7 @@ Datos del comportamiento:
 
 ---
 
-# 2. Modelado de la capa clave-valor — Redis
+# 2. Modelado de la capa clave-valor en Redis
 
 > Implementación en [`redis/`](redis/). Los comandos de cada estructura están en
 > [`redis/comandos/`](redis/comandos/).
@@ -404,12 +404,23 @@ alcance es una simplificación deliberada y no una propiedad del diseño.
 | Invalidar explícitamente | `DEL` | O(1) |
 | Leer la sesión completa | `HGETALL` | O(n) sobre campos |
 | Leer o actualizar un campo | `HGET`, `HSET`, `HINCRBY` | O(1) |
-| Renovar la sesión | `EXPIRE` | O(1) |
+| Renovar la sesión | `MULTI` + `HINCRBY` + `HSET` + `EXPIRE` + `EXEC` | O(1) |
 | Top N del ranking | `ZREVRANGE ... WITHSCORES` | O(log n + m) |
-| Actualizar el ranking | `ZINCRBY`, `ZADD` | O(log n) |
+| Actualizar el ranking (incremental) | `ZINCRBY` | O(log n) |
+| Reconstruir el ranking | `MULTI` + `DEL` + `ZADD` + `EXPIRE` + `EXEC` | O(n log n) |
 | Filtrar por umbral | `ZCOUNT`, `ZRANGEBYSCORE` | O(log n + m) |
-| Contar solicitudes | `INCR` + `EXPIRE ... NX` | O(1) |
+| Contar solicitudes | `MULTI` + `INCR` + `EXPIRE ... NX` + `EXEC` | O(1) |
 | Recorrer una familia de claves | `SCAN ... MATCH` | incremental |
+
+La reconstrucción del ranking cuesta O(n log n) y no O(log n): `ZADD` es O(log n) **por miembro** y
+la reconstrucción los inserta todos, además del `DEL` del conjunto anterior, que es O(n). Es el
+motivo por el que conviene reservarla para el recálculo periódico y usar `ZINCRBY`, que sí es
+O(log n), para las actualizaciones evento a evento.
+
+Las tres operaciones que escriben más de un comando van dentro de una transacción. No es una
+preferencia de estilo: emitirlos sueltos deja la clave sin TTL si el proceso cae entre medio, lo que
+produce una sesión parcial y permanente, un ranking que se sirve indefinidamente o una fuga de claves
+de rate limit. El detalle de cada caso está en los archivos de comandos correspondientes.
 
 **Sobre índices:** Redis no tiene índices secundarios. No es posible preguntar "qué recomendaciones
 se generaron con `model_version` v1", porque el valor es opaco para el servidor. El acceso es siempre
@@ -425,7 +436,7 @@ quede obsoleto:
 | Régimen | Estructuras | Comportamiento |
 | --- | --- | --- |
 | TTL fijo | Cache de recomendaciones, ranking | Se asigna al escribir y **no** se renueva al leer. La entrada debe envejecer para regenerarse con los eventos nuevos del usuario. |
-| TTL deslizante | Sesión anónima | Se renueva con `EXPIRE` en cada actividad. La sesión debe sobrevivir mientras el visitante navegue. |
+| TTL deslizante | Sesión anónima | Se renueva con `EXPIRE`, dentro de la misma transacción que actualiza los campos. La sesión debe sobrevivir mientras el visitante navegue. |
 | Sin expiración | Contadores operativos | Acumulados que no tienen sentido si se reinician solos. |
 
 El TTL de la cache (10 minutos, dentro del rango de 5 a 15 previsto) es más corto que el del ranking
@@ -450,9 +461,16 @@ Configuración declarada en [`redis/docker-compose.yml`](redis/docker-compose.ym
 | `requirepass` | activo | Autenticación mínima; el puerto además se publica solo en `127.0.0.1`. |
 
 Alternativas de política evaluadas y descartadas: `noeviction` convertiría la presión de memoria en
-errores de escritura del backend; `volatile-lru` dejaría crecer sin control los contadores sin TTL;
-`allkeys-lfu` favorecería claves populares históricas frente a recomendaciones recientes, que es lo
-contrario de lo que necesita la personalización.
+errores de escritura del backend; `allkeys-lfu` favorecería claves populares históricas frente a
+recomendaciones recientes, que es lo contrario de lo que necesita la personalización.
+
+`volatile-lru` no deja crecer sin control a las claves sin TTL: el límite de memoria las acota igual.
+Lo que hace es excluirlas del conjunto desalojable, de modo que cuando se agotan las claves con TTL
+que sí puede descartar, Redis rechaza las escrituras que requieren memoria con
+`OOM command not allowed`. Es decir, termina en el mismo fallo operativo que `noeviction`, pero más
+tarde y de forma menos predecible. Comprobado: llenando la base únicamente con claves sin TTL, el
+descarte fue de **0** claves y solo entraron 1240 de 6000; con la mitad de las claves con TTL, se
+descartaron 3000, todas del conjunto con vencimiento.
 
 ## 2.7 Evidencia medida
 

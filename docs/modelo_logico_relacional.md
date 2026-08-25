@@ -1,4 +1,4 @@
-# Modelo lógico relacional — PostgreSQL
+# Modelo lógico relacional de PostgreSQL
 
 PostgreSQL es la fuente principal de verdad para el catálogo y las operaciones
 comerciales. Los eventos de navegación pertenecen a MongoDB y el estado temporal

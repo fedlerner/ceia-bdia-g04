@@ -9,10 +9,10 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 
 | # | Actividad | Estado | Dónde | Qué falta |
 | --- | --- | --- | --- | --- |
-| 1 | Análisis del caso de uso | Completo | [`informe.md` §1](informe.md) | — |
-| 2 | Relevamiento de datos necesarios | Completo | [`informe.md` §2–3](informe.md) | — |
+| 1 | Análisis del caso de uso | Completo | [`informe.md` §1](informe.md) | Nada |
+| 2 | Relevamiento de datos necesarios | Completo | [`informe.md` §2–3](informe.md) | Nada |
 | 3 | Modelo conceptual | Parcial | [`modelo_conceptual.md`](modelo_conceptual.md) | Diagrama ER/UML exportado como `modelo_conceptual.png` |
-| 4 | Modelo lógico o equivalente | Completo | [`informe.md` §5](informe.md), [`../db/estructura/`](../db/estructura/), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | — |
+| 4 | Modelo lógico o equivalente | Completo | [`informe.md` §5](informe.md), [`../db/estructura/`](../db/estructura/), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | Nada |
 | 5 | Normalización y decisiones de diseño | Parcial | [`informe.md` §6](informe.md) | La duplicación en Redis está justificada en §6.1. Falta justificar la normalización relacional y las decisiones de embebido/referencia en MongoDB |
 | 6 | Selección tecnológica | Parcial | [`informe.md` §7](informe.md) | Redis está justificado en §7.3, con sus alternativas descartadas. Falta la justificación de PostgreSQL según los 10 criterios de la consigna |
 | 7 | Modelo físico e implementación mínima | Parcial | [`../nosql/redis/`](../nosql/redis/), [`../db/`](../db/) | PostgreSQL y Redis están implementados y verificados. Falta crear `user_events` en MongoDB |
@@ -34,7 +34,7 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | Archivos de implementación mínima | Parcial | PostgreSQL y Redis implementados; MongoDB pendiente |
 | Datos de ejemplo | Completo | Catálogo y transacciones en [`../db/datos/`](../db/datos/), eventos JSON en [`../data/ejemplos/`](../data/ejemplos/) y estado Redis en [`../nosql/redis/datos/`](../nosql/redis/datos/) |
 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/) y [`../nosql/redis/comandos/`](../nosql/redis/comandos/) |
-| README del proyecto | Parcial | [`../README.md`](../README.md) — faltan los integrantes |
+| README del proyecto | Parcial | [`../README.md`](../README.md), faltan los integrantes |
 
 ## Coherencia entre componentes
 
