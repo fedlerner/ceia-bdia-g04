@@ -182,8 +182,8 @@ reseñas, imágenes o documentos de ingredientes.
 
 En esta primera versión, además del modelo relacional para los datos estructurados, se incorpora el
 tratamiento de datos semiestructurados mediante una base documental (MongoDB) para los eventos de
-interacción y su `metadata` variable. JSONB en PostgreSQL queda previsto como alternativa para
-atributos variables del lado relacional. Quedan fuera de esta versión el procesamiento de imágenes,
+interacción y su `metadata` variable. JSONB en PostgreSQL se utiliza de manera acotada para atributos
+variables de productos y SKU. Quedan fuera de esta versión el procesamiento de imágenes,
 la generación de embeddings y la búsqueda vectorial (ver
 [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md)).
 
@@ -219,7 +219,7 @@ La solución combina tres motores:
 
 | Componente | Modelo | Documentación |
 | --- | --- | --- |
-| PostgreSQL | Modelo lógico relacional (tablas, columnas, claves primarias y foráneas, restricciones de integridad, relaciones 1:1, 1:N y N:M) | **Pendiente** — [`../db/estructura/`](../db/estructura/) |
+| PostgreSQL | Modelo lógico relacional (15 tablas, claves, restricciones y relaciones 1:1, 1:N y N:M) | [`modelo_logico_relacional.md`](modelo_logico_relacional.md) e implementación en [`../db/`](../db/) |
 | MongoDB | Modelo documental: colección `user_events` como Time Series Collection | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) |
 | Redis | Modelo clave-valor: cuatro estructuras (String, Hash, Sorted Set y contadores) con tres políticas de expiración | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) §2, implementación en [`../nosql/redis/`](../nosql/redis/) |
 
@@ -239,21 +239,24 @@ son acumulados propios de Redis. Lo que comparten las cuatro estructuras es que 
 Esta separación evita duplicar innecesariamente los datos transaccionales en MongoDB y permite que
 cada tecnología se utilice para el tipo de información para el que resulta más adecuada.
 
-**Pendiente:** desarrollar el modelo lógico relacional completo (punto 4 de la consigna).
+Los códigos externos `product_code`, `customer_code`, `session_code` y `sku_code` conectan los
+motores sin exponer las claves internas de PostgreSQL.
 
 ---
 
 ## 6. Decisiones de normalización, embebido, referencia o desnormalización
 
-**Pendiente de desarrollar.** Deben justificarse:
+El modelo relacional se mantiene en tercera forma normal: marca, categoría, producto, SKU, precio,
+inventario, pedido e ítem se separan según sus dependencias. La relación N:M entre productos y
+categorías utiliza `product_category`. Esto evita repetir marcas y categorías, mezclar variantes con
+productos y sobrescribir precios históricos.
 
-- Del lado relacional: las decisiones de normalización y qué problemas buscan evitarse (redundancias,
-  inconsistencias, anomalías de inserción, actualización y eliminación). Un caso a documentar es la
-  desnormalización deliberada del `unit_price_applied` en el ítem de pedido, que duplica el precio
-  para preservar la historia comercial.
-- Del lado documental: la decisión de mantener una única colección `user_events` con `event_type` y
-  `metadata` en lugar de una colección por tipo de evento, y la de no embeber datos transaccionales
-  en los eventos (sólo se referencian `user_id`, `product_id` y `order_id`).
+Se aceptan dos redundancias controladas: `unit_price_applied` preserva el precio de cada compra y
+`sales_order.total_amount` se recalcula por trigger desde los ítems. JSONB queda limitado a atributos
+variables no estructurales; precio, stock y relaciones no se guardan como documentos.
+
+MongoDB mantiene una única colección `user_events` con `event_type` y `metadata`, en lugar de una
+colección por evento. Los documentos referencian códigos externos y no embeben datos transaccionales.
 
 ### 6.1 Duplicación deliberada en la capa clave-valor
 
@@ -279,10 +282,16 @@ recomendación servida desde cache, según lo exige la regla de negocio 9.
 
 ### 7.1 PostgreSQL — datos transaccionales
 
-**Pendiente de desarrollar** siguiendo los criterios que pide la consigna (tipo de datos, estructura
-y variabilidad, volumen esperado, patrones de consulta, relaciones entre entidades, consistencia
-requerida, seguridad y control de acceso, escalabilidad, complejidad operativa, ventajas y
-limitaciones frente a otras alternativas).
+PostgreSQL se selecciona porque el núcleo contiene datos estructurados y fuertemente relacionados:
+productos, variantes, precios, stock, clientes, pedidos e ítems. Las operaciones necesitan claves
+foráneas, restricciones, transacciones ACID e integridad inmediata. Los patrones principales combinan
+relaciones, filtros, agregaciones e historial temporal.
+
+El volumen del caso académico no exige distribución y PostgreSQL reduce la complejidad operativa. Su
+madurez, roles, permisos, copias de seguridad e índices B-tree, parciales y GIN cubren seguridad y
+rendimiento. Frente a MongoDB evita trasladar a la aplicación la consistencia de pedidos, precios y
+stock. Como limitación, una única instancia no escala escrituras indefinidamente, pero admite
+réplicas de lectura y particionamiento futuro sin cambiar el modelo inicial.
 
 ### 7.2 MongoDB — eventos de interacción
 
@@ -343,21 +352,25 @@ ningún dato de esta capa es fuente de verdad.
 
 ## 8. Implementación mínima realizada
 
-**Pendiente.** Estado actual:
+La implementación mínima de PostgreSQL quedó ejecutada y validada. MongoDB continúa pendiente de
+implementación.
 
 | Componente | Estado |
 | --- | --- |
-| DDL PostgreSQL | Pendiente — [`../db/estructura/`](../db/estructura/) |
-| Carga de datos de ejemplo | Pendiente — [`../db/datos/`](../db/datos/) |
-| Índices y vistas | Pendiente — [`../db/indices_vistas/`](../db/indices_vistas/) |
-| Consultas SQL representativas | Escritas como propuesta lógica, sin ejecutar — [`../db/consultas/`](../db/consultas/) |
+| DDL PostgreSQL | Implementado y validado — [`../db/estructura/`](../db/estructura/) |
+| Carga de datos de ejemplo | Implementada y validada — [`../db/datos/`](../db/datos/) |
+| Índices y vistas | Implementados y validados — [`../db/indices_vistas/`](../db/indices_vistas/) |
+| Consultas SQL representativas | Cinco consultas implementadas y ejecutables — [`../db/consultas/`](../db/consultas/) |
 | Colección `user_events` en MongoDB | Modelo definido; creación y carga pendientes |
 | **Redis** | **Implementado y verificado** — [`../nosql/redis/`](../nosql/redis/) |
 
+La capa relacional PostgreSQL quedó validada con Docker Compose: el contenedor alcanzó estado saludable
+y los catorce controles de integridad devolvieron `OK`. La evidencia se encuentra en
+[`../db/validacion/README.md`](../db/validacion/README.md).
+
 La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
 RedisInsight, script de carga con autovalidación, cinco archivos de comandos representativos y dos
-demostraciones con evidencia medida (cache-aside y descarte por límite de memoria). Es la única
-tecnología de la solución con implementación mínima terminada a la fecha.
+demostraciones con evidencia medida (cache-aside y descarte por límite de memoria).
 
 ---
 
@@ -369,7 +382,8 @@ Disponibles en [`../data/ejemplos/`](../data/ejemplos/):
   `add_to_cart`, `purchase`).
 - `redis_recommendations.json` — valor de ejemplo de la cache.
 
-**Pendiente:** los ocho productos del catálogo, clientes, pedidos, ítems y reseñas sintéticos.
+Los ocho productos del catálogo, clientes, pedidos, ítems y reseñas sintéticos están disponibles en
+[`../db/datos/`](../db/datos/) y fueron utilizados en la validación de PostgreSQL.
 
 ---
 
@@ -382,8 +396,8 @@ Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/co
    `v_active_catalog`.
 2. **Ventas e ingresos por categoría y período** — ¿Qué categorías generan más unidades vendidas e
    ingresos? La categoría principal evita contar dos veces una misma venta.
-3. **Productos vistos pero todavía no comprados** — candidatos para recomendaciones personalizadas.
-   Justifica un índice sobre `(customer_id, event_type, occurred_at)`.
+3. **Frecuencia y valor de compra por cliente** — señales transaccionales para segmentación y futuras
+   recomendaciones, sin duplicar en PostgreSQL los eventos que pertenecen a MongoDB.
 4. **Productos y SKU con stock bajo** — reposición y exclusión de recomendaciones. Podría justificar
    un índice sobre `inventory(available_qty)`.
 5. **Productos comprados conjuntamente** — venta cruzada basada en compras reales; usa CTE,
@@ -546,7 +560,9 @@ base mínima para una solución robusta. El modelado documental de los eventos e
 Redis completan la propuesta multi-motor, asignando cada tipo de información a la tecnología más
 adecuada.
 
-**Pendiente:** cerrar las conclusiones una vez completada la implementación mínima.
+La implementación mínima de PostgreSQL quedó validada con datos sintéticos, cinco consultas
+representativas y catorce controles automáticos. MongoDB continúa como componente pendiente de
+implementación; por eso la solución multi-motor todavía no debe considerarse cerrada.
 
 ---
 

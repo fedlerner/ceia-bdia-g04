@@ -65,7 +65,7 @@ sensible y de auditoría) está en [docs/informe.md](docs/informe.md).
 
 | Tecnología | Rol en la solución |
 | --- | --- |
-| **PostgreSQL** | Datos transaccionales y de catálogo: productos, SKU, inventario, pedidos, reseñas. Fuente de verdad del estado del negocio. |
+| **PostgreSQL** | Datos transaccionales y de catálogo: productos, SKU, precios, inventario, clientes, pedidos, reseñas y recomendaciones persistentes. **Implementado** en [`db/`](db/). |
 | **MongoDB** (Time Series Collection) | Eventos de comportamiento del usuario (`user_events`): alto volumen de escritura, esquema flexible, consulta por rangos temporales. |
 | **Redis** | Capa clave-valor: cache de recomendaciones, sesiones de visitantes anónimos, rankings precalculados y rate limit del motor. **Implementado** en [`nosql/redis/`](nosql/redis/). |
 
@@ -84,15 +84,19 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ├── docs/
 │   ├── informe.md                  # Informe técnico (15 puntos de la consigna)
 │   ├── modelo_conceptual.md        # Entidades, atributos, relaciones y reglas de negocio
+│   ├── modelo_logico_relacional.md # Tablas, claves, normalización e integración
 │   ├── arquitectura.md             # Arquitectura de datos y flujo de recomendación
 │   └── (diagramas .png a exportar)
 ├── data/
 │   └── ejemplos/                   # Documentos y registros de ejemplo
 ├── db/                             # PostgreSQL
+│   ├── docker-compose.yml           #   PostgreSQL 16
+│   ├── .env.example                 #   configuración local sin secretos reales
 │   ├── estructura/                 # Scripts DDL
 │   ├── datos/                      # Carga de datos de ejemplo
 │   ├── consultas/                  # Consultas representativas (punto 8)
-│   └── indices_vistas/             # Índices y vistas
+│   ├── indices_vistas/             # Índices y vistas
+│   └── validacion/                 # Controles automáticos
 ├── nosql/
 │   ├── modelo_nosql.md             # Modelo MongoDB (eventos) y Redis (clave-valor)
 │   └── redis/                      # Implementación de la capa clave-valor
@@ -122,14 +126,15 @@ Antes de levantar la pila, cada componente necesita su `.env` creado a partir de
 
 ```bash
 cp nosql/redis/.env.example nosql/redis/.env
+cp db/.env.example db/.env
 ```
 
 ```bash
 docker compose up -d --wait
 ```
 
-Si falta algún `.env`, Compose corta e indica cuál. A medida que PostgreSQL y MongoDB estén listos,
-se descomenta su bloque en el compose de la raíz y se agrega el `cp` correspondiente.
+Si falta algún `.env`, Compose corta e indica cuál. MongoDB se incorporará al compose cuando exista
+su implementación.
 
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
@@ -145,18 +150,33 @@ docker compose exec redis sh /scripts/00_cargar_datos.sh
 Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
 de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
 
-### PostgreSQL y MongoDB — pendientes
+### PostgreSQL — implementado y validado
 
-> Los scripts de `db/` y la colección `user_events` todavía no están implementados.
-> Ver [docs/ESTADO.md](docs/ESTADO.md) para el detalle de lo que falta.
+PostgreSQL puede levantarse junto con Redis desde la raíz o de manera aislada desde `db/`:
 
-Orden previsto de ejecución una vez implementado:
+```bash
+cd db
+cp .env.example .env
+docker compose up -d --wait
+docker compose logs postgres
+```
+
+El contenedor ejecuta en orden:
 
 1. `db/estructura/` — creación de tablas, claves y restricciones.
-2. `db/datos/` — carga de datos de ejemplo (catálogo de 8 productos + datos sintéticos).
-3. `db/indices_vistas/` — creación de índices y vistas.
+2. `db/indices_vistas/` — creación de índices y vistas.
+3. `db/datos/` — carga del catálogo y datos sintéticos.
 4. `db/consultas/` — ejecución de las 5 consultas representativas.
-5. `nosql/mongodb/` — creación de la colección `user_events` y carga de eventos de ejemplo.
+5. `db/validacion/` — controles automáticos.
+
+La validación empírica se realizó el 25/08/2026 con PostgreSQL 16 mediante Docker Compose. El
+contenedor quedó `Up (healthy)` y los catorce controles automáticos devolvieron `OK`. La evidencia y
+el procedimiento reproducible están documentados en [`db/validacion/README.md`](db/validacion/README.md).
+
+### MongoDB — pendiente
+
+Falta crear la colección `user_events`, cargar los eventos de ejemplo y registrar la ejecución de
+sus consultas.
 
 ## Principales decisiones de diseño
 
@@ -180,7 +200,7 @@ Orden previsto de ejecución una vez implementado:
 | --- | --- | --- |
 | 1 | ¿Qué productos activos están disponibles, indicando marca, precio y stock? | PostgreSQL |
 | 2 | ¿Qué categorías generan más unidades vendidas e ingresos en un período? | PostgreSQL |
-| 3 | ¿Qué productos visitó recientemente un cliente y todavía no compró? | PostgreSQL |
+| 3 | ¿Qué clientes concentran mayor frecuencia y valor de compra? | PostgreSQL |
 | 4 | ¿Qué productos y SKU tienen stock bajo? | PostgreSQL |
 | 5 | ¿Qué productos suelen comprarse junto con un producto determinado? | PostgreSQL |
 | 6 | Historial reciente de eventos de un usuario | MongoDB |

@@ -23,8 +23,8 @@ El precio vigente se asocia al SKU. Además, el precio efectivamente aplicado de
 
 | Entidad | Función en el modelo |
 | --- | --- |
-| Usuario | Representa clientes, administradores, operadores y analistas. |
-| Rol | Define los permisos de cada usuario. |
+| Cliente | Representa a la persona registrada que compra, reseña o recibe recomendaciones. |
+| Sesión | Vincula de manera durable un identificador de sesión con un cliente, cuando corresponda. |
 | Marca | Identifica la marca comercial. |
 | Categoría | Clasifica los productos. |
 | Producto | Representa el producto comercial general. |
@@ -43,22 +43,23 @@ El precio vigente se asocia al SKU. Además, el precio efectivamente aplicado de
 | Producto – SKU | 1:N | Un producto puede tener una o más variantes. |
 | Producto – Categoría | N:M | Un producto puede pertenecer a varias categorías. |
 | SKU – Inventario | 1:1 | En el alcance mínimo, cada SKU posee una cantidad disponible. |
-| Usuario – Pedido | 1:N | Un cliente puede realizar muchos pedidos. |
+| Cliente – Pedido | 1:N | Un cliente puede realizar muchos pedidos. |
 | Pedido – Ítem de pedido | 1:N | Un pedido contiene uno o más ítems. |
-| Usuario – Evento | 1:N | Un usuario puede generar muchas interacciones. |
-| Usuario – Reseña | 1:N | Un usuario puede escribir varias reseñas. |
-| Usuario – Recomendación | 1:N | Un usuario o sesión puede recibir varias recomendaciones. |
+| Cliente/sesión – Evento | 1:N | MongoDB registra las interacciones con códigos externos estables. |
+| Cliente – Reseña | 1:N | Un cliente puede escribir varias reseñas. |
+| Cliente/sesión – Recomendación | 1:N | Un cliente o sesión puede recibir varias recomendaciones. |
 
 ## 4. Atributos principales
 
 | Entidad | Atributos representativos |
 | --- | --- |
-| Producto | `product_id`, `name`, `description`, `brand_id`, `active`, `created_at`, `updated_at` |
-| SKU | `sku_id`, `product_id`, `sku_code`, `presentation`, `size`, `unit_price`, `active` |
+| Producto | `product_id`, `product_code`, `name`, `description`, `brand_id`, `attributes`, `active` |
+| SKU | `sku_id`, `product_id`, `sku_code`, `presentation`, `size`, `attributes`, `active` |
+| Precio de SKU | `price_id`, `sku_id`, `amount`, `currency`, `valid_from`, `valid_to` |
 | Inventario | `sku_id`, `available_qty`, `low_stock_threshold`, `updated_at` |
 | Pedido | `order_id`, `customer_id`, `ordered_at`, `order_status`, `payment_status`, `shipping_status`, `total_amount` |
 | Ítem de pedido | `order_id`, `sku_id`, `quantity`, `unit_price_applied` |
-| Evento | `event_id`, `customer_id`, `anonymous_session_id`, `event_type`, `product_id`, `sku_id`, `query_text`, `occurred_at`, `context` |
+| Evento documental | `timestamp`, `user_id`, `session_id`, `event_type`, `product_id`, `sku_id`, `metadata` |
 | Recomendación | `recommendation_id`, `customer_id` o sesión, `generated_at`, `method`, `model_version` |
 | Ítem de recomendación | `recommendation_id`, `sku_id`, `position`, `score` |
 
@@ -74,6 +75,8 @@ El precio vigente se asocia al SKU. Además, el precio efectivamente aplicado de
 8. Todo evento debe conservar fecha y hora y asociarse a un cliente o sesión.
 9. Una recomendación debe registrar su fecha, método y, si corresponde, versión del modelo.
 10. El acceso a los datos personales debe restringirse según el rol.
+11. Los eventos pertenecen a MongoDB y no se duplican como tabla transaccional en PostgreSQL.
+12. MongoDB y Redis referencian `product_code`, `customer_code`, `session_code` y `sku_code`, no las claves internas.
 
 ## 6. Representación conceptual resumida
 
