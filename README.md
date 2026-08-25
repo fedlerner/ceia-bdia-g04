@@ -15,9 +15,12 @@ Grupo 04
 > mediante commits en el repositorio; si alguna parte se realizó fuera del repositorio, debe
 > documentarse aquí qué aportes hizo cada uno.
 
-| Integrante | Rol / aportes principales |
+| Integrante | N° SIU |
 | --- | --- |
-| _(completar)_ | _(completar)_ |
+| Abdon, Juan Bautista | a2601 |
+| Lerner, Federico Ezequiel | a2619 |
+| Paredes Ramirez, Luis Jose | a2627 |
+| Ruggeri, César Hernán | a2413 |
 
 ---
 
