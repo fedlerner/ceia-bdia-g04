@@ -404,12 +404,18 @@ alcance es una simplificación deliberada y no una propiedad del diseño.
 | Invalidar explícitamente | `DEL` | O(1) |
 | Leer la sesión completa | `HGETALL` | O(n) sobre campos |
 | Leer o actualizar un campo | `HGET`, `HSET`, `HINCRBY` | O(1) |
-| Renovar la sesión | `EXPIRE` | O(1) |
+| Renovar la sesión | `MULTI` + `HINCRBY` + `HSET` + `EXPIRE` + `EXEC` | O(1) |
 | Top N del ranking | `ZREVRANGE ... WITHSCORES` | O(log n + m) |
-| Actualizar el ranking | `ZINCRBY`, `ZADD` | O(log n) |
+| Actualizar el ranking (incremental) | `ZINCRBY` | O(log n) |
+| Reconstruir el ranking | `MULTI` + `DEL` + `ZADD` + `EXPIRE` + `EXEC` | O(log n) |
 | Filtrar por umbral | `ZCOUNT`, `ZRANGEBYSCORE` | O(log n + m) |
-| Contar solicitudes | `INCR` + `EXPIRE ... NX` | O(1) |
+| Contar solicitudes | `MULTI` + `INCR` + `EXPIRE ... NX` + `EXEC` | O(1) |
 | Recorrer una familia de claves | `SCAN ... MATCH` | incremental |
+
+Las tres operaciones que escriben más de un comando van dentro de una transacción. No es una
+preferencia de estilo: emitirlos sueltos deja la clave sin TTL si el proceso cae entre medio, lo que
+produce una sesión parcial y permanente, un ranking que se sirve indefinidamente o una fuga de claves
+de rate limit. El detalle de cada caso está en los archivos de comandos correspondientes.
 
 **Sobre índices:** Redis no tiene índices secundarios. No es posible preguntar "qué recomendaciones
 se generaron con `model_version` v1", porque el valor es opaco para el servidor. El acceso es siempre
@@ -425,7 +431,7 @@ quede obsoleto:
 | Régimen | Estructuras | Comportamiento |
 | --- | --- | --- |
 | TTL fijo | Cache de recomendaciones, ranking | Se asigna al escribir y **no** se renueva al leer. La entrada debe envejecer para regenerarse con los eventos nuevos del usuario. |
-| TTL deslizante | Sesión anónima | Se renueva con `EXPIRE` en cada actividad. La sesión debe sobrevivir mientras el visitante navegue. |
+| TTL deslizante | Sesión anónima | Se renueva con `EXPIRE`, dentro de la misma transacción que actualiza los campos. La sesión debe sobrevivir mientras el visitante navegue. |
 | Sin expiración | Contadores operativos | Acumulados que no tienen sentido si se reinician solos. |
 
 El TTL de la cache (10 minutos, dentro del rango de 5 a 15 previsto) es más corto que el del ranking

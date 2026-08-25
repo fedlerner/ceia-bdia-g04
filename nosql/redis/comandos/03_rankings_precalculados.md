@@ -85,8 +85,8 @@ cantidad de escrituras recibidas.
 
 ```redis
 ZCARD ranking:productos:vistos:7d
-ZCOUNT ranking:productos:vistos:7d 600 +inf
-ZRANGEBYSCORE ranking:productos:vistos:7d 600 +inf WITHSCORES
+ZCOUNT ranking:productos:vistos:7d (600 +inf
+ZRANGEBYSCORE ranking:productos:vistos:7d (600 +inf WITHSCORES
 ```
 
 **Resultado esperado:** `ZCARD` devuelve 8, que es la cantidad de productos del catálogo inicial, y
@@ -96,6 +96,12 @@ ZRANGEBYSCORE ranking:productos:vistos:7d 600 +inf WITHSCORES
 cuando solo interesa la cantidad. `ZRANGEBYSCORE` recupera el conjunto cuando además se necesitan los
 elementos. Los literales `+inf` y `-inf` expresan un límite abierto sin necesidad de elegir un número
 máximo arbitrario.
+
+El paréntesis de `(600` no es un error de tipeo: **en Redis los límites de score son inclusivos por
+defecto**, y el prefijo `(` los vuelve exclusivos. La pregunta pide los productos que *superaron* las
+600 visualizaciones, de modo que `600` a secas incluiría también a uno que tuviera exactamente 600.
+Con el catálogo actual ningún producto está en ese valor y el resultado coincide, pero el comando
+debe expresar la pregunta que dice responder.
 
 ## Comando 4. Reconstruir el ranking
 

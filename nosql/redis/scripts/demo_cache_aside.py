@@ -30,19 +30,31 @@ import redis
 # no el costo real del motor.
 LATENCIA_MOTOR_S = 0.25
 
-USUARIO_DEMO = "user-demo"
+SUJETO_DEMO = "user"
+IDENTIFICADOR_DEMO = "user-demo"
 CONTEXTO_DEMO = "home"
 TTL_SEGUNDOS = 600
 SOLICITUDES = 5
 
 
-def clave_cache(user_id: str, contexto: str) -> str:
+def clave_cache(sujeto: str, identificador: str, contexto: str) -> str:
     """Construye la clave con la convencion documentada en modelo_nosql.md 2.2.
 
     El sujeto y el contexto viven en la clave y no en el valor, de modo que
     cada combinacion tiene su propia entrada de cache.
+
+    El discriminador `sujeto` no es opcional ni decorativo: distingue el
+    espacio de nombres de los clientes registrados ("user") del de las sesiones
+    anonimas ("sess"). Sin el, un session_id y un customer_id con el mismo
+    texto compartirian entrada y una sesion anonima podria recibir las
+    recomendaciones de un cliente registrado.
     """
-    return f"reco:user:{user_id}:{contexto}"
+    if sujeto not in ("user", "sess"):
+        raise ValueError(
+            f"sujeto invalido: {sujeto!r}. La convencion admite 'user' para "
+            "clientes registrados y 'sess' para sesiones anonimas."
+        )
+    return f"reco:{sujeto}:{identificador}:{contexto}"
 
 
 def puerto() -> int:
@@ -100,10 +112,12 @@ def generar_recomendaciones() -> dict:
     }
 
 
-def obtener_recomendaciones(cliente: redis.Redis, user_id: str, contexto: str):
+def obtener_recomendaciones(
+    cliente: redis.Redis, sujeto: str, identificador: str, contexto: str
+):
     """Lee la cache y, solo ante un MISS, ejecuta el motor y guarda el
     resultado con TTL."""
-    clave = clave_cache(user_id, contexto)
+    clave = clave_cache(sujeto, identificador, contexto)
 
     cacheado = cliente.get(clave)
     if cacheado is not None:
@@ -120,7 +134,7 @@ def main() -> None:
     cliente = conectar()
     cliente.ping()
 
-    clave = clave_cache(USUARIO_DEMO, CONTEXTO_DEMO)
+    clave = clave_cache(SUJETO_DEMO, IDENTIFICADOR_DEMO, CONTEXTO_DEMO)
 
     # Se elimina la clave para que la primera solicitud sea siempre un MISS.
     cliente.delete(clave)
@@ -140,7 +154,7 @@ def main() -> None:
     for numero in range(1, SOLICITUDES + 1):
         inicio = time.perf_counter()
         recomendaciones, resultado = obtener_recomendaciones(
-            cliente, USUARIO_DEMO, CONTEXTO_DEMO
+            cliente, SUJETO_DEMO, IDENTIFICADOR_DEMO, CONTEXTO_DEMO
         )
         transcurrido_ms = (time.perf_counter() - inicio) * 1000
         latencias[resultado].append(transcurrido_ms)

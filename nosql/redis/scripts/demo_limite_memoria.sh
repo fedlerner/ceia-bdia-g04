@@ -14,11 +14,18 @@
 # valores declarados tanto al terminar bien como si el script se interrumpe.
 # La recarga del estado inicial, en cambio, solo ocurre si el script llega al
 # final: si se interrumpe, hay que ejecutar 00_cargar_datos.sh a mano.
+#
+# Devuelve 0 solo si observa el hecho que se propone demostrar: que una clave
+# SIN TTL fue descartada. El descarte de Redis es un LRU aproximado que muestrea
+# candidatos, de modo que una sola tanda puede no alcanzar las seis claves
+# iniciales; por eso el llenado se repite hasta INTENTOS_MAX veces antes de
+# darse por vencido.
 # ------------------------------------------------------------
 set -eu
 
 CANTIDAD=6000
 MAXMEMORY_PRUEBA=4mb
+INTENTOS_MAX=3
 
 cli() {
     redis-cli --no-auth-warning -a "$REDIS_PASSWORD" "$@"
@@ -36,11 +43,29 @@ info_valor() {
 MAXMEMORY_DECLARADO="$REDIS_MAXMEMORY"
 POLITICA_DECLARADA="$REDIS_MAXMEMORY_POLICY"
 
+# Fase alcanzada, para que el diagnostico de una interrupcion describa el
+# estado real y no uno supuesto. Vale "preparacion" mientras no se haya tocado
+# la configuracion ni insertado relleno, y "llenado" a partir de ahi.
+fase=preparacion
+
 restaurado=0
 restaurar_configuracion() {
     estado=$?
     [ "$restaurado" -eq 1 ] && return 0
     restaurado=1
+
+    if [ "$fase" = "preparacion" ]; then
+        # Nada que restaurar: no se modifico maxmemory ni se inserto relleno.
+        if [ "$estado" -ne 0 ]; then
+            echo ""
+            echo "El demo se interrumpio durante la preparacion, antes de modificar"
+            echo "la configuracion o insertar claves de relleno. La configuracion del"
+            echo "servidor no fue alterada. El estado de la base puede haber quedado"
+            echo "a medio cargar: docker compose exec redis sh /scripts/00_cargar_datos.sh"
+        fi
+        return 0
+    fi
+
     cli CONFIG SET maxmemory "$MAXMEMORY_DECLARADO" > /dev/null 2>&1 || true
     cli CONFIG SET maxmemory-policy "$POLITICA_DECLARADA" > /dev/null 2>&1 || true
     if [ "$estado" -ne 0 ]; then
@@ -80,6 +105,7 @@ echo "  maxmemory-policy          $POLITICA_DECLARADA"
 echo ""
 
 echo "Bajando maxmemory a $MAXMEMORY_PRUEBA para forzar el limite..."
+fase=llenado
 cli CONFIG SET maxmemory "$MAXMEMORY_PRUEBA" > /dev/null
 cli CONFIG SET maxmemory-policy allkeys-lru > /dev/null
 
@@ -93,13 +119,49 @@ echo "  evicted_keys              $descartadas_antes"
 echo "  used_memory               $memoria_antes"
 echo ""
 
-echo "Insertando $CANTIDAD claves de relleno de 1 KB..."
 relleno="$(awk 'BEGIN { s = ""; for (i = 0; i < 1024; i++) s = s "x"; print s }')"
-i=1
-while [ "$i" -le "$CANTIDAD" ]; do
-    printf 'SET relleno:%d %s\r\n' "$i" "$relleno"
-    i=$((i + 1))
-done | redis-cli --no-auth-warning -a "$REDIS_PASSWORD" --pipe > /dev/null 2>&1
+
+# Inserta una tanda de CANTIDAD claves con un prefijo propio, para que las
+# tandas sucesivas no se pisen entre si.
+insertar_tanda() {
+    i=1
+    while [ "$i" -le "$CANTIDAD" ]; do
+        printf 'SET relleno-%s:%d %s\r\n' "$1" "$i" "$relleno"
+        i=$((i + 1))
+    done | redis-cli --no-auth-warning -a "$REDIS_PASSWORD" --pipe > /dev/null 2>&1
+}
+
+# Devuelve 0 si alguna clave sin TTL que existia antes ya no esta.
+descarto_clave_sin_ttl() {
+    for c in contador:{reco}:generadas contador:{reco}:cache_hit; do
+        case " $presentes_antes " in
+            *" $c "*) ;;
+            *) continue ;;
+        esac
+        [ "$(cli EXISTS "$c")" = "0" ] && return 0
+    done
+    return 1
+}
+
+contador_descartado=0
+insertadas=0
+intento=1
+while [ "$intento" -le "$INTENTOS_MAX" ]; do
+    echo "Insertando $CANTIDAD claves de relleno de 1 KB (tanda $intento de $INTENTOS_MAX)..."
+    insertar_tanda "$intento"
+    insertadas=$((insertadas + CANTIDAD))
+
+    if descarto_clave_sin_ttl; then
+        contador_descartado=1
+        break
+    fi
+
+    if [ "$intento" -lt "$INTENTOS_MAX" ]; then
+        echo "  Las claves sin TTL sobrevivieron a esta tanda. El descarte de Redis"
+        echo "  es un LRU aproximado por muestreo, asi que se insiste con otra tanda."
+    fi
+    intento=$((intento + 1))
+done
 
 claves_despues="$(cli DBSIZE)"
 descartadas_despues="$(info_valor stats evicted_keys)"
@@ -108,7 +170,7 @@ descartadas_delta=$((descartadas_despues - descartadas_antes))
 
 echo ""
 echo "Estado despues de llenar"
-echo "  DBSIZE                    $claves_despues   (se insertaron $CANTIDAD claves)"
+echo "  DBSIZE                    $claves_despues   (se insertaron $insertadas claves)"
 echo "  evicted_keys              $descartadas_despues   (+$descartadas_delta en esta corrida)"
 echo "  used_memory               $memoria_despues"
 echo ""
@@ -119,13 +181,6 @@ echo ""
 #
 # El estado se informa comparando contra presentes_antes, para no atribuir al
 # descarte por memoria una clave que ya no estaba al comenzar.
-# Se registra si alguna clave SIN TTL que existia antes fue descartada. Ese es
-# el hecho central que el demo debe demostrar: allkeys-lru no distingue entre
-# claves que expiran y claves que no. Sin este registro, el veredicto podria
-# afirmarlo sin haberlo observado, porque el descarte pudo haber alcanzado
-# unicamente a las claves de relleno.
-contador_descartado=0
-
 echo "Sobrevivieron las claves del estado inicial?"
 printf '  %-30s %-10s %s\n' "clave" "TTL" "estado"
 for clave in $CLAVES_INICIALES; do
@@ -143,7 +198,6 @@ for clave in $CLAVES_INICIALES; do
         printf '  %-30s %-10s presente\n' "$clave" "$ttl"
     elif [ "$estaba_antes" -eq 1 ]; then
         printf '  %-30s %-10s DESCARTADA por allkeys-lru\n' "$clave" "$ttl"
-        [ "$ttl" = "sin TTL" ] && contador_descartado=1
     else
         printf '  %-30s %-10s ausente ya antes de forzar el limite\n' "$clave" "$ttl"
     fi
@@ -161,12 +215,12 @@ elif [ "$contador_descartado" -eq 1 ]; then
     resultado=0
 else
     echo "Se descartaron $descartadas_delta claves al alcanzar el limite de memoria,"
-    echo "pero todas las claves sin TTL sobrevivieron a esta corrida."
-    echo "El descarte por recencia de uso es no determinista y los contadores son las"
-    echo "claves escritas mas recientemente por la carga, de modo que suelen sobrevivir."
-    echo "Esta corrida NO demuestra que allkeys-lru alcance a las claves sin TTL:"
-    echo "repetir el demo o aumentar CANTIDAD hasta observarlo."
-    resultado=0
+    echo "pero todas las claves sin TTL sobrevivieron a las $INTENTOS_MAX tandas."
+    echo "El descarte de Redis es un LRU aproximado por muestreo, de modo que puede"
+    echo "no alcanzar a un conjunto pequeno de claves."
+    echo "Esta corrida NO demuestra que allkeys-lru alcance a las claves sin TTL,"
+    echo "asi que se devuelve error: aumentar CANTIDAD o INTENTOS_MAX y repetir."
+    resultado=1
 fi
 
 echo ""
