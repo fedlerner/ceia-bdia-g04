@@ -7,6 +7,8 @@
 # Se ejecuta dentro del contenedor redis:
 #   docker compose exec redis sh /scripts/demo_limite_memoria.sh
 #
+# Recarga el estado inicial antes de medir, para que la linea base sea
+# reproducible y ninguna clave pueda haber vencido por TTL antes de empezar.
 # Reduce maxmemory de forma temporal y llena la base con claves de relleno.
 # La configuracion se restaura mediante un trap, de modo que vuelve a los
 # valores declarados tanto al terminar bien como si el script se interrumpe.
@@ -54,6 +56,24 @@ restaurar_configuracion() {
 trap 'restaurar_configuracion; exit 130' INT TERM
 trap restaurar_configuracion EXIT
 
+CLAVES_INICIALES="reco:user:user-123:home reco:sess:session-456:product
+                  session:session-456 ranking:productos:vistos:7d
+                  contador:{reco}:generadas contador:{reco}:cache_hit"
+
+echo "Recargando el estado inicial para partir de una linea base limpia..."
+sh /scripts/00_cargar_datos.sh > /dev/null
+echo ""
+
+# Se registra que claves existen ANTES de forzar el limite. Sin este registro,
+# una clave vencida por su propio TTL antes de empezar se informaria despues
+# como descartada por LRU, y la evidencia seria incorrecta.
+presentes_antes=""
+for clave in $CLAVES_INICIALES; do
+    if [ "$(cli EXISTS "$clave")" = "1" ]; then
+        presentes_antes="$presentes_antes $clave"
+    fi
+done
+
 echo "Configuracion declarada en docker-compose.yml"
 echo "  maxmemory                 $MAXMEMORY_DECLARADO"
 echo "  maxmemory-policy          $POLITICA_DECLARADA"
@@ -96,23 +116,28 @@ echo ""
 # Se comprueban las cuatro estructuras del modelo, incluidos los contadores.
 # Los contadores no tienen TTL, de modo que su descarte es lo que demuestra
 # que allkeys-lru alcanza a cualquier clave y no solo a las que expiran.
+#
+# El estado se informa comparando contra presentes_antes, para no atribuir al
+# descarte por memoria una clave que ya no estaba al comenzar.
 echo "Sobrevivieron las claves del estado inicial?"
 printf '  %-30s %-10s %s\n' "clave" "TTL" "estado"
-for clave in reco:user:user-123:home reco:sess:session-456:product \
-             session:session-456 ranking:productos:vistos:7d \
-             "contador:{reco}:generadas" "contador:{reco}:cache_hit"; do
+for clave in $CLAVES_INICIALES; do
+    case "$clave" in
+        contador:*) ttl="sin TTL" ;;
+        *)          ttl="con TTL" ;;
+    esac
+
+    case " $presentes_antes " in
+        *" $clave "*) estaba_antes=1 ;;
+        *)            estaba_antes=0 ;;
+    esac
+
     if [ "$(cli EXISTS "$clave")" = "1" ]; then
-        ttl="$(cli TTL "$clave")"
-        [ "$ttl" = "-1" ] && ttl="sin TTL"
         printf '  %-30s %-10s presente\n' "$clave" "$ttl"
-    else
-        # La clave ya no existe: se informa el TTL que tenia declarado el
-        # estado inicial, porque TTL sobre una clave ausente siempre da -2.
-        case "$clave" in
-            contador:*) ttl="sin TTL" ;;
-            *)          ttl="con TTL" ;;
-        esac
+    elif [ "$estaba_antes" -eq 1 ]; then
         printf '  %-30s %-10s DESCARTADA por allkeys-lru\n' "$clave" "$ttl"
+    else
+        printf '  %-30s %-10s ausente ya antes de forzar el limite\n' "$clave" "$ttl"
     fi
 done
 

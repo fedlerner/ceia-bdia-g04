@@ -457,6 +457,14 @@ riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de 
 | Acceso | `requirepass` activo y puerto publicado únicamente en `127.0.0.1`. |
 | Protección del motor de IA | El rate limit por cliente y ventana acota cuántas veces puede invocarse el motor de recomendaciones y el modelo, que son los recursos más costosos. |
 
+**Limitación reconocida del rate limit.** Los contadores `ratelimit:*` están sujetos a la política de
+descarte igual que el resto de las claves. Bajo presión de memoria, `allkeys-lru` puede desalojarlos y
+el siguiente `INCR` los recrea en 1, con lo que el límite **falla abierto durante una sobrecarga**.
+Se verificó forzando el límite de memoria con un contador en 30 de 30: la clave fue descartada y el
+`INCR` siguiente devolvió 1. Redis no permite asignar prioridad de desalojo por clave, de modo que
+protegerlos exigiría una instancia o base independiente. Se acepta dentro de este alcance porque la
+función del límite es acotar el uso normal y no resistir un abuso deliberado.
+
 **Limitación reconocida:** Redis no ofrece roles ni permisos por clave comparables al Row Level
 Security de PostgreSQL. El control de acceso real vive en el backend, que debe ser el único
 componente que hable con Redis. Exponer Redis directamente a un cliente permitiría leer las claves de

@@ -81,6 +81,23 @@ Resolver esto en PostgreSQL exigiría una tabla de solicitudes con su marca temp
 con filtro por fecha en cada solicitud y un proceso de purga. Acá son dos operaciones O(1) y la purga
 es automática.
 
+### Limitación: el rate limit falla abierto bajo presión de memoria
+
+Las claves `ratelimit:*` no están exentas de la política de descarte. Con `allkeys-lru`, si la
+instancia alcanza `maxmemory` esos contadores pueden ser desalojados como cualquier otra clave, y el
+siguiente `INCR` los recrea en 1. El cliente recupera su cuota completa **justo durante la
+sobrecarga**, que es cuando el límite haría más falta.
+
+Comprobado: con un contador en 30 de 30 y `maxmemory` forzado al límite, la clave fue descartada y el
+`INCR` siguiente devolvió 1.
+
+Redis no permite asignar prioridad de desalojo por clave, de modo que dentro de una única instancia
+no hay forma de proteger estos contadores. Se acepta en este alcance porque la función del rate limit
+aquí es acotar el uso normal y evitar invocaciones repetidas al motor, no resistir un abuso
+deliberado. Una implementación en producción aislaría los contadores en una instancia o base
+independiente cuya política no los desaloje, o los complementaría con un mecanismo que falle cerrado
+cuando el contador no está disponible.
+
 ## Comando 3. Verificar el comportamiento en el límite
 
 **Pregunta de negocio:** ¿qué estado observa la aplicación cuando un cliente agota su cuota?

@@ -493,7 +493,11 @@ Redis.
   permisos por clave comparables a los de PostgreSQL; el control de acceso real vive en el backend,
   que es el único componente que debería hablar con Redis.
 - **Rate limit:** acota cuántas veces un cliente puede invocar el motor de recomendaciones y el
-  modelo de IA, que son los recursos más caros de la arquitectura.
+  modelo de IA, que son los recursos más caros de la arquitectura. **Falla abierto bajo presión de
+  memoria**: `allkeys-lru` puede descartar las claves `ratelimit:*` y el siguiente `INCR` recrea el
+  contador en 1, devolviéndole la cuota completa al cliente. Redis no admite prioridad de desalojo
+  por clave, de modo que protegerlos exigiría una instancia o base separada. Se acepta porque la
+  función del límite en este alcance es acotar el uso normal, no resistir un abuso deliberado.
 
 ## 2.9 Escalabilidad de esta capa
 
