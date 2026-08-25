@@ -2,9 +2,18 @@
 
 ## Resultado
 
-La implementación mínima de PostgreSQL fue ejecutada el **25/08/2026** mediante Docker Compose y
-PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y los **14
-controles automáticos devolvieron `OK`**.
+La implementación mínima de PostgreSQL fue ejecutada inicialmente el **25/08/2026** mediante Docker
+Compose y PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y los
+14 controles originales devolvieron `OK`.
+
+Después de la revisión de la PR, el procedimiento se amplió a 18 controles de estado, 4 pruebas
+negativas de integridad y 1 prueba de concurrencia. La ejecución limpia se repitió correctamente el
+**25/08/2026** y finalizó con:
+
+```text
+VALIDACIÓN COMPLETA: 5 consultas, 18 controles de estado,
+4 controles de integridad y 1 control de concurrencia OK.
+```
 
 La ejecución se realizó desde Git Bash, dentro de `db/`. En el equipo de validación el puerto externo
 `5432` estaba ocupado, por lo que se utilizó:
@@ -46,12 +55,19 @@ docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
   < "validacion/01_validation.sql"
 ```
 
-## Controles confirmados
+## Controles incluidos
 
 Se verificaron productos, SKU, clientes, categorías principales, precios vigentes, inventario,
 movimientos de stock, totales de pedidos, pedidos completados, recomendaciones, vista de catálogo,
-códigos externos canónicos y atributos de las variantes.
+códigos externos canónicos y atributos de las variantes. La ampliación agrega:
 
-La salida de la ejecución mostró **14 filas de validación con resultado `OK`** y los datos sintéticos
-esperados: 8 productos, 10 SKU, 5 clientes, 5 sesiones, 5 pedidos, 10 ítems, 2 recomendaciones y
-4 ítems de recomendación.
+- signos válidos para cada tipo de movimiento de inventario;
+- consistencia entre cliente y sesión de una recomendación;
+- recomendación generada dentro del período de su sesión;
+- línea temporal canónica de `session-456`;
+- rechazo de cuatro operaciones inválidas;
+- conservación del total ante dos inserciones concurrentes.
+
+Los datos sintéticos esperados son 8 productos, 10 SKU, 5 clientes, 5 sesiones, 5 pedidos, 10 ítems,
+2 recomendaciones y 4 ítems de recomendación. La prueba concurrente crea un pedido temporal y lo
+elimina al finalizar.

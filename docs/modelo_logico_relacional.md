@@ -45,7 +45,7 @@ relaciones N:M utilizan tablas puente.
 Se conservan dos redundancias deliberadas:
 
 - `order_item.unit_price_applied`, para preservar el precio histórico de la compra;
-- `sales_order.total_amount`, recalculado por trigger desde sus ítems.
+- `sales_order.total_amount`, mantenido por trigger mediante deltas atómicos desde sus ítems.
 
 Los atributos variables no estructurales usan JSONB en `product.attributes` y
 `sku.attributes`. Precio, stock, marca, categoría y relaciones comerciales no
@@ -57,6 +57,7 @@ se almacenan dentro de JSONB.
 - Un producto tiene como máximo una categoría principal.
 - Cada SKU tiene como máximo un precio vigente y no admite períodos superpuestos.
 - Precios, cantidades y stock no pueden ser negativos.
+- Cada tipo de movimiento exige un signo coherente: las ventas descuentan y los ingresos reponen.
 - Los movimientos de inventario son inmutables y actualizan el stock mediante trigger.
 - Una reseña por cliente y producto, con calificación de 1 a 5.
 - Una recomendación debe pertenecer a un cliente, a una sesión o a ambos de manera coherente.

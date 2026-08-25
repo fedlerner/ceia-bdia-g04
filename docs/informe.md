@@ -159,8 +159,9 @@ permiten personalizar la experiencia durante la sesión, analizar el comportamie
 y abordar el problema de los usuarios nuevos sin exigir el almacenamiento de datos personales.
 
 En el alcance mínimo, el identificador de cliente será opcional cuando exista una sesión anónima, y
-cada evento deberá tener al menos uno de los dos identificadores. La vinculación posterior entre una
-sesión anónima y un cliente registrado queda como ampliación opcional.
+cada evento deberá tener al menos uno de los dos identificadores. El modelo admite asociar una sesión
+con un cliente cuando la identidad ya es conocida; automatizar esa vinculación después del registro
+queda como ampliación opcional.
 
 ### 2.4 Datos de prueba
 
@@ -253,8 +254,9 @@ categorías utiliza `product_category`. Esto evita repetir marcas y categorías,
 productos y sobrescribir precios históricos.
 
 Se aceptan dos redundancias controladas: `unit_price_applied` preserva el precio de cada compra y
-`sales_order.total_amount` se recalcula por trigger desde los ítems. JSONB queda limitado a atributos
-variables no estructurales; precio, stock y relaciones no se guardan como documentos.
+`sales_order.total_amount` se mantiene por trigger mediante deltas atómicos desde los ítems. JSONB
+queda limitado a atributos variables no estructurales; precio, stock y relaciones no se guardan como
+documentos.
 
 MongoDB mantiene una única colección `user_events` con `event_type` y `metadata`, en lugar de una
 colección por evento. Los documentos referencian códigos externos y no embeben datos transaccionales.
@@ -367,8 +369,10 @@ implementación.
 | Colección `user_events` en MongoDB | Modelo definido; creación y carga pendientes |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
-La capa relacional PostgreSQL quedó validada con Docker Compose: el contenedor alcanzó estado saludable
-y los catorce controles de integridad devolvieron `OK`. La evidencia se encuentra en
+La capa relacional PostgreSQL se validó nuevamente con Docker Compose después de la revisión de la
+PR: el contenedor alcanzó estado saludable y devolvieron `OK` dieciocho controles de estado, cuatro
+pruebas negativas de integridad y una prueba concurrente. El procedimiento y la evidencia se
+encuentran en
 [`../db/validacion/README.md`](../db/validacion/README.md).
 
 La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
@@ -564,8 +568,9 @@ Redis completan la propuesta multi-motor, asignando cada tipo de información a 
 adecuada.
 
 La implementación mínima de PostgreSQL quedó validada con datos sintéticos, cinco consultas
-representativas y catorce controles automáticos. MongoDB continúa como componente pendiente de
-implementación; por eso la solución multi-motor todavía no debe considerarse cerrada.
+representativas, dieciocho controles de estado, cuatro pruebas negativas y una prueba de
+concurrencia. MongoDB continúa como componente pendiente de implementación; por eso la solución
+multi-motor todavía no debe considerarse cerrada.
 
 ---
 

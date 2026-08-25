@@ -1,11 +1,13 @@
-# 02. Sesiones de visitantes anónimos
+# 02. Sesiones con identidad desacoplada
 
 Los comandos de este archivo se ejecutan en la consola de Redis o en el Workbench de RedisInsight, en
 el orden en que aparecen.
 
 El modelo de datos admite eventos de clientes identificados o de sesiones anónimas. Esta estructura
-sostiene el segundo caso: conserva el estado temporal de un visitante que todavía no se registró, sin
-escribir nada en PostgreSQL.
+conserva únicamente el estado temporal de navegación y no almacena identidad en Redis. Por eso sirve
+tanto para visitantes anónimos como para sesiones que luego se vinculan con un cliente en la capa
+transaccional. En los datos integrados, `session-456` queda asociada con `user-123` en PostgreSQL y
+MongoDB, mientras Redis mantiene solamente su contexto efímero.
 
 ## Comando 1. Recuperar el estado completo de la sesión
 
@@ -21,8 +23,8 @@ HGETALL session:session-456
 `last_product_id` y `preferred_category`.
 
 **Justificación:** la sesión almacena comportamiento y no identidad. No guarda dirección IP, user
-agent, correo ni teléfono. Es una decisión deliberada del diseño: una sesión anónima debe permitir
-personalizar durante la visita sin acumular datos personales, y el TTL funciona además como política
+agent, correo ni teléfono. Es una decisión deliberada del diseño: el contexto debe permitir
+personalizar durante la visita sin duplicar datos personales, y el TTL funciona además como política
 de retención automática.
 
 El tipo Hash asocia una clave a un conjunto de pares campo-valor, lo que permite modelar la sesión

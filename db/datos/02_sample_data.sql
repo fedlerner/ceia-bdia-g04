@@ -206,8 +206,8 @@ INSERT INTO customer_session (session_id, session_code, customer_id, started_at,
 SELECT '00000000-0000-0000-0000-000000000101'::UUID,
        'session-456',
        customer_id,
-       TIMESTAMPTZ '2026-08-23 10:00:00-03',
-       TIMESTAMPTZ '2026-08-23 10:45:00-03'
+       TIMESTAMPTZ '2026-08-19 12:28:00-03',
+       TIMESTAMPTZ '2026-08-19 12:45:00-03'
 FROM customer WHERE email = 'ana.torres@example.test';
 
 INSERT INTO customer_session (session_id, session_code, customer_id, started_at, ended_at)
@@ -239,7 +239,7 @@ INSERT INTO customer_session (session_id, session_code, customer_id, started_at,
      TIMESTAMPTZ '2026-08-24 20:30:00-03');
 
 -- ---------------------------------------------------------------------------
--- Pedidos e ítems. Los triggers recalculan total_amount.
+-- Pedidos e ítems. Los triggers mantienen total_amount mediante deltas atómicos.
 -- ---------------------------------------------------------------------------
 
 INSERT INTO sales_order
@@ -394,7 +394,7 @@ INSERT INTO recommendation
     (customer_id, session_id, generated_at, method, model_version, context)
 SELECT c.customer_id,
        '00000000-0000-0000-0000-000000000101'::UUID,
-       TIMESTAMPTZ '2026-08-23 10:30:00-03',
+       TIMESTAMPTZ '2026-08-19 12:40:00-03',
        'synthetic_cross_sell',
        'demo-v1',
        '{"page":"home"}'::JSONB
@@ -416,7 +416,7 @@ SELECT r.recommendation_id, s.sku_id, 1, 0.920000,
        'Producto visto recientemente'
 FROM recommendation r
 JOIN sku s ON s.sku_code = 'DER-SOL-050'
-WHERE r.generated_at = TIMESTAMPTZ '2026-08-23 10:30:00-03';
+WHERE r.generated_at = TIMESTAMPTZ '2026-08-19 12:40:00-03';
 
 INSERT INTO recommendation_item
     (recommendation_id, sku_id, position, score, reason)
@@ -424,7 +424,7 @@ SELECT r.recommendation_id, s.sku_id, 2, 0.850000,
        'Interés en fragancias'
 FROM recommendation r
 JOIN sku s ON s.sku_code = 'AUR-NOC-050'
-WHERE r.generated_at = TIMESTAMPTZ '2026-08-23 10:30:00-03';
+WHERE r.generated_at = TIMESTAMPTZ '2026-08-19 12:40:00-03';
 
 INSERT INTO recommendation_item
     (recommendation_id, sku_id, position, score, reason)

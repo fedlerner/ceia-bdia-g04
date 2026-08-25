@@ -136,6 +136,57 @@ WITH validations AS (
            AND (SELECT COUNT(*) FROM customer_session
                 WHERE session_code ~ '^session-[0-9]+$') = 5
     FROM customer
+
+    UNION ALL
+
+    SELECT 15,
+           'Los movimientos de inventario respetan el signo de su tipo',
+           NOT EXISTS (
+               SELECT 1
+               FROM inventory_movement
+               WHERE NOT (
+                   (movement_type = 'sale' AND quantity_change < 0)
+                   OR (movement_type IN ('receipt', 'return', 'cancellation')
+                       AND quantity_change > 0)
+                   OR (movement_type = 'adjustment' AND quantity_change <> 0)
+               )
+           )
+
+    UNION ALL
+
+    SELECT 16,
+           'Cliente y sesión de cada recomendación son consistentes',
+           NOT EXISTS (
+               SELECT 1
+               FROM recommendation r
+               JOIN customer_session cs ON cs.session_id = r.session_id
+               WHERE r.customer_id IS NOT NULL
+                 AND cs.customer_id IS DISTINCT FROM r.customer_id
+           )
+
+    UNION ALL
+
+    SELECT 17,
+           'Las recomendaciones se generan dentro de su sesión',
+           NOT EXISTS (
+               SELECT 1
+               FROM recommendation r
+               JOIN customer_session cs ON cs.session_id = r.session_id
+               WHERE r.generated_at < cs.started_at
+                  OR (cs.ended_at IS NOT NULL AND r.generated_at > cs.ended_at)
+           )
+
+    UNION ALL
+
+    SELECT 18,
+           'session-456 coincide con la línea temporal canónica',
+           COUNT(*) = 1
+           AND BOOL_AND(c.customer_code = 'user-123')
+           AND BOOL_AND(cs.started_at = TIMESTAMPTZ '2026-08-19 12:28:00-03')
+           AND BOOL_AND(cs.ended_at = TIMESTAMPTZ '2026-08-19 12:45:00-03')
+    FROM customer_session cs
+    JOIN customer c ON c.customer_id = cs.customer_id
+    WHERE cs.session_code = 'session-456'
 )
 SELECT
     sort_order,

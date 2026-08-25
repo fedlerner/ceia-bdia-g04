@@ -86,7 +86,7 @@ información que deba sobrevivir puede residir únicamente en Redis.
 | Archivo | Contenido |
 | --- | --- |
 | [`01`](comandos/01_cache_recomendaciones.md) | Cache de recomendaciones: lectura, escritura con TTL, espacios de nombres, invalidación y métricas. |
-| [`02`](comandos/02_sesiones_anonimas.md) | Sesiones de visitantes anónimos y expiración deslizante. |
+| [`02`](comandos/02_sesiones_anonimas.md) | Sesiones con identidad desacoplada y expiración deslizante. |
 | [`03`](comandos/03_rankings_precalculados.md) | Rankings precalculados sobre Sorted Sets. |
 | [`04`](comandos/04_rate_limit_y_contadores.md) | Rate limit por ventana fija y contadores operativos. |
 | [`05`](comandos/05_expiracion_memoria_y_patrones.md) | Patrones de búsqueda, medición de memoria y descarte por límite. |

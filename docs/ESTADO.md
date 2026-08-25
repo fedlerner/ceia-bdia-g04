@@ -55,7 +55,7 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | --- | --- | --- |
 | **Redis (capa clave-valor)** | Terminado y verificado | [`../nosql/redis/`](../nosql/redis/) |
 | MongoDB (eventos) | Modelo definido, implementación pendiente | `../nosql/mongodb/` (a crear) |
-| PostgreSQL (transaccional) | Implementado y validado: 14 controles `OK` | [`../db/`](../db/) |
+| PostgreSQL (transaccional) | Implementado y validado: 18 controles de estado, 4 de integridad y 1 de concurrencia `OK` | [`../db/`](../db/) |
 
 El [`docker-compose.yml`](../docker-compose.yml) de la raíz incorpora Redis y PostgreSQL mediante
 `include:`. MongoDB continúa comentado hasta que exista su implementación.

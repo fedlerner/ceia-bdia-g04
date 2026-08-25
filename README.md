@@ -175,9 +175,11 @@ El contenedor ejecuta en orden:
 4. `db/consultas/`: ejecución de las 5 consultas representativas.
 5. `db/validacion/`: controles automáticos.
 
-La validación empírica se realizó el 25/08/2026 con PostgreSQL 16 mediante Docker Compose. El
-contenedor quedó `Up (healthy)` y los catorce controles automáticos devolvieron `OK`. La evidencia y
-el procedimiento reproducible están documentados en [`db/validacion/README.md`](db/validacion/README.md).
+La validación empírica se repitió el 25/08/2026 con PostgreSQL 16 mediante Docker Compose después de
+la revisión de la PR. El contenedor quedó `Up (healthy)` y finalizaron correctamente dieciocho
+controles de estado, cuatro pruebas negativas y una prueba de concurrencia; su procedimiento
+reproducible está documentado en
+[`db/validacion/README.md`](db/validacion/README.md).
 
 ### MongoDB (pendiente)
 
@@ -230,7 +232,7 @@ Limitaciones asumidas en esta versión:
 - Alcance de una única tienda online.
 - Pagos y envíos sólo como estados simples del pedido.
 - Sin procesamiento de imágenes, embeddings ni búsqueda vectorial.
-- Sin vinculación entre una sesión anónima y un cliente que se registra posteriormente.
+- Sin un flujo automático para vincular una sesión anónima con un cliente que se registra después.
 - Sin modelado de carritos ni promociones.
 
 Extensiones posibles:

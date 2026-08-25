@@ -4,8 +4,8 @@
 --
 -- Alcance:
 --   * PostgreSQL como fuente principal de verdad.
---   * JSONB acotado a atributos variables y contexto de eventos.
---   * Eventos implementados en PostgreSQL como solución base.
+--   * JSONB acotado a atributos variables y contexto de recomendaciones.
+--   * Los eventos de navegación se almacenan exclusivamente en MongoDB.
 --   * MongoDB, Redis, pgvector y embeddings no forman parte de este script.
 
 BEGIN;
@@ -175,6 +175,7 @@ CREATE TABLE customer_session (
     CONSTRAINT customer_session_customer_fk
         FOREIGN KEY (customer_id) REFERENCES customer (customer_id)
         ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT customer_session_id_customer_uq UNIQUE (session_id, customer_id),
     CONSTRAINT customer_session_code_uq UNIQUE (session_code),
     CONSTRAINT customer_session_code_format_ck CHECK (session_code ~ '^session-[0-9]+$'),
     CONSTRAINT customer_session_period_ck CHECK (ended_at IS NULL OR ended_at > started_at)
@@ -247,6 +248,11 @@ CREATE TABLE inventory_movement (
         movement_type IN ('receipt', 'sale', 'adjustment', 'return', 'cancellation')
     ),
     CONSTRAINT inventory_movement_nonzero_ck CHECK (quantity_change <> 0),
+    CONSTRAINT inventory_movement_sign_ck CHECK (
+        (movement_type = 'sale' AND quantity_change < 0)
+        OR (movement_type IN ('receipt', 'return', 'cancellation') AND quantity_change > 0)
+        OR (movement_type = 'adjustment' AND quantity_change <> 0)
+    ),
     CONSTRAINT inventory_movement_sale_order_ck CHECK (
         movement_type <> 'sale' OR order_id IS NOT NULL
     )
@@ -291,6 +297,10 @@ CREATE TABLE recommendation (
         ON UPDATE RESTRICT ON DELETE RESTRICT,
     CONSTRAINT recommendation_session_fk
         FOREIGN KEY (session_id) REFERENCES customer_session (session_id)
+        ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT recommendation_session_customer_fk
+        FOREIGN KEY (session_id, customer_id)
+        REFERENCES customer_session (session_id, customer_id)
         ON UPDATE RESTRICT ON DELETE RESTRICT,
     CONSTRAINT recommendation_target_ck CHECK (
         customer_id IS NOT NULL OR session_id IS NOT NULL
@@ -350,60 +360,35 @@ CREATE TRIGGER review_set_updated_at_trg
 BEFORE UPDATE ON review
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Si una recomendación informa cliente y sesión, deben corresponderse.
-CREATE OR REPLACE FUNCTION validate_recommendation_target()
+-- El total se mantiene con deltas atómicos. Las actualizaciones concurrentes
+-- sobre una misma cabecera quedan serializadas por el bloqueo de fila del UPDATE.
+CREATE OR REPLACE FUNCTION apply_order_total_delta()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
-DECLARE
-    session_customer_id BIGINT;
 BEGIN
-    IF NEW.customer_id IS NOT NULL AND NEW.session_id IS NOT NULL THEN
-        SELECT cs.customer_id
-          INTO session_customer_id
-          FROM customer_session cs
-         WHERE cs.session_id = NEW.session_id;
+    IF TG_OP = 'INSERT' THEN
+        UPDATE sales_order
+           SET total_amount = total_amount + (NEW.quantity * NEW.unit_price_applied)
+         WHERE order_id = NEW.order_id;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE sales_order
+           SET total_amount = total_amount - (OLD.quantity * OLD.unit_price_applied)
+         WHERE order_id = OLD.order_id;
+    ELSIF OLD.order_id = NEW.order_id THEN
+        UPDATE sales_order
+           SET total_amount = total_amount
+                            + (NEW.quantity * NEW.unit_price_applied)
+                            - (OLD.quantity * OLD.unit_price_applied)
+         WHERE order_id = NEW.order_id;
+    ELSE
+        UPDATE sales_order
+           SET total_amount = total_amount - (OLD.quantity * OLD.unit_price_applied)
+         WHERE order_id = OLD.order_id;
 
-        IF session_customer_id IS DISTINCT FROM NEW.customer_id THEN
-            RAISE EXCEPTION 'La sesión % no corresponde al cliente %',
-                NEW.session_id, NEW.customer_id;
-        END IF;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER recommendation_target_consistency_trg
-BEFORE INSERT OR UPDATE OF customer_id, session_id ON recommendation
-FOR EACH ROW EXECUTE FUNCTION validate_recommendation_target();
-
--- El total se conserva en la cabecera y se recalcula desde sus ítems.
-CREATE OR REPLACE FUNCTION refresh_order_total()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    affected_order_id BIGINT;
-BEGIN
-    affected_order_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.order_id ELSE NEW.order_id END;
-
-    UPDATE sales_order so
-       SET total_amount = COALESCE((
-               SELECT SUM(oi.quantity * oi.unit_price_applied)
-                 FROM order_item oi
-                WHERE oi.order_id = affected_order_id
-           ), 0)
-     WHERE so.order_id = affected_order_id;
-
-    IF TG_OP = 'UPDATE' AND OLD.order_id IS DISTINCT FROM NEW.order_id THEN
-        UPDATE sales_order so
-           SET total_amount = COALESCE((
-                   SELECT SUM(oi.quantity * oi.unit_price_applied)
-                     FROM order_item oi
-                    WHERE oi.order_id = OLD.order_id
-               ), 0)
-         WHERE so.order_id = OLD.order_id;
+        UPDATE sales_order
+           SET total_amount = total_amount + (NEW.quantity * NEW.unit_price_applied)
+         WHERE order_id = NEW.order_id;
     END IF;
 
     RETURN NULL;
@@ -412,7 +397,7 @@ $$;
 
 CREATE TRIGGER order_item_refresh_total_trg
 AFTER INSERT OR UPDATE OR DELETE ON order_item
-FOR EACH ROW EXECUTE FUNCTION refresh_order_total();
+FOR EACH ROW EXECUTE FUNCTION apply_order_total_delta();
 
 -- Cada movimiento modifica el stock actual. La restricción de inventory
 -- impide que el resultado sea negativo.

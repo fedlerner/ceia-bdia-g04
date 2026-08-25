@@ -50,16 +50,16 @@ mostrar_logs_si_falla() {
 }
 trap mostrar_logs_si_falla EXIT
 
-echo "1/5 Validando la configuración de Docker Compose..."
+echo "1/7 Validando la configuración de Docker Compose..."
 docker compose config --quiet
 
-echo "2/5 Eliminando solamente el entorno PostgreSQL de esta práctica..."
+echo "2/7 Eliminando solamente el entorno PostgreSQL de esta práctica..."
 docker compose down -v --remove-orphans
 
-echo "3/5 Construyendo una instancia limpia de PostgreSQL 16..."
+echo "3/7 Construyendo una instancia limpia de PostgreSQL 16..."
 docker compose up -d --wait
 
-echo "4/5 Ejecutando nuevamente las cinco consultas..."
+echo "4/7 Ejecutando nuevamente las cinco consultas..."
 for consulta in consultas/*.sql; do
     echo "  - $consulta"
     docker compose exec -T postgres \
@@ -67,7 +67,7 @@ for consulta in consultas/*.sql; do
         < "$consulta" >/dev/null
 done
 
-echo "5/5 Ejecutando los catorce controles automáticos..."
+echo "5/7 Ejecutando los dieciocho controles de estado..."
 resultado="$({
     docker compose exec -T postgres \
         psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
@@ -81,12 +81,30 @@ if printf '%s\n' "$resultado" | grep -q '| ERROR'; then
 fi
 
 controles_ok="$(printf '%s\n' "$resultado" | grep -c '| OK' || true)"
-if [ "$controles_ok" -ne 14 ]; then
-    echo "ERROR: se esperaban 14 controles OK y se detectaron $controles_ok." >&2
+if [ "$controles_ok" -ne 18 ]; then
+    echo "ERROR: se esperaban 18 controles OK y se detectaron $controles_ok." >&2
     exit 1
 fi
 
+echo "6/7 Comprobando que PostgreSQL rechace operaciones inválidas..."
+resultado_integridad="$({
+    docker compose exec -T postgres \
+        psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+        < validacion/02_integrity_tests.sql
+} 2>&1)"
+printf '%s\n' "$resultado_integridad"
+
+controles_integridad_ok="$(printf '%s\n' "$resultado_integridad" | grep -c '| OK' || true)"
+if [ "$controles_integridad_ok" -ne 4 ]; then
+    echo "ERROR: se esperaban 4 controles de integridad OK y se detectaron $controles_integridad_ok." >&2
+    exit 1
+fi
+
+echo "7/7 Comprobando dos inserciones concurrentes sobre el mismo pedido..."
+bash scripts/validar_concurrencia_totales.sh
+
 trap - EXIT
 echo ""
-echo "VALIDACIÓN COMPLETA: 5 consultas ejecutadas y 14 controles OK."
+echo "VALIDACIÓN COMPLETA: 5 consultas, 18 controles de estado,"
+echo "4 controles de integridad y 1 control de concurrencia OK."
 echo "PostgreSQL permanece levantado para revisión manual."
