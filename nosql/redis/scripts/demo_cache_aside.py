@@ -11,8 +11,11 @@ exportando las variables de nosql/redis/.env:
     set -a; . nosql/redis/.env; set +a
     REDIS_HOST=localhost python nosql/redis/scripts/demo_cache_aside.py
 
-Elimina y regenera la clave de su usuario de demostracion. No altera el resto
-del estado inicial.
+Efectos sobre el estado: elimina y regenera la clave de su usuario de
+demostracion, e incrementa los contadores contador:{reco}:generadas y
+contador:{reco}:cache_hit, uno por cada MISS y cada HIT. No modifica ninguna
+otra clave. Para volver a los valores de la carga inicial hay que ejecutar
+00_cargar_datos.sh.
 """
 
 import json

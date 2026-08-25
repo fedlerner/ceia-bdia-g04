@@ -381,9 +381,11 @@ principal, la ficha de producto, el carrito y el listado por categoría.
 - **Sorted Set para el ranking:** el orden es una propiedad de la estructura, no del momento de la
   consulta. Recuperar el top N cuesta O(log n + m) y actualizarlo con `ZINCRBY` no requiere
   reordenar nada.
-- **String con `INCR` para el rate limit:** el incremento es atómico, y `EXPIRE ... NX` fija la
-  ventana solo en la primera solicitud. Ambas se emiten dentro de una transacción, porque una caída
-  entre las dos dejaría el contador sin TTL y limitaría a ese cliente de forma permanente.
+- **String con `INCR` para el rate limit:** el incremento es atómico. La ventana la define el minuto
+  que forma parte de la clave; `EXPIRE ... NX` no delimita la ventana sino que programa la limpieza
+  de la clave una vez pasada. Ambas se emiten dentro de una transacción, porque una caída entre las
+  dos dejaría esa clave sin TTL y sin eliminarse nunca. No bloquearía al cliente, ya que el minuto
+  siguiente usa otra clave, pero acumularía claves obsoletas sin límite.
 
 **Alcance de los contadores operativos.** No tienen expiración, pero eso no los vuelve durables. Al
 no haber persistencia se pierden con cada reinicio del contenedor, y bajo presión de memoria

@@ -78,9 +78,11 @@ En un diseño de ventana deslizante, donde la clave no lleva marca temporal y el
 omitir `NX` sí rompería el límite. No es el caso de este diseño.
 
 Los dos comandos van dentro de una transacción. Ejecutados por separado, si la aplicación se cae
-entre el `INCR` y el `EXPIRE`, la clave queda **sin TTL** y su contador nunca se reinicia: ese cliente
-quedaría limitado de forma permanente. `MULTI` y `EXEC` garantizan que la creación del contador y su
-vencimiento se apliquen juntos.
+entre el `INCR` y el `EXPIRE`, la clave de ese minuto queda **sin TTL** y ya nunca se elimina. El
+cliente no queda bloqueado, porque el minuto siguiente usa otra clave y su conteo arranca de cero; lo
+que se produce es una **fuga de claves obsoletas** que se acumulan sin límite, una por cada minuto en
+que ocurra el fallo. `MULTI` y `EXEC` garantizan que la creación del contador y su vencimiento se
+apliquen juntos.
 
 La clave lleva el discriminador `user` / `sess`, igual que la cache de recomendaciones. Un visitante
 anónimo también invoca al motor, de modo que su cuota se cuenta en

@@ -114,6 +114,10 @@ El [`docker-compose.yml`](docker-compose.yml) de la raíz incorpora el compose d
 mediante `include:`, de modo que un solo comando levanta toda la solución. Cada componente conserva
 su propio archivo y su propio `.env`.
 
+> `include:` requiere **Docker Compose 2.20 o posterior**. Con una versión anterior, el comando falla
+> antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
+> si es más antigua, cada componente puede levantarse por separado desde su propio directorio.
+
 Antes de levantar la pila, cada componente necesita su `.env` creado a partir de su `.env.example`:
 
 ```bash

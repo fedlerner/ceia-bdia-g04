@@ -119,6 +119,13 @@ echo ""
 #
 # El estado se informa comparando contra presentes_antes, para no atribuir al
 # descarte por memoria una clave que ya no estaba al comenzar.
+# Se registra si alguna clave SIN TTL que existia antes fue descartada. Ese es
+# el hecho central que el demo debe demostrar: allkeys-lru no distingue entre
+# claves que expiran y claves que no. Sin este registro, el veredicto podria
+# afirmarlo sin haberlo observado, porque el descarte pudo haber alcanzado
+# unicamente a las claves de relleno.
+contador_descartado=0
+
 echo "Sobrevivieron las claves del estado inicial?"
 printf '  %-30s %-10s %s\n' "clave" "TTL" "estado"
 for clave in $CLAVES_INICIALES; do
@@ -136,18 +143,30 @@ for clave in $CLAVES_INICIALES; do
         printf '  %-30s %-10s presente\n' "$clave" "$ttl"
     elif [ "$estaba_antes" -eq 1 ]; then
         printf '  %-30s %-10s DESCARTADA por allkeys-lru\n' "$clave" "$ttl"
+        [ "$ttl" = "sin TTL" ] && contador_descartado=1
     else
         printf '  %-30s %-10s ausente ya antes de forzar el limite\n' "$clave" "$ttl"
     fi
 done
 
 echo ""
-if [ "$descartadas_delta" -gt 0 ]; then
-    echo "Se descartaron $descartadas_delta claves al alcanzar el limite de memoria."
-    echo "Con allkeys-lru el descarte alcanza a cualquier clave, tenga TTL o no."
-else
+if [ "$descartadas_delta" -eq 0 ]; then
     echo "No hubo descartes: el relleno no alcanzo el limite de $MAXMEMORY_PRUEBA."
     echo "Aumentar CANTIDAD y repetir para observar el efecto."
+    resultado=1
+elif [ "$contador_descartado" -eq 1 ]; then
+    echo "Se descartaron $descartadas_delta claves al alcanzar el limite de memoria,"
+    echo "entre ellas al menos un contador SIN TTL."
+    echo "Queda demostrado que allkeys-lru alcanza a cualquier clave, tenga TTL o no."
+    resultado=0
+else
+    echo "Se descartaron $descartadas_delta claves al alcanzar el limite de memoria,"
+    echo "pero todas las claves sin TTL sobrevivieron a esta corrida."
+    echo "El descarte por recencia de uso es no determinista y los contadores son las"
+    echo "claves escritas mas recientemente por la carga, de modo que suelen sobrevivir."
+    echo "Esta corrida NO demuestra que allkeys-lru alcance a las claves sin TTL:"
+    echo "repetir el demo o aumentar CANTIDAD hasta observarlo."
+    resultado=0
 fi
 
 echo ""
@@ -160,3 +179,5 @@ echo ""
 echo "Recargando el estado inicial..."
 echo ""
 sh /scripts/00_cargar_datos.sh
+
+exit "$resultado"
