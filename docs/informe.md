@@ -315,8 +315,12 @@ resulta apropiado.
 aceptable; servir un precio o un stock desactualizado no lo es, y por eso esos datos no pasan por
 Redis.
 
-El problema que resuelve es de latencia, y la medición lo cuantifica: 258 ms por el camino
-del motor contra 0,60 ms desde Redis sobre la misma solicitud.
+El problema que resuelve es de latencia. El demo lo ilustra con 258 ms por el camino del motor contra
+0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta
+PostgreSQL, MongoDB ni el motor, porque ninguno está implementado todavía, sino que los sustituye por
+una espera fija de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y
+el costo real de resolver desde Redis, no un benchmark del camino completo. La magnitud de la mejora
+dependerá de cuánto tarde el motor cuando exista.
 
 **Alternativas evaluadas:**
 
@@ -324,7 +328,7 @@ del motor contra 0,60 ms desde Redis sobre la misma solicitud.
 | --- | --- |
 | Cache en memoria del proceso backend | No se comparte entre instancias: cada réplica ejecutaría el motor por su cuenta y la tasa de aciertos caería al escalar horizontalmente. Tampoco sobrevive a un reinicio del proceso. |
 | Vista materializada en PostgreSQL | Sirve para el ranking agregado, pero no para recomendaciones personalizadas por cliente y contexto. Además cargaría de escrituras la base transaccional y no ofrece expiración automática. |
-| Memcached | Cubre la cache pura, pero solo tiene pares clave-valor de tipo String. No resolvería la sesión como Hash, el ranking como Sorted Set ni el rate limit atómico. |
+| Memcached | Cubre la cache pura y también el rate limit, porque dispone de incremento atómico y de expiración. Lo que no ofrece son estructuras más allá del String: no resolvería la sesión como Hash ni el ranking como Sorted Set, que tendrían que serializarse y reescribirse enteros en cada actualización. |
 | No usar cache | Cada solicitud ejecutaría el motor y el modelo de IA, que son los componentes más costosos de la arquitectura. |
 
 **Complejidad operativa:** baja. Un contenedor, sin esquema que migrar y sin persistencia que
@@ -505,9 +509,11 @@ calcula sobre estos valores medidos, no sobre supuestos.
 `user_events` en cada visita a la página principal.
 
 **Límite y descarte:** con `maxmemory` de 256 MB y política `allkeys-lru`, Redis descarta las claves
-menos usadas recientemente al alcanzar el límite. El demo lo verifica: con el límite bajado a 4 MB e
-insertando 6000 claves, se descartaron 4757, **incluidas las tres claves del estado inicial**. De ahí la restricción
-de diseño: ninguna información que deba sobrevivir puede residir únicamente en Redis.
+menos usadas recientemente al alcanzar el límite. El demo lo verifica: partiendo de las 6 claves del
+estado inicial, con el límite bajado a 4 MB e insertando 6000 claves de 1 KB, se descartaron 4768 y
+quedaron 1238, incluidas entre las descartadas **las seis claves del estado inicial**. La corrida
+completa está citada en [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md), sección 2.7. De ahí la
+restricción de diseño: ninguna información que deba sobrevivir puede residir únicamente en Redis.
 
 **Si el volumen creciera:** réplicas de solo lectura para repartir las lecturas, o Redis Cluster
 particionando por hash slot. Casi todas las operaciones son de clave única. La excepción es el `MGET`
@@ -519,8 +525,11 @@ Redis calcule el slot solo sobre la porción entre llaves y ambas caigan en el m
 reiniciar y `allkeys-lru` los descarta bajo presión de memoria, como verifica el demo. Son acumulados
 best-effort y no una fuente de métricas de negocio.
 
-**Compromiso central:** el TTL introduce consistencia eventual de hasta 10 minutos a cambio de una
-reducción de latencia medida en dos órdenes de magnitud (258 ms contra 0,60 ms).
+**Compromiso central:** el TTL introduce consistencia eventual de hasta 10 minutos a cambio de
+resolver la solicitud desde memoria. El costo del acierto está medido en 0,60 ms; el del fallo
+todavía no puede medirse, porque el motor no está implementado y el demo lo sustituye por una espera
+fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un resultado
+verificado del camino completo.
 
 ---
 

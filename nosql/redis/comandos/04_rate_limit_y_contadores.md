@@ -63,9 +63,19 @@ Conviene repetir el bloque varias veces seguidas.
 crece en cada repetición; el segundo es la respuesta de `EXPIRE`, que vale `1` en la primera
 ejecución y `0` en las siguientes. El `TTL` decrece entre repeticiones.
 
-**Justificación:** la opción `NX` de `EXPIRE` aplica el TTL únicamente si la clave todavía no tiene
-uno. Es el detalle que hace correcto al patrón: sin `NX`, cada solicitud extendería la ventana y el
-límite no se alcanzaría nunca.
+**Justificación:** conviene separar dos cosas que es fácil confundir. **La ventana la define el
+minuto que forma parte de la clave, no el TTL.** Al cambiar de minuto, la aplicación calcula otra
+clave y el conteo vuelve a empezar solo. El TTL cumple una función distinta: eliminar las claves de
+minutos ya pasados para que no se acumulen.
+
+Por eso `EXPIRE ... NX`, que aplica el TTL únicamente si la clave todavía no tiene uno, acota la vida
+de la clave a unos 60 segundos desde la primera solicitud de esa ventana. Sin `NX`, cada solicitud
+extendería el vencimiento y la clave sobreviviría hasta 60 segundos después de la **última**
+solicitud, ocupando memoria de más. **El límite se seguiría aplicando igual**, porque el conteo del
+minuto 15:42 solo recibe las solicitudes de ese minuto.
+
+En un diseño de ventana deslizante, donde la clave no lleva marca temporal y el TTL define la ventana,
+omitir `NX` sí rompería el límite. No es el caso de este diseño.
 
 Los dos comandos van dentro de una transacción. Ejecutados por separado, si la aplicación se cae
 entre el `INCR` y el `EXPIRE`, la clave queda **sin TTL** y su contador nunca se reinicia: ese cliente
@@ -144,9 +154,16 @@ GET ratelimit:reco:user:user-demo:202608191543
 TTL ratelimit:reco:user:user-demo:202608191543
 ```
 
-**Resultado esperado:** el valor actual del contador y los segundos que faltan para que la ventana se
-reinicie.
+**Resultado esperado:** el valor actual del contador y los segundos que le restan a la clave.
 
-**Justificación:** son las dos mitades de la información que un backend devolvería al cliente en las
-cabeceras `X-RateLimit-Remaining` y `X-RateLimit-Reset`. A diferencia de `INCR`, ninguno de los dos
-comandos modifica el estado, de modo que consultar la cuota no consume cuota.
+**Justificación:** ninguno de los dos comandos modifica el estado, de modo que consultar la cuota no
+consume cuota. Son el insumo para las cabeceras `X-RateLimit-Remaining` y `X-RateLimit-Reset`, pero
+ninguno de los dos es directamente el valor de esas cabeceras:
+
+- `GET` devuelve las solicitudes **consumidas**, no las restantes. El backend calcula
+  `restantes = limite - consumidas`.
+- `TTL` devuelve lo que le queda de vida a la clave, que **no coincide** con el momento en que se
+  reinicia la cuota. La cuota se reinicia al cambiar de minuto, mientras que el TTL vence 60 segundos
+  después de la primera solicitud de la ventana. Sólo coinciden si esa primera solicitud cae justo en
+  el límite del minuto. El backend debe derivar el reinicio del próximo cambio de minuto, o bien
+  alinear la expiración a ese borde en lugar de usar 60 segundos fijos.

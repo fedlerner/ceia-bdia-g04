@@ -25,8 +25,25 @@ numérico, de manera que el orden es una propiedad de la estructura y no un trab
 en el momento de la consulta. Recuperar el top N cuesta O(log n + m), donde m es la cantidad de
 elementos devueltos.
 
-El equivalente relacional sería `ORDER BY vistas DESC LIMIT 5`, que exige recorrer y ordenar filas
-aunque exista un índice sobre la columna.
+El equivalente relacional sería `ORDER BY vistas DESC LIMIT 5`. Conviene ser preciso sobre esa
+comparación: **con un índice B-tree sobre `vistas`, PostgreSQL no ordena nada**. Resuelve la consulta
+con un `Index Scan Backward` que se detiene a la quinta fila. Sobre una tabla de 200 000 filas, el
+plan medido es:
+
+```text
+Limit (actual time=0.037..0.055 rows=5 loops=1)
+  ->  Index Scan Backward using idx_vistas on ranking (actual time=0.036..0.054 rows=5 loops=1)
+Execution Time: 0.070 ms
+```
+
+Sin ese índice, en cambio, sí recorre y ordena: `Parallel Seq Scan` sobre 200 000 filas más un
+`top-N heapsort`, con 13,4 ms de ejecución.
+
+La ventaja del Sorted Set frente a un índice adecuado no es evitar el ordenamiento, porque ambos lo
+evitan. Es otra: el score y el orden viven en la misma estructura, de modo que no hay una tabla y un
+índice que mantener por separado; la actualización con `ZINCRBY` reubica el elemento en O(log n) sin
+escribir en disco; y el dato reside en memoria. Para un ranking que se recalcula continuamente y se
+consulta en cada visita, eso es lo que inclina la elección.
 
 ## Comando 2. Actualizar el ranking de forma incremental
 
@@ -47,9 +64,18 @@ ZREVRANGE ranking:productos:vistos:7d 0 4 WITHSCORES
 **Justificación:** `ZINCRBY` suma al score de forma atómica y reubica el elemento como parte de la
 misma escritura. Esto permite mantener el ranking evento a evento, sin volver a consultar MongoDB.
 
-Conviene repetir la prueba con un incremento menor, por ejemplo 25 en lugar de 100. El score sube
-pero la posición no cambia, porque 615 sigue por debajo de los 640 de `product-005`. El orden depende
-del score acumulado y no de la cantidad de escrituras recibidas.
+Conviene repetir la prueba con un incremento menor. Para que los números sean reproducibles hay que
+volver al estado inicial primero, porque el `ZINCRBY` anterior ya dejó el score en 690:
+
+```redis
+ZADD ranking:productos:vistos:7d 590 product-006
+ZINCRBY ranking:productos:vistos:7d 25 product-006
+ZREVRANK ranking:productos:vistos:7d product-006
+```
+
+El score pasa de 590 a 615 y `ZREVRANK` sigue devolviendo `5`: la posición no cambia, porque 615
+sigue por debajo de los 640 de `product-005`. El orden depende del score acumulado y no de la
+cantidad de escrituras recibidas.
 
 ## Comando 3. Filtrar por umbral de visualizaciones
 
