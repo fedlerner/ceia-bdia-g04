@@ -317,11 +317,11 @@ aceptable; servir un precio o un stock desactualizado no lo es, y por eso esos d
 Redis.
 
 El problema que resuelve es de latencia. El demo lo ilustra con 258 ms por el camino del motor contra
-0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta
-PostgreSQL, MongoDB ni el motor, porque ninguno está implementado todavía, sino que los sustituye por
-una espera fija de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y
-el costo real de resolver desde Redis, no un benchmark del camino completo. La magnitud de la mejora
-dependerá de cuánto tarde el motor cuando exista.
+0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta el motor
+de recomendaciones, que queda fuera del alcance del trabajo, sino que lo sustituye por una espera fija
+de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y el costo real de
+resolver desde Redis, que es lo que corresponde a esta capa. La magnitud de la mejora en un sistema
+real dependerá de cuánto tarde el motor que se construya sobre ella.
 
 **Alternativas evaluadas:**
 
@@ -529,10 +529,10 @@ reiniciar y `allkeys-lru` los descarta bajo presión de memoria, como verifica e
 best-effort y no una fuente de métricas de negocio.
 
 **Compromiso central:** el TTL introduce consistencia eventual de hasta 10 minutos a cambio de
-resolver la solicitud desde memoria. El costo del acierto está medido en 0,60 ms; el del fallo
-todavía no puede medirse, porque el motor no está implementado y el demo lo sustituye por una espera
-fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un resultado
-verificado del camino completo.
+resolver la solicitud desde memoria. El costo del acierto está medido en 0,60 ms; el del fallo no
+corresponde a esta capa, porque depende del motor que queda fuera del alcance, y el demo lo sustituye
+por una espera fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un
+resultado verificado del camino completo.
 
 ---
 

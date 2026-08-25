@@ -25,9 +25,9 @@ import time
 import redis
 
 # Latencia simulada del camino lento: consultar PostgreSQL y MongoDB y
-# ejecutar el motor de recomendaciones. No se conecta a esos motores porque
-# todavia no estan implementados. Lo que se mide es el efecto de la cache,
-# no el costo real del motor.
+# ejecutar el motor de recomendaciones. El motor queda fuera del alcance del
+# trabajo, que cubre la capa de datos y no la aplicacion que la consume. Lo que
+# se mide aqui es el costo de resolver desde Redis, no el del motor.
 LATENCIA_MOTOR_S = 0.25
 
 SUJETO_DEMO = "user"
@@ -95,7 +95,7 @@ def conectar() -> redis.Redis:
 
 
 def generar_recomendaciones() -> dict:
-    """Sustituye al motor de recomendaciones mientras no este implementado."""
+    """Sustituye al motor de recomendaciones, que no forma parte del entregable."""
     time.sleep(LATENCIA_MOTOR_S)
     # El valor no repite user_id ni contexto: ambos ya estan en la clave, y
     # el modelo define que la entrada de cache solo contenga identificadores

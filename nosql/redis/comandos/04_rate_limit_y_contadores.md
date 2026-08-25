@@ -139,8 +139,10 @@ INCR ratelimit:reco:user:user-demo:202608191543
 solicitud corresponde a la aplicación, que compara ese valor contra el límite configurado. Redis
 aporta el contador atómico y la expiración; la política es responsabilidad del backend.
 
-El límite de 30 solicitudes por minuto es un valor de ejemplo. Definir el número que corresponde al
-caso queda pendiente, según la sección 2.10 del modelo.
+El límite de 30 solicitudes por minuto es un valor de ejemplo, elegido para poder observar el
+escenario de cuota agotada. Fijar el número que corresponde al caso es una política de la aplicación
+y queda fuera del alcance de este trabajo, que cubre la capa de datos: Redis aporta el contador
+atómico y la expiración de la ventana. Ver la sección 2.10 del modelo.
 
 Las claves `ratelimit:*` que crea esta comprobación vencen solas en 60 segundos y no requieren
 limpieza manual.
