@@ -91,7 +91,7 @@ por la cantidad de entradas. Es la razón por la que la convención de nombres a
 TTL reco:user:user-123:home
 TTL session:session-456
 TTL ranking:productos:vistos:7d
-TTL contador:reco:generadas
+TTL contador:{reco}:generadas
 ```
 
 **Resultado esperado:** valores positivos en las tres primeras y `-1` en la última.
@@ -99,8 +99,9 @@ TTL contador:reco:generadas
 **Justificación:** la política de expiración no es global sino que se decide por estructura. La cache
 usa un TTL fijo que no se renueva al leerla, porque debe envejecer para regenerarse con los eventos
 nuevos. La sesión usa un TTL deslizante que se renueva con cada actividad, porque debe sobrevivir
-mientras el visitante navegue. Los contadores no expiran, porque un acumulado que se reinicia solo no
-sirve.
+mientras el visitante navegue. Los contadores no expiran por tiempo, aunque eso no los vuelve
+durables: se pierden al reiniciar el contenedor y `allkeys-lru` puede descartarlos, de modo que son
+acumulados best-effort.
 
 Redis no ejecuta un proceso que recorra todas las claves buscando vencimientos. La eliminación es
 perezosa, al intentar leer una clave vencida, y activa, mediante un ciclo de fondo que muestrea

@@ -500,8 +500,14 @@ insertando 6000 claves, se descartaron 4757, **incluidas las tres claves del est
 de diseño: ninguna información que deba sobrevivir puede residir únicamente en Redis.
 
 **Si el volumen creciera:** réplicas de solo lectura para repartir las lecturas, o Redis Cluster
-particionando por hash slot. La convención de claves ya es compatible con el particionado, porque
-cada clave es independiente y ninguna operación cruza dos claves.
+particionando por hash slot. Casi todas las operaciones son de clave única. La excepción es el `MGET`
+sobre los dos contadores, que en Cluster fallaría con `CROSSSLOT` porque dos claves distintas no
+tienen garantizado el mismo slot; se resuelve con un hash tag (`contador:{reco}:...`), que hace que
+Redis calcule el slot solo sobre la porción entre llaves y ambas caigan en el mismo.
+
+**Alcance de los contadores:** no expiran, pero tampoco son durables. Sin persistencia se pierden al
+reiniciar y `allkeys-lru` los descarta bajo presión de memoria, como verifica el demo. Son acumulados
+best-effort y no una fuente de métricas de negocio.
 
 **Compromiso central:** el TTL introduce consistencia eventual de hasta 10 minutos a cambio de una
 reducción de latencia medida en dos órdenes de magnitud (258 ms contra 0,60 ms).

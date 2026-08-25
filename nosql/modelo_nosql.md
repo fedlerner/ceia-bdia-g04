@@ -356,7 +356,7 @@ Reglas adoptadas:
 | Sesión anónima | `session:{session_id}` | Hash | Campos `started_at`, `last_seen_at`, `events_count`, `last_product_id`, `preferred_category` | TTL deslizante de 1800 s |
 | Ranking precalculado | `ranking:productos:vistos:{ventana}` | Sorted Set | Miembro = `product_id`, score = cantidad de visualizaciones | TTL de 3600 s |
 | Rate limit | `ratelimit:reco:{customer_id}:{ventana}` | String (contador) | Cantidad de solicitudes dentro de la ventana | TTL igual a la ventana (60 s) |
-| Contadores operativos | `contador:reco:{metrica}` | String (contador) | Acumulado | Sin expiración |
+| Contadores operativos | `contador:{reco}:{metrica}` | String (contador) | Acumulado best-effort | Sin expiración, pero sin durabilidad |
 
 Los `{contexto}` previstos son `home`, `product`, `cart` y `category`, que corresponden a la página
 principal, la ficha de producto, el carrito y el listado por categoría.
@@ -372,7 +372,16 @@ principal, la ficha de producto, el carrito y el listado por categoría.
   consulta. Recuperar el top N cuesta O(log n + m) y actualizarlo con `ZINCRBY` no requiere
   reordenar nada.
 - **String con `INCR` para el rate limit:** el incremento es atómico, y `EXPIRE ... NX` fija la
-  ventana solo en la primera solicitud. Son dos operaciones O(1) sin tabla ni proceso de purga.
+  ventana solo en la primera solicitud. Ambas se emiten dentro de una transacción, porque una caída
+  entre las dos dejaría el contador sin TTL y limitaría a ese cliente de forma permanente.
+
+**Alcance de los contadores operativos.** No tienen expiración, pero eso no los vuelve durables. Al
+no haber persistencia se pierden con cada reinicio del contenedor, y bajo presión de memoria
+`allkeys-lru` los descarta igual que a cualquier otra clave: el propio demo del límite de memoria lo
+verifica. Son, por lo tanto, **acumulados best-effort**, útiles para observar el comportamiento
+durante una sesión de trabajo y no aptos como fuente de métricas de negocio. Una solución en
+producción llevaría estos totales a un almacenamiento durable; mantenerlos en Redis dentro de este
+alcance es una simplificación deliberada y no una propiedad del diseño.
 
 ## 2.4 Criterios de acceso y patrones de búsqueda
 
@@ -499,8 +508,12 @@ Redis.
   aceptado a cambio de latencia: la alternativa sería invalidar en cada evento, lo que anularía el
   beneficio de la cache.
 - **Si el volumen creciera:** réplicas de solo lectura para repartir las lecturas, o Redis Cluster
-  particionando por hash slot. La convención de claves ya es compatible con el particionado, porque
-  cada clave es independiente y ninguna operación cruza dos claves.
+  particionando por hash slot. Casi todas las operaciones del diseño son de clave única y por lo
+  tanto compatibles con el particionado. La excepción es el `MGET` que lee los dos contadores a la
+  vez: en Cluster, dos claves distintas no tienen garantizado el mismo slot y la operación fallaría
+  con `CROSSSLOT`. Por eso los contadores llevan un **hash tag**, `contador:{reco}:...`: Redis calcula
+  el slot únicamente sobre la porción entre llaves, de modo que ambas claves caen en el mismo slot
+  (7350) y el `MGET` sigue siendo válido. Sin el hash tag caerían en los slots 176 y 5737.
 
 ## 2.10 Pendientes de este componente
 

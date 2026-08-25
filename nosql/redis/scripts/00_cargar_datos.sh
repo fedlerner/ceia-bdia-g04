@@ -63,7 +63,7 @@ for clave in reco:user:user-123:home reco:sess:session-456:product session:sessi
 done
 
 # Los contadores no deben expirar: son acumulados operativos.
-for clave in contador:reco:generadas contador:reco:cache_hit; do
+for clave in contador:{reco}:generadas contador:{reco}:cache_hit; do
     ttl="$(cli TTL "$clave")"
     verificar "TTL de $clave" -1 "$ttl"
 done

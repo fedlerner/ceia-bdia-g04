@@ -9,8 +9,8 @@ Se ejecuta dentro del contenedor demo:
 Tambien puede ejecutarse desde el equipo local, instalando redis-py y
 definiendo REDIS_HOST=localhost.
 
-Elimina y regenera la clave reco:user:user-demo:home. No altera el resto del
-estado inicial.
+Elimina y regenera la clave de su usuario de demostracion. No altera el resto
+del estado inicial.
 """
 
 import json
@@ -25,9 +25,19 @@ import redis
 # no el costo real del motor.
 LATENCIA_MOTOR_S = 0.25
 
-CLAVE_DEMO = "reco:user:user-demo:home"
+USUARIO_DEMO = "user-demo"
+CONTEXTO_DEMO = "home"
 TTL_SEGUNDOS = 600
 SOLICITUDES = 5
+
+
+def clave_cache(user_id: str, contexto: str) -> str:
+    """Construye la clave con la convencion documentada en modelo_nosql.md 2.2.
+
+    El sujeto y el contexto viven en la clave y no en el valor, de modo que
+    cada combinacion tiene su propia entrada de cache.
+    """
+    return f"reco:user:{user_id}:{contexto}"
 
 
 def conectar() -> redis.Redis:
@@ -53,15 +63,16 @@ def conectar() -> redis.Redis:
     )
 
 
-def generar_recomendaciones(user_id: str, contexto: str) -> dict:
+def generar_recomendaciones() -> dict:
     """Sustituye al motor de recomendaciones mientras no este implementado."""
     time.sleep(LATENCIA_MOTOR_S)
+    # El valor no repite user_id ni contexto: ambos ya estan en la clave, y
+    # el modelo define que la entrada de cache solo contenga identificadores
+    # de producto y puntuaciones.
     return {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "model_version": "v1",
         "source": "motor",
-        "user_id": user_id,
-        "context": contexto,
         "recommendations": [
             {"product_id": "product-004", "score": 0.94},
             {"product_id": "product-001", "score": 0.89},
@@ -73,16 +84,16 @@ def generar_recomendaciones(user_id: str, contexto: str) -> dict:
 def obtener_recomendaciones(cliente: redis.Redis, user_id: str, contexto: str):
     """Lee la cache y, solo ante un MISS, ejecuta el motor y guarda el
     resultado con TTL."""
-    clave = CLAVE_DEMO
+    clave = clave_cache(user_id, contexto)
 
     cacheado = cliente.get(clave)
     if cacheado is not None:
-        cliente.incr("contador:reco:cache_hit")
+        cliente.incr("contador:{reco}:cache_hit")
         return json.loads(cacheado), "HIT"
 
-    recomendaciones = generar_recomendaciones(user_id, contexto)
+    recomendaciones = generar_recomendaciones()
     cliente.set(clave, json.dumps(recomendaciones), ex=TTL_SEGUNDOS)
-    cliente.incr("contador:reco:generadas")
+    cliente.incr("contador:{reco}:generadas")
     return recomendaciones, "MISS"
 
 
@@ -90,15 +101,17 @@ def main() -> None:
     cliente = conectar()
     cliente.ping()
 
+    clave = clave_cache(USUARIO_DEMO, CONTEXTO_DEMO)
+
     # Se elimina la clave para que la primera solicitud sea siempre un MISS.
-    cliente.delete(CLAVE_DEMO)
+    cliente.delete(clave)
 
     estadisticas_previas = cliente.info("stats")
     hits_previos = estadisticas_previas["keyspace_hits"]
     misses_previos = estadisticas_previas["keyspace_misses"]
 
     print(f"Latencia simulada del motor: {LATENCIA_MOTOR_S * 1000:.0f} ms")
-    print(f"Clave de demostracion:       {CLAVE_DEMO}")
+    print(f"Clave de demostracion:       {clave}")
     print()
     print(f"  {'#':<3} {'resultado':<10} {'latencia':>12}   productos")
     print(f"  {'-' * 3} {'-' * 10} {'-' * 12}   {'-' * 30}")
@@ -108,7 +121,7 @@ def main() -> None:
     for numero in range(1, SOLICITUDES + 1):
         inicio = time.perf_counter()
         recomendaciones, resultado = obtener_recomendaciones(
-            cliente, "user-demo", "home"
+            cliente, USUARIO_DEMO, CONTEXTO_DEMO
         )
         transcurrido_ms = (time.perf_counter() - inicio) * 1000
         latencias[resultado].append(transcurrido_ms)
@@ -155,12 +168,18 @@ def main() -> None:
     print(f"  keyspace_misses       {estadisticas['keyspace_misses'] - misses_previos:>9}")
     print()
 
+    # memory_usage devuelve None si la clave ya no existe. Con allkeys-lru
+    # puede haber sido descartada entre el bucle y esta lectura.
     print("Estado de la clave")
-    print(f"  TTL restante          {cliente.ttl(CLAVE_DEMO):>9} s")
-    print(f"  Tamano en memoria     {cliente.memory_usage(CLAVE_DEMO):>9} bytes")
+    print(f"  TTL restante          {cliente.ttl(clave):>9} s")
+    memoria = cliente.memory_usage(clave)
+    if memoria is None:
+        print(f"  Tamano en memoria     {'sin datos':>9}   (la clave ya no existe)")
+    else:
+        print(f"  Tamano en memoria     {memoria:>9} bytes")
     print()
     print("Contadores acumulados")
-    for contador in ("contador:reco:generadas", "contador:reco:cache_hit"):
+    for contador in ("contador:{reco}:generadas", "contador:{reco}:cache_hit"):
         valor = cliente.get(contador)
         print(f"  {contador:<26}{valor if valor is not None else 'sin datos':>5}")
 

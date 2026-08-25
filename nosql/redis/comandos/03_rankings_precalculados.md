@@ -79,18 +79,31 @@ agregación?
 **Objetivo:** reemplazar el contenido completo de la estructura y volver a fijarle su vida útil.
 
 ```redis
+MULTI
 DEL ranking:productos:vistos:7d
 ZADD ranking:productos:vistos:7d 1240 product-001 980 product-002 870 product-003 815 product-004 640 product-005 590 product-006 410 product-007 250 product-008
 EXPIRE ranking:productos:vistos:7d 3600
+EXEC
 ZCARD ranking:productos:vistos:7d
 TTL ranking:productos:vistos:7d
 ```
 
-**Resultado esperado:** `ZCARD` devuelve 8 y `TTL` devuelve un valor cercano a 3600.
+**Resultado esperado:** los tres comandos encolados responden `QUEUED`, `EXEC` devuelve la lista de
+sus tres resultados, `ZCARD` devuelve 8 y `TTL` un valor cercano a 3600.
 
 **Justificación:** el `DEL` previo es necesario. Sin él, los productos que dejaron de figurar en el
 resultado de la agregación conservarían su score anterior y el ranking acumularía datos obsoletos
 entre recálculos.
+
+Los tres comandos van dentro de una transacción por dos motivos. Sin ella, cualquier lectura que
+llegue entre el `DEL` y el `ZADD` obtiene un ranking vacío, y un fallo entre el `ZADD` y el `EXPIRE`
+deja el ranking reconstruido **sin TTL**, lo que contradice la garantía de que un ranking que dejó de
+actualizarse no se sirva de forma indefinida. `MULTI` encola los comandos y `EXEC` los ejecuta de
+corrido, sin que ningún otro cliente pueda intercalar operaciones ni observar un estado intermedio.
+
+A diferencia de una transacción relacional, `EXEC` no ofrece rollback: si un comando encolado falla
+en tiempo de ejecución, los demás igual se aplican. Lo que garantiza es el aislamiento y la ejecución
+completa de la secuencia, que es lo que este caso necesita.
 
 El TTL de una hora es más largo que los diez minutos de la cache de recomendaciones. La diferencia es
 deliberada: una agregación sobre una ventana de siete días cambia mucho más lentamente que una

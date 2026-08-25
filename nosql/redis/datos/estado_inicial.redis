@@ -28,5 +28,5 @@ ZADD ranking:productos:vistos:7d 1240 product-001 980 product-002 870 product-00
 EXPIRE ranking:productos:vistos:7d 3600
 
 # --- 4. Contadores operativos (String + INCR, sin expiracion) ---
-SET contador:reco:generadas 128
-SET contador:reco:cache_hit 431
+SET contador:{reco}:generadas 128
+SET contador:{reco}:cache_hit 431

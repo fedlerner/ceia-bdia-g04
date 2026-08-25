@@ -93,12 +93,26 @@ echo "  evicted_keys              $descartadas_despues   (+$descartadas_delta en
 echo "  used_memory               $memoria_despues"
 echo ""
 
+# Se comprueban las cuatro estructuras del modelo, incluidos los contadores.
+# Los contadores no tienen TTL, de modo que su descarte es lo que demuestra
+# que allkeys-lru alcanza a cualquier clave y no solo a las que expiran.
 echo "Sobrevivieron las claves del estado inicial?"
-for clave in reco:user:user-123:home session:session-456 ranking:productos:vistos:7d; do
+printf '  %-30s %-10s %s\n' "clave" "TTL" "estado"
+for clave in reco:user:user-123:home reco:sess:session-456:product \
+             session:session-456 ranking:productos:vistos:7d \
+             "contador:{reco}:generadas" "contador:{reco}:cache_hit"; do
     if [ "$(cli EXISTS "$clave")" = "1" ]; then
-        printf '  %-38s presente\n' "$clave"
+        ttl="$(cli TTL "$clave")"
+        [ "$ttl" = "-1" ] && ttl="sin TTL"
+        printf '  %-30s %-10s presente\n' "$clave" "$ttl"
     else
-        printf '  %-38s DESCARTADA por la politica allkeys-lru\n' "$clave"
+        # La clave ya no existe: se informa el TTL que tenia declarado el
+        # estado inicial, porque TTL sobre una clave ausente siempre da -2.
+        case "$clave" in
+            contador:*) ttl="sin TTL" ;;
+            *)          ttl="con TTL" ;;
+        esac
+        printf '  %-30s %-10s DESCARTADA por allkeys-lru\n' "$clave" "$ttl"
     fi
 done
 
