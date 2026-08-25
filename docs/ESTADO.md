@@ -9,8 +9,8 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 
 | # | Actividad | Estado | Dónde | Qué falta |
 | --- | --- | --- | --- | --- |
-| 1 | Análisis del caso de uso | Completo | [`informe.md` §1](informe.md) | — |
-| 2 | Relevamiento de datos necesarios | Completo | [`informe.md` §2–3](informe.md) | — |
+| 1 | Análisis del caso de uso | Completo | [`informe.md` §1](informe.md) | Nada |
+| 2 | Relevamiento de datos necesarios | Completo | [`informe.md` §2–3](informe.md) | Nada |
 | 3 | Modelo conceptual | Parcial | [`modelo_conceptual.md`](modelo_conceptual.md) | Diagrama ER/UML exportado como `modelo_conceptual.png` |
 | 4 | Modelo lógico o equivalente | Parcial | [`informe.md` §5](informe.md), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | El modelo clave-valor y el documental están definidos. Falta el modelo lógico **relacional**: tablas, columnas, PK, FK, restricciones, N:M, criterios de normalización |
 | 5 | Normalización y decisiones de diseño | Parcial | [`informe.md` §6](informe.md) | La duplicación en Redis está justificada en §6.1. Falta justificar la normalización relacional y las decisiones de embebido/referencia en MongoDB |
@@ -32,9 +32,9 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | Modelo físico o equivalente | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/); relacional pendiente en [`../db/estructura/`](../db/estructura/) |
 | Arquitectura general de datos | Parcial | [`arquitectura.md`](arquitectura.md) |
 | Archivos de implementación mínima | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/); PostgreSQL y MongoDB pendientes |
-| Datos de ejemplo | Parcial | [`../data/ejemplos/`](../data/ejemplos/) y [`../nosql/redis/datos/`](../nosql/redis/datos/) — falta el catálogo relacional |
+| Datos de ejemplo | Parcial | [`../data/ejemplos/`](../data/ejemplos/) y [`../nosql/redis/datos/`](../nosql/redis/datos/), falta el catálogo relacional |
 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/) y [`../nosql/redis/comandos/`](../nosql/redis/comandos/) |
-| README del proyecto | Parcial | [`../README.md`](../README.md) — faltan los integrantes |
+| README del proyecto | Parcial | [`../README.md`](../README.md), faltan los integrantes |
 
 ## Coherencia entre componentes
 

@@ -1,4 +1,4 @@
-# Capa clave-valor — Redis
+# Capa clave-valor en Redis
 
 Implementación de la capa clave-valor de la solución: cache de recomendaciones, sesiones de
 visitantes anónimos, rankings precalculados y rate limit del motor de recomendaciones.

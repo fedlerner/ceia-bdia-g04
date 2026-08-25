@@ -3,8 +3,9 @@
 **Diseño de una capa de datos para recomendaciones personalizadas**
 Tienda online de cosmética y perfumería
 
-Carrera de Especialización en Inteligencia Artificial — FIUBA
-Bases de Datos para Inteligencia Artificial — 2026 — Grupo 04
+Carrera de Especialización en Inteligencia Artificial, FIUBA
+Bases de Datos para Inteligencia Artificial
+Año 2026, Grupo 04
 
 > Este informe sigue el índice de 15 puntos exigido por la consigna. Las secciones 1, 2, 3, 8, 9 y
 > parte de la 12 provienen de la bajada general del grupo; las secciones 5, 7 y 12 incorporan la
@@ -219,7 +220,7 @@ La solución combina tres motores:
 
 | Componente | Modelo | Documentación |
 | --- | --- | --- |
-| PostgreSQL | Modelo lógico relacional (tablas, columnas, claves primarias y foráneas, restricciones de integridad, relaciones 1:1, 1:N y N:M) | **Pendiente** — [`../db/estructura/`](../db/estructura/) |
+| PostgreSQL | Modelo lógico relacional (tablas, columnas, claves primarias y foráneas, restricciones de integridad, relaciones 1:1, 1:N y N:M) | **Pendiente**, en [`../db/estructura/`](../db/estructura/) |
 | MongoDB | Modelo documental: colección `user_events` como Time Series Collection | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) |
 | Redis | Modelo clave-valor: cuatro estructuras (String, Hash, Sorted Set y contadores) con tres políticas de expiración | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) §2, implementación en [`../nosql/redis/`](../nosql/redis/) |
 
@@ -277,14 +278,14 @@ recomendación servida desde cache, según lo exige la regla de negocio 9.
 
 ## 7. Justificación de la tecnología seleccionada
 
-### 7.1 PostgreSQL — datos transaccionales
+### 7.1 PostgreSQL: datos transaccionales
 
 **Pendiente de desarrollar** siguiendo los criterios que pide la consigna (tipo de datos, estructura
 y variabilidad, volumen esperado, patrones de consulta, relaciones entre entidades, consistencia
 requerida, seguridad y control de acceso, escalabilidad, complejidad operativa, ventajas y
 limitaciones frente a otras alternativas).
 
-### 7.2 MongoDB — eventos de interacción
+### 7.2 MongoDB: eventos de interacción
 
 Los eventos de navegación presentan características diferentes a los datos transaccionales: se
 generan con mucha frecuencia, el volumen acumulado crece continuamente, son principalmente
@@ -301,7 +302,7 @@ que se genera continuamente y se consulta principalmente por rangos temporales.
 masivas y distribuidas, pero introduce una mayor complejidad de modelado y operación. MongoDB ofrece
 suficiente escalabilidad para el volumen esperado y mayor flexibilidad para este sistema.
 
-### 7.3 Redis — capa clave-valor
+### 7.3 Redis: capa clave-valor
 
 **Tipo de datos y variabilidad:** datos temporales, descartables y de estructura simple, a los que
 siempre se accede por un identificador conocido de antemano (cliente, sesión, producto, ventana
@@ -349,12 +350,12 @@ ningún dato de esta capa es fuente de verdad.
 
 | Componente | Estado |
 | --- | --- |
-| DDL PostgreSQL | Pendiente — [`../db/estructura/`](../db/estructura/) |
-| Carga de datos de ejemplo | Pendiente — [`../db/datos/`](../db/datos/) |
-| Índices y vistas | Pendiente — [`../db/indices_vistas/`](../db/indices_vistas/) |
-| Consultas SQL representativas | Escritas como propuesta lógica, sin ejecutar — [`../db/consultas/`](../db/consultas/) |
+| DDL PostgreSQL | Pendiente, en [`../db/estructura/`](../db/estructura/) |
+| Carga de datos de ejemplo | Pendiente, en [`../db/datos/`](../db/datos/) |
+| Índices y vistas | Pendiente, en [`../db/indices_vistas/`](../db/indices_vistas/) |
+| Consultas SQL representativas | Escritas como propuesta lógica, sin ejecutar, en [`../db/consultas/`](../db/consultas/) |
 | Colección `user_events` en MongoDB | Modelo definido; creación y carga pendientes |
-| **Redis** | **Implementado y verificado** — [`../nosql/redis/`](../nosql/redis/) |
+| **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
 La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
 RedisInsight, script de carga con autovalidación, cinco archivos de comandos representativos y dos
@@ -367,9 +368,9 @@ tecnología de la solución con implementación mínima terminada a la fecha.
 
 Disponibles en [`../data/ejemplos/`](../data/ejemplos/):
 
-- `user_events.json` — documentos de ejemplo de los cuatro tipos de evento (`product_view`, `search`,
+- `user_events.json`: documentos de ejemplo de los cuatro tipos de evento (`product_view`, `search`,
   `add_to_cart`, `purchase`).
-- `redis_recommendations.json` — valor de ejemplo de la cache.
+- `redis_recommendations.json`: valor de ejemplo de la cache.
 
 **Pendiente:** los ocho productos del catálogo, clientes, pedidos, ítems y reseñas sintéticos.
 
@@ -379,16 +380,16 @@ Disponibles en [`../data/ejemplos/`](../data/ejemplos/):
 
 Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/consultas/):
 
-1. **Catálogo activo con disponibilidad** — ¿Qué productos activos están disponibles, indicando
+1. **Catálogo activo con disponibilidad.** ¿Qué productos activos están disponibles, indicando
    marca, precio y stock? Consulta operativa central; podría implementarse como vista
    `v_active_catalog`.
-2. **Ventas e ingresos por categoría y período** — ¿Qué categorías generan más unidades vendidas e
+2. **Ventas e ingresos por categoría y período.** ¿Qué categorías generan más unidades vendidas e
    ingresos? La categoría principal evita contar dos veces una misma venta.
-3. **Productos vistos pero todavía no comprados** — candidatos para recomendaciones personalizadas.
+3. **Productos vistos pero todavía no comprados.** Candidatos para recomendaciones personalizadas.
    Justifica un índice sobre `(customer_id, event_type, occurred_at)`.
-4. **Productos y SKU con stock bajo** — reposición y exclusión de recomendaciones. Podría justificar
+4. **Productos y SKU con stock bajo.** Reposición y exclusión de recomendaciones. Podría justificar
    un índice sobre `inventory(available_qty)`.
-5. **Productos comprados conjuntamente** — venta cruzada basada en compras reales; usa CTE,
+5. **Productos comprados conjuntamente.** Venta cruzada basada en compras reales; usa CTE,
    agregación y subconsulta `EXISTS` para validar disponibilidad.
 
 Cuatro consultas sobre MongoDB, en [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md): historial
@@ -552,7 +553,7 @@ adecuada.
 
 ---
 
-## Anexo — Decisiones para la primera versión y extensiones opcionales
+## Anexo. Decisiones para la primera versión y extensiones opcionales
 
 ### Decisiones para la primera versión
 

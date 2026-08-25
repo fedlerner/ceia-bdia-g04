@@ -1,4 +1,4 @@
-# Estructura — scripts DDL (PostgreSQL)
+# Estructura: scripts DDL de PostgreSQL
 
 **Pendiente de implementar.** La consigna (punto 7) pide, para una base relacional:
 

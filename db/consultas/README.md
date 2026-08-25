@@ -1,4 +1,4 @@
-# Consultas representativas — Punto 8
+# Consultas representativas (punto 8)
 
 Las siguientes consultas son una propuesta lógica preliminar. **Los nombres definitivos de tablas y
 columnas deberán ajustarse durante la construcción del modelo lógico y físico.** En conjunto, cubren

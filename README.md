@@ -1,10 +1,12 @@
-# Trabajo Práctico Integrador — Bases de Datos para Inteligencia Artificial
+# Trabajo Práctico Integrador: Bases de Datos para Inteligencia Artificial
 
 **Diseño de una capa de datos para recomendaciones personalizadas**
 Tienda online de cosmética y perfumería
 
-Carrera de Especialización en Inteligencia Artificial (CEIA) — FIUBA
-Materia: Bases de Datos para Inteligencia Artificial — Docente: Martín Lacheski — Año: 2026
+Carrera de Especialización en Inteligencia Artificial (CEIA), FIUBA
+Materia: Bases de Datos para Inteligencia Artificial
+Docente: Martín Lacheski
+Año: 2026
 Grupo 04
 
 ---
@@ -22,7 +24,7 @@ Grupo 04
 
 ## Caso de uso elegido
 
-**Caso 2 de la consigna — Sistema de recomendación para comercio electrónico**, con la impronta
+**Caso 2 de la consigna: sistema de recomendación para comercio electrónico**, con la impronta
 propia del grupo: una **única tienda online de cosmética y perfumería** que registra su catálogo,
 disponibilidad, ventas, comportamiento de navegación y opiniones de clientes para generar
 recomendaciones personalizadas y apoyar decisiones comerciales.
@@ -138,7 +140,7 @@ se descomenta su bloque en el compose de la raíz y se agrega el `cp` correspond
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
 
-### Redis — implementado
+### Redis (implementado)
 
 Carga del estado inicial y verificación:
 
@@ -149,18 +151,18 @@ docker compose exec redis sh /scripts/00_cargar_datos.sh
 Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
 de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
 
-### PostgreSQL y MongoDB — pendientes
+### PostgreSQL y MongoDB (pendientes)
 
 > Los scripts de `db/` y la colección `user_events` todavía no están implementados.
 > Ver [docs/ESTADO.md](docs/ESTADO.md) para el detalle de lo que falta.
 
 Orden previsto de ejecución una vez implementado:
 
-1. `db/estructura/` — creación de tablas, claves y restricciones.
-2. `db/datos/` — carga de datos de ejemplo (catálogo de 8 productos + datos sintéticos).
-3. `db/indices_vistas/` — creación de índices y vistas.
-4. `db/consultas/` — ejecución de las 5 consultas representativas.
-5. `nosql/mongodb/` — creación de la colección `user_events` y carga de eventos de ejemplo.
+1. `db/estructura/`: creación de tablas, claves y restricciones.
+2. `db/datos/`: carga de datos de ejemplo (catálogo de 8 productos y datos sintéticos).
+3. `db/indices_vistas/`: creación de índices y vistas.
+4. `db/consultas/`: ejecución de las 5 consultas representativas.
+5. `nosql/mongodb/`: creación de la colección `user_events` y carga de eventos de ejemplo.
 
 ## Principales decisiones de diseño
 

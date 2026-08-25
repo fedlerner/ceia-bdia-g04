@@ -4,16 +4,16 @@
 
 La solución combina tres motores. Este documento cubre los dos componentes NoSQL:
 
-- **MongoDB** — eventos de interacción del usuario (base documental / series de tiempo).
+- **MongoDB**: eventos de interacción del usuario (base documental / series de tiempo).
   Modelo definido; implementación pendiente.
-- **Redis** — capa clave-valor: cache de recomendaciones, sesiones anónimas, rankings
+- **Redis**, capa clave-valor: cache de recomendaciones, sesiones anónimas, rankings
   precalculados y rate limit. Modelo e implementación completos en [`redis/`](redis/).
 
 Los datos transaccionales y de catálogo permanecen en **PostgreSQL** (ver [`../db/`](../db/)).
 
 ---
 
-# 1. Eventos de usuario — MongoDB
+# 1. Eventos de usuario en MongoDB
 
 Para el almacenamiento de eventos se selecciona **MongoDB como base de datos documental**.
 
@@ -278,7 +278,7 @@ Datos del comportamiento:
 
 ---
 
-# 2. Modelado de la capa clave-valor — Redis
+# 2. Modelado de la capa clave-valor en Redis
 
 > Implementación en [`redis/`](redis/). Los comandos de cada estructura están en
 > [`redis/comandos/`](redis/comandos/).
