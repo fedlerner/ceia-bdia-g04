@@ -7,7 +7,9 @@ Se ejecuta dentro del contenedor demo:
     docker compose exec demo python /workspace/scripts/demo_cache_aside.py
 
 Tambien puede ejecutarse desde el equipo local, instalando redis-py y
-definiendo REDIS_HOST=localhost.
+exportando las variables de nosql/redis/.env:
+    set -a; . nosql/redis/.env; set +a
+    REDIS_HOST=localhost python nosql/redis/scripts/demo_cache_aside.py
 
 Elimina y regenera la clave de su usuario de demostracion. No altera el resto
 del estado inicial.
@@ -40,6 +42,20 @@ def clave_cache(user_id: str, contexto: str) -> str:
     return f"reco:user:{user_id}:{contexto}"
 
 
+def puerto() -> int:
+    """Resuelve el puerto segun donde se ejecute el demo.
+
+    Dentro del contenedor, docker-compose.yml define REDIS_PORT con el puerto
+    interno. Desde el equipo local se usa REDIS_LISTEN_PORT, que es la variable
+    documentada para cambiar el puerto publicado cuando 6379 esta ocupado.
+    """
+    return int(
+        os.environ.get("REDIS_PORT")
+        or os.environ.get("REDIS_LISTEN_PORT")
+        or "6379"
+    )
+
+
 def conectar() -> redis.Redis:
     # La contrasena se exige en lugar de tomar un valor por defecto. Un
     # fallback convertiria una variable mal definida en un error de
@@ -57,7 +73,7 @@ def conectar() -> redis.Redis:
 
     return redis.Redis(
         host=os.environ.get("REDIS_HOST", "localhost"),
-        port=int(os.environ.get("REDIS_PORT", "6379")),
+        port=puerto(),
         password=contrasena,
         decode_responses=True,
     )

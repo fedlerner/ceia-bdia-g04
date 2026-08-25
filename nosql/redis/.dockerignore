@@ -1,0 +1,14 @@
+# El contexto de build se envia completo al daemon de Docker, que puede ser
+# remoto o compartido. Se excluye todo lo que no necesita la imagen, y en
+# particular el .env, que contiene REDIS_PASSWORD.
+.env
+.dockerignore
+docker-compose.yml
+README.md
+comandos/
+datos/
+
+# La imagen solo necesita scripts/requirements.txt; el resto de scripts/ se
+# monta como volumen en tiempo de ejecucion.
+scripts/*
+!scripts/requirements.txt

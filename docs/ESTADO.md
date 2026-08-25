@@ -36,6 +36,13 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/) y [`../nosql/redis/comandos/`](../nosql/redis/comandos/) |
 | README del proyecto | Parcial | [`../README.md`](../README.md) — faltan los integrantes |
 
+## Coherencia entre componentes
+
+- [ ] Unificar los identificadores de producto entre los ejemplos de MongoDB
+  (`data/ejemplos/user_events.json` y `nosql/modelo_nosql.md`, que usan `product-789`) y el catálogo
+  ficticio de ocho productos `product-001`–`product-008` que utilizan Redis y las consultas SQL.
+  Corresponde definirlo junto con quien implemente MongoDB.
+
 ## Otros pendientes de entrega
 
 - [ ] Completar la tabla de integrantes del grupo en el README.

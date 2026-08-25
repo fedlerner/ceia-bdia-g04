@@ -260,7 +260,7 @@ desnormalización asumida, con tres decisiones asociadas:
 
 | Decisión | Alternativa descartada | Compromiso aceptado |
 | --- | --- | --- |
-| Guardar el resultado del motor como documento JSON completo | Guardar solo los `product_id` y releer el catálogo en cada solicitud | El valor puede quedar desactualizado respecto del catálogo; se acota con el TTL |
+| Cachear el resultado ya calculado por el motor | Reejecutar el motor en cada solicitud | La recomendación servida puede haber dejado de reflejar los últimos eventos del usuario; la obsolescencia se acota con el TTL |
 | Materializar el ranking de productos más vistos | Ejecutar la agregación de MongoDB en cada visita | El ranking tiene hasta una hora de retraso |
 | TTL como mecanismo de consistencia | Invalidar en cada evento del usuario | Consistencia eventual de hasta 10 minutos, a cambio de conservar el beneficio de la cache |
 

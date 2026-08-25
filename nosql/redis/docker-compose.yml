@@ -2,9 +2,12 @@
 # Capa clave-valor del TP Integrador - Grupo 04.
 # Requiere copiar .env.example a .env antes de levantar la pila.
 #
-# Redis se configura sin persistencia de forma deliberada: es una cache y
-# todo su contenido puede reconstruirse desde PostgreSQL, MongoDB y el motor
-# de recomendaciones. Al reiniciar el contenedor se pierden las claves.
+# Redis se configura sin persistencia de forma deliberada: todo su contenido
+# es descartable. Las recomendaciones, las sesiones y los rankings se
+# reconstruyen desde PostgreSQL, MongoDB y el motor. Los contadores operativos
+# y los del rate limit no se reconstruyen, pero perderlos es aceptable: los
+# primeros son acumulados best-effort y los segundos solo devuelven cuota.
+# Al reiniciar el contenedor se pierden todas las claves.
 #
 # Las variables se declaran con la sintaxis ${VAR:?mensaje}, que exige que
 # esten definidas. Sin ella, un .env incompleto no produce ningun error: las
