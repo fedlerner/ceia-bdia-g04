@@ -11,10 +11,6 @@ Grupo 04
 
 ## Integrantes del grupo
 
-> **Pendiente de completar.** La consigna exige evidenciar la participación de cada integrante
-> mediante commits en el repositorio; si alguna parte se realizó fuera del repositorio, debe
-> documentarse aquí qué aportes hizo cada uno.
-
 | Integrante | N° SIU |
 | --- | --- |
 | Abdon, Juan Bautista | a2601 |
