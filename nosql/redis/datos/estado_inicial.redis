@@ -5,10 +5,10 @@
 # ../modelo_nosql.md, seccion 2.
 #
 # Catalogo ficticio de referencia (los 8 productos del trabajo):
-#   product-001 Perfume Floral        product-005 Shampoo Nutritivo
-#   product-002 Perfume Amaderado     product-006 Labial Mate
-#   product-003 Crema Hidratante      product-007 Base Fluida
-#   product-004 Serum Vitamina C      product-008 Agua Micelar
+#   product-001 Perfume Floral Lumière       product-005 Labial Mate Carmín
+#   product-002 Eau de Parfum Nocturne       product-006 Base Fluida Natural
+#   product-003 Crema Hidratante Rosa        product-007 Shampoo Nutritivo Argán
+#   product-004 Protector Solar Facial FPS50 product-008 Acondicionador Nutritivo Argán
 # ------------------------------------------------------------
 
 # --- 1. Cache de recomendaciones (String JSON + TTL fijo) ---

@@ -84,7 +84,7 @@ Cada documento tendrá una estructura general similar a:
   "user_id": "user-123",
   "session_id": "session-456",
   "event_type": "product_view",
-  "product_id": "product-789",
+  "product_id": "product-001",
   "metadata": {}
 }
 ```

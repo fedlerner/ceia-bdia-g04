@@ -4,7 +4,7 @@
     "user_id": "user-123",
     "session_id": "session-456",
     "event_type": "product_view",
-    "product_id": "product-789",
+    "product_id": "product-001",
     "metadata": {
       "category_id": "perfumes",
       "source": "search"
@@ -25,7 +25,7 @@
     "user_id": "user-123",
     "session_id": "session-456",
     "event_type": "add_to_cart",
-    "product_id": "product-789",
+    "product_id": "product-001",
     "metadata": {
       "quantity": 1
     }
