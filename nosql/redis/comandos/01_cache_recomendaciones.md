@@ -3,8 +3,11 @@
 Los comandos de este archivo se ejecutan en la consola de Redis:
 
 ```bash
-docker compose exec redis redis-cli --no-auth-warning -a bdia_local_pass
+docker compose exec redis sh -c 'redis-cli --no-auth-warning -a "$REDIS_PASSWORD"'
 ```
+
+La contraseña se toma de la variable del contenedor y no se escribe en el comando, de modo que la
+instrucción sigue siendo válida si se cambia `REDIS_PASSWORD` en el `.env`.
 
 También pueden ejecutarse desde el Workbench de RedisInsight, en <http://localhost:5540>.
 

@@ -30,8 +30,11 @@ error si alguna verificación falla, de modo que sirve también para comprobar e
 La consola de Redis se abre con:
 
 ```bash
-docker compose exec redis redis-cli --no-auth-warning -a bdia_local_pass
+docker compose exec redis sh -c 'redis-cli --no-auth-warning -a "$REDIS_PASSWORD"'
 ```
+
+La contraseña se toma de la variable del contenedor en lugar de escribirla en el comando, de modo que
+la instrucción sigue siendo válida si se cambia `REDIS_PASSWORD` en el `.env`.
 
 En Windows PowerShell, el primer comando es `Copy-Item .env.example .env`.
 
@@ -43,8 +46,10 @@ En Windows PowerShell, el primer comando es `Copy-Item .env.example .env`.
 | `redisinsight` | Visor web e interfaz de consulta (Workbench). | <http://localhost:5540> |
 | `demo` | Contenedor con Python y `redis-py` para el demo de cache-aside. | sin puerto expuesto |
 
-RedisInsight se conecta con host `redis`, puerto `6379` y contraseña `bdia_local_pass`. El host
-`redis` solo existe dentro de la red de Docker; el acceso desde el navegador es por `localhost:5540`.
+RedisInsight se conecta con host `redis`, puerto `6379` y la contraseña definida en `REDIS_PASSWORD`
+(`bdia_local_pass` si no se modificó el `.env.example`). Al ser una interfaz gráfica, el valor se
+escribe a mano: no hay forma de expandir la variable. El host `redis` solo existe dentro de la red de
+Docker; el acceso desde el navegador es por `localhost:5540`.
 
 ## Configuración
 
@@ -159,7 +164,8 @@ del compose de la raíz.
 ## Problemas frecuentes
 
 - `NOAUTH Authentication required` indica que falta el parámetro de autenticación. Todos los comandos
-  de `redis-cli` requieren `--no-auth-warning -a bdia_local_pass`.
+  de `redis-cli` requieren `--no-auth-warning -a "$REDIS_PASSWORD"` ejecutados dentro del contenedor,
+  que es donde esa variable está definida.
 - Si el puerto 6379 está ocupado por un Redis instalado en el equipo, se cambia `REDIS_LISTEN_PORT`
   en `.env`. El puerto sigue vinculado a `127.0.0.1`.
 - Si al reiniciar el contenedor las claves desaparecieron, es el comportamiento esperado: no hay

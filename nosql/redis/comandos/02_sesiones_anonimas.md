@@ -57,13 +57,16 @@ Equivale a proyectar columnas en lugar de ejecutar un `SELECT *`.
 
 ```redis
 TTL session:session-456
+MULTI
 HINCRBY session:session-456 events_count 1
 HSET session:session-456 last_seen_at 2026-08-19T15:47:00Z last_product_id product-004
 EXPIRE session:session-456 1800
+EXEC
 TTL session:session-456
 ```
 
-**Resultado esperado:** el primer `TTL` devuelve el tiempo restante y el último vuelve a ser 1800.
+**Resultado esperado:** el primer `TTL` devuelve el tiempo restante, los tres comandos encolados
+responden `QUEUED`, `EXEC` devuelve sus tres resultados y el último `TTL` vuelve a ser 1800.
 
 **Justificación:** `EXPIRE` reinicia el TTL a partir del momento de la llamada, de modo que la sesión
 sobrevive mientras haya actividad y desaparece sola tras 30 minutos de inactividad. Es el
@@ -75,6 +78,18 @@ toda la visita.
 secuencial, por lo que el incremento no puede perderse aunque lleguen solicitudes concurrentes. Esto
 evita la condición de carrera de leer el valor, sumarle uno y volver a escribirlo desde la
 aplicación.
+
+Las tres escrituras van dentro de una transacción por el mismo motivo que el rate limit del
+archivo 04. `HINCRBY` sobre un hash inexistente **lo crea**: si la sesión venció o fue descartada
+justo antes, ese comando la revive, y una caída de la aplicación antes del `EXPIRE` dejaría una
+sesión incompleta y sin TTL, es decir permanente. `MULTI` y `EXEC` garantizan que las tres
+escrituras se apliquen juntas.
+
+Queda una limitación que la transacción no cubre: si la sesión ya venció, `EXEC` la recrea igual, con
+los campos de estos comandos y sin los originales. Impedir esa resurrección requeriría comprobar la
+existencia de la clave y escribir en la misma operación, lo que en Redis se resuelve con un script
+Lua. Para el alcance de este trabajo alcanza con la transacción: el efecto es una sesión nueva con el
+contexto reciente, no una clave permanente.
 
 Resolver esto en PostgreSQL requeriría una columna `last_seen_at` y un proceso programado que
 eliminara las sesiones inactivas.
@@ -108,5 +123,8 @@ el script de carga que cada estructura tenga el régimen de expiración que le c
 El TTL de cinco segundos se usa únicamente para hacer observable en una prueba un comportamiento que
 en la solución real tarda 30 minutos.
 
-Esta comprobación deja el estado con una clave menos que la carga inicial. El script
-`scripts/reiniciar_datos.sh` restaura el estado original.
+Al vencer, `session:session-tmp` desaparece y la base vuelve a tener las seis claves de la carga
+inicial: esta comprobación no deja claves de más ni de menos. Lo que sí quedó modificado es
+`session:session-456`, porque el comando anterior le incrementó `events_count`, le cambió
+`last_seen_at` y `last_product_id` y le renovó el TTL. Para volver a los valores originales,
+`scripts/reiniciar_datos.sh` recarga el estado inicial.
