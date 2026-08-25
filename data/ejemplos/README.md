@@ -11,13 +11,9 @@
 - [ ] Clientes, pedidos e ítems de pedido sintéticos.
 - [ ] Reseñas de ejemplo.
 
-Los identificadores de producto de `redis_recommendations.json` siguen el catálogo ficticio de ocho
-productos definido en
+Los identificadores de producto de `redis_recommendations.json` y de `user_events.json` siguen el
+catálogo ficticio de ocho productos definido en
 [`../../nosql/redis/datos/estado_inicial.redis`](../../nosql/redis/datos/estado_inicial.redis).
-
-`user_events.json` todavía usa `product-789`, el identificador de los ejemplos originales del modelo
-documental, que no pertenece a ese catálogo. Unificar los identificadores entre los ejemplos de
-MongoDB y el catálogo queda pendiente; está anotado en [`../../docs/ESTADO.md`](../../docs/ESTADO.md).
 
 Los scripts de carga a PostgreSQL van en [`../../db/datos/`](../../db/datos/); el estado inicial de
 Redis se carga desde [`../../nosql/redis/`](../../nosql/redis/).

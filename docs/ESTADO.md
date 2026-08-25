@@ -15,7 +15,7 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | 4 | Modelo lógico o equivalente | Parcial | [`informe.md` §5](informe.md), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | El modelo clave-valor y el documental están definidos. Falta el modelo lógico **relacional**: tablas, columnas, PK, FK, restricciones, N:M, criterios de normalización |
 | 5 | Normalización y decisiones de diseño | Parcial | [`informe.md` §6](informe.md) | La duplicación en Redis está justificada en §6.1. Falta justificar la normalización relacional y las decisiones de embebido/referencia en MongoDB |
 | 6 | Selección tecnológica | Parcial | [`informe.md` §7](informe.md) | Redis está justificado en §7.3, con sus alternativas descartadas. Falta la justificación de PostgreSQL según los 10 criterios de la consigna |
-| 7 | Modelo físico e implementación mínima | Parcial | [`../nosql/redis/`](../nosql/redis/), [`../db/`](../db/) | Redis está implementado y verificado. Falta DDL, carga de datos, índices y vistas en PostgreSQL, y la creación de `user_events` en MongoDB |
+| 7 | Modelo físico e implementación mínima | Parcial | [`../nosql/redis/`](../nosql/redis/), [`../nosql/mongodb/`](../nosql/mongodb/), [`../db/`](../db/) | Redis y MongoDB (`user_events`) están implementados. Falta DDL, carga de datos, índices y vistas en PostgreSQL |
 | 8 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/) | Los comandos de Redis fueron ejecutados y verificados. Falta ajustar las SQL al modelo físico y ejecutarlas sobre datos reales |
 | 9 | Semiestructurados, no estructurados y vectorial | Parcial | [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md) | Cerrar los cinco ítems que pide la consigna, en especial los riesgos |
 | 10 | Arquitectura de datos | Parcial | [`arquitectura.md`](arquitectura.md) | Ingesta, capa analítica, justificación del enfoque arquitectónico, `arquitectura.png` |
@@ -29,19 +29,19 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | Informe técnico | Parcial | [`informe.md`](informe.md) → exportar a `informe.pdf` |
 | Modelo conceptual | Parcial | [`modelo_conceptual.md`](modelo_conceptual.md) + diagrama pendiente |
 | Modelo lógico relacional o equivalente | Parcial | Relacional pendiente; documental y clave-valor en [`../nosql/`](../nosql/) |
-| Modelo físico o equivalente | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/); relacional pendiente en [`../db/estructura/`](../db/estructura/) |
+| Modelo físico o equivalente | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/) y MongoDB en [`../nosql/mongodb/`](../nosql/mongodb/); relacional pendiente en [`../db/estructura/`](../db/estructura/) |
 | Arquitectura general de datos | Parcial | [`arquitectura.md`](arquitectura.md) |
-| Archivos de implementación mínima | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/); PostgreSQL y MongoDB pendientes |
-| Datos de ejemplo | Parcial | [`../data/ejemplos/`](../data/ejemplos/) y [`../nosql/redis/datos/`](../nosql/redis/datos/), falta el catálogo relacional |
+| Archivos de implementación mínima | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/) y MongoDB en [`../nosql/mongodb/`](../nosql/mongodb/); PostgreSQL pendiente |
+| Datos de ejemplo | Parcial | [`../data/ejemplos/`](../data/ejemplos/), [`../nosql/redis/datos/`](../nosql/redis/datos/) y [`../nosql/mongodb/`](../nosql/mongodb/); falta el catálogo relacional |
 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/) y [`../nosql/redis/comandos/`](../nosql/redis/comandos/) |
 | README del proyecto | Parcial | [`../README.md`](../README.md), faltan los integrantes |
 
 ## Coherencia entre componentes
 
-- [ ] Unificar los identificadores de producto entre los ejemplos de MongoDB
-  (`data/ejemplos/user_events.json` y `nosql/modelo_nosql.md`, que usan `product-789`) y el catálogo
-  ficticio de ocho productos `product-001`–`product-008` que utilizan Redis y las consultas SQL.
-  Corresponde definirlo junto con quien implemente MongoDB.
+- [x] Unificar los identificadores de producto entre los ejemplos de MongoDB
+  (`data/ejemplos/user_events.json`, `nosql/mongodb/seed_data.json` y `nosql/modelo_nosql.md`) y el
+  catálogo ficticio de ocho productos `product-001`–`product-008` que utilizan Redis y las consultas
+  SQL. Resuelto junto con la implementación de MongoDB.
 
 ## Otros pendientes de entrega
 
@@ -56,12 +56,12 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | Componente | Estado | Ubicación |
 | --- | --- | --- |
 | **Redis (capa clave-valor)** | Terminado y verificado | [`../nosql/redis/`](../nosql/redis/) |
-| MongoDB (eventos) | Modelo definido, implementación pendiente | `../nosql/mongodb/` (a crear) |
+| MongoDB (eventos) | Terminado | [`../nosql/mongodb/`](../nosql/mongodb/) |
 | PostgreSQL (transaccional) | Pendiente | [`../db/`](../db/) |
 
-El [`docker-compose.yml`](../docker-compose.yml) de la raíz ya está armado e incorpora Redis con
-`include:`. Los bloques de PostgreSQL y MongoDB están escritos y comentados: cuando exista el archivo
-de cada uno, alcanza con descomentar su bloque.
+El [`docker-compose.yml`](../docker-compose.yml) de la raíz ya está armado e incorpora MongoDB con
+`include:`. Los bloques de Redis y PostgreSQL están escritos y comentados: cuando exista el archivo de
+cada uno, alcanza con descomentar su bloque.
 
 Para que la inclusión funcione sin retoques, conviene que cada componente siga las mismas
 convenciones que [`../nosql/redis/`](../nosql/redis/):
