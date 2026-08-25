@@ -1,6 +1,10 @@
 # 03. Rankings precalculados
 
-Los comandos de este archivo se ejecutan en la consola de Redis o en el Workbench de RedisInsight.
+Los comandos de este archivo se ejecutan en la consola de Redis o en el Workbench de RedisInsight, en
+el orden en que aparecen. Los bloques **modifican el ranking**: el comando 2 sube el score de
+`product-006` de 590 a 690, de modo que el comando 3, ejecutado a continuación, cuenta seis productos
+por encima de 600 y no los cinco de la carga inicial. Para reproducir los valores del estado inicial
+hay que recargarlo con `scripts/reiniciar_datos.sh`.
 
 Esta estructura materializa en Redis el resultado de una agregación costosa. La consulta "productos
 más visualizados" del modelo documental recorre la colección `user_events` completa, y ejecutarla en

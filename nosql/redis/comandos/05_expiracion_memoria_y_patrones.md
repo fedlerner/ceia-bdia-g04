@@ -1,6 +1,9 @@
 # 05. Expiración, memoria y patrones de búsqueda
 
 Los comandos de este archivo se ejecutan en la consola de Redis o en el Workbench de RedisInsight.
+Todos son de lectura y no modifican el estado, con una excepción: el comando 5 invoca
+`scripts/demo_limite_memoria.sh`, que llena la base con claves de relleno y al terminar recarga el
+estado inicial.
 
 Este archivo cubre los dos aspectos que la consigna exige específicamente para una base clave-valor:
 los patrones de búsqueda, en el punto 4, y las políticas de expiración, en el punto 7.

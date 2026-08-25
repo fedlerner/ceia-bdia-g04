@@ -111,8 +111,13 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ### Levantar la solución
 
 El [`docker-compose.yml`](docker-compose.yml) de la raíz incorpora el compose de cada componente
-mediante `include:`, de modo que un solo comando levanta toda la solución. Cada componente conserva
-su propio archivo y su propio `.env`.
+mediante `include:`, de modo que un solo comando levanta los que estén incorporados. Cada componente
+conserva su propio archivo y su propio `.env`.
+
+**Hoy sólo levanta Redis**, que es el único componente implementado: los bloques de PostgreSQL y
+MongoDB están escritos y comentados en el compose de la raíz, a la espera de que existan sus archivos.
+A medida que se incorporen, descomentar su bloque los suma sin tocar nada más. El estado de cada
+componente está en [docs/ESTADO.md](docs/ESTADO.md).
 
 > `include:` requiere **Docker Compose 2.20 o posterior**. Con una versión anterior, el comando falla
 > antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
