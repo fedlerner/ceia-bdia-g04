@@ -1,0 +1,32 @@
+# ------------------------------------------------------------
+# Estado inicial de la capa clave-valor.
+# Se carga con scripts/00_cargar_datos.sh, que antes ejecuta FLUSHDB.
+# Cada bloque corresponde a una de las cuatro estructuras definidas en
+# ../modelo_nosql.md, seccion 2.
+#
+# Catalogo ficticio de referencia (los 8 productos del trabajo):
+#   product-001 Perfume Floral        product-005 Shampoo Nutritivo
+#   product-002 Perfume Amaderado     product-006 Labial Mate
+#   product-003 Crema Hidratante      product-007 Base Fluida
+#   product-004 Serum Vitamina C      product-008 Agua Micelar
+# ------------------------------------------------------------
+
+# --- 1. Cache de recomendaciones (String JSON + TTL fijo) ---
+# Cliente identificado, contexto pagina principal.
+SET reco:user:user-123:home '{"generated_at":"2026-08-19T15:40:00Z","model_version":"v1","source":"motor","recommendations":[{"product_id":"product-004","score":0.94},{"product_id":"product-001","score":0.89},{"product_id":"product-003","score":0.81}]}' EX 600
+
+# Sesion anonima, contexto ficha de producto.
+SET reco:sess:session-456:product '{"generated_at":"2026-08-19T15:41:00Z","model_version":"v1","source":"motor","recommendations":[{"product_id":"product-002","score":0.77},{"product_id":"product-008","score":0.71}]}' EX 600
+
+# --- 2. Sesion de visitante anonimo (Hash + TTL deslizante) ---
+HSET session:session-456 started_at 2026-08-19T15:28:00Z last_seen_at 2026-08-19T15:41:00Z events_count 7 last_product_id product-002 preferred_category perfumes
+EXPIRE session:session-456 1800
+
+# --- 3. Ranking precalculado de productos mas vistos (Sorted Set + TTL) ---
+# Resultado materializado de la agregacion de MongoDB (../modelo_nosql.md, 1.5).
+ZADD ranking:productos:vistos:7d 1240 product-001 980 product-002 870 product-003 815 product-004 640 product-005 590 product-006 410 product-007 250 product-008
+EXPIRE ranking:productos:vistos:7d 3600
+
+# --- 4. Contadores operativos (String + INCR, sin expiracion) ---
+SET contador:reco:generadas 128
+SET contador:reco:cache_hit 431

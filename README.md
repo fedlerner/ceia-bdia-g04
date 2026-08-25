@@ -67,7 +67,7 @@ sensible y de auditoría) está en [docs/informe.md](docs/informe.md).
 | --- | --- |
 | **PostgreSQL** | Datos transaccionales y de catálogo: productos, SKU, inventario, pedidos, reseñas. Fuente de verdad del estado del negocio. |
 | **MongoDB** (Time Series Collection) | Eventos de comportamiento del usuario (`user_events`): alto volumen de escritura, esquema flexible, consulta por rangos temporales. |
-| **Redis** | Cache de corto plazo (TTL de 5 a 15 minutos) de las recomendaciones generadas, por usuario y contexto. |
+| **Redis** | Capa clave-valor: cache de recomendaciones, sesiones de visitantes anónimos, rankings precalculados y rate limit del motor. **Implementado** en [`nosql/redis/`](nosql/redis/). |
 
 La justificación de cada elección está en [docs/informe.md](docs/informe.md) y en
 [nosql/modelo_nosql.md](nosql/modelo_nosql.md).
@@ -80,6 +80,7 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ```text
 .
 ├── README.md                       # Este archivo
+├── docker-compose.yml              # Compose unificado (include de cada componente)
 ├── docs/
 │   ├── informe.md                  # Informe técnico (15 puntos de la consigna)
 │   ├── modelo_conceptual.md        # Entidades, atributos, relaciones y reglas de negocio
@@ -93,7 +94,12 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 │   ├── consultas/                  # Consultas representativas (punto 8)
 │   └── indices_vistas/             # Índices y vistas
 ├── nosql/
-│   └── modelo_nosql.md             # Modelo MongoDB (eventos) y Redis (cache)
+│   ├── modelo_nosql.md             # Modelo MongoDB (eventos) y Redis (clave-valor)
+│   └── redis/                      # Implementación de la capa clave-valor
+│       ├── docker-compose.yml      #   Redis 8.2 + RedisInsight + demo
+│       ├── comandos/               #   5 archivos de comandos representativos
+│       ├── scripts/                #   carga, reinicio y demos con medición
+│       └── datos/                  #   estado inicial
 ├── vectorial/
 │   └── modelo_vectorial.md         # Análisis de la necesidad de búsqueda por similitud
 └── anexos/
@@ -102,7 +108,42 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 
 ## Cómo ejecutar o revisar la implementación mínima
 
-> **Pendiente.** Los scripts de `db/` y la carga de datos de ejemplo todavía no están implementados.
+### Levantar la solución
+
+El [`docker-compose.yml`](docker-compose.yml) de la raíz incorpora el compose de cada componente
+mediante `include:`, de modo que un solo comando levanta toda la solución. Cada componente conserva
+su propio archivo y su propio `.env`.
+
+Antes de levantar la pila, cada componente necesita su `.env` creado a partir de su `.env.example`:
+
+```bash
+cp nosql/redis/.env.example nosql/redis/.env
+```
+
+```bash
+docker compose up -d --wait
+```
+
+Si falta algún `.env`, Compose corta e indica cuál. A medida que PostgreSQL y MongoDB estén listos,
+se descomenta su bloque en el compose de la raíz y se agrega el `cp` correspondiente.
+
+Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
+las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
+
+### Redis — implementado
+
+Carga del estado inicial y verificación:
+
+```bash
+docker compose exec redis sh /scripts/00_cargar_datos.sh
+```
+
+Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
+de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
+
+### PostgreSQL y MongoDB — pendientes
+
+> Los scripts de `db/` y la colección `user_events` todavía no están implementados.
 > Ver [docs/ESTADO.md](docs/ESTADO.md) para el detalle de lo que falta.
 
 Orden previsto de ejecución una vez implementado:
@@ -111,7 +152,7 @@ Orden previsto de ejecución una vez implementado:
 2. `db/datos/` — carga de datos de ejemplo (catálogo de 8 productos + datos sintéticos).
 3. `db/indices_vistas/` — creación de índices y vistas.
 4. `db/consultas/` — ejecución de las 5 consultas representativas.
-5. `nosql/` — creación de la colección `user_events` y carga de eventos de ejemplo.
+5. `nosql/mongodb/` — creación de la colección `user_events` y carga de eventos de ejemplo.
 
 ## Principales decisiones de diseño
 
@@ -122,8 +163,9 @@ Orden previsto de ejecución una vez implementado:
 5. Registrar eventos de clientes identificados **o** de sesiones anónimas (al menos uno de los dos).
 6. Almacenar los eventos en MongoDB, separados del modelo transaccional, por volumen, frecuencia de
    escritura, inmutabilidad y variabilidad de sus metadatos.
-7. Usar Redis como cache de recomendaciones para evitar reejecutar el motor ante solicitudes
-   repetidas en un período reducido.
+7. Usar Redis como capa clave-valor para los datos temporales, reconstruibles y sensibles a la
+   latencia: cache de recomendaciones, sesiones anónimas, rankings precalculados y rate limit. Redis
+   no es fuente de verdad de ningún dato del modelo.
 8. No entrenar un modelo de IA ni desarrollar una aplicación completa en esta etapa.
 
 ## Consultas incluidas
@@ -139,9 +181,15 @@ Orden previsto de ejecución una vez implementado:
 | 7 | Productos más interactuados por un usuario | MongoDB |
 | 8 | Eventos de una sesión | MongoDB |
 | 9 | Productos más visualizados (analítica general) | MongoDB |
+| 10 | Servir e invalidar la cache de recomendaciones | Redis |
+| 11 | Sostener el estado de una sesión anónima | Redis |
+| 12 | Top de productos más vistos precalculado | Redis |
+| 13 | Acotar invocaciones al motor por cliente y ventana | Redis |
+| 14 | Patrones de búsqueda, memoria y descarte por límite | Redis |
 
-Las consultas SQL están en [db/consultas/](db/consultas/) y las de MongoDB en
-[nosql/modelo_nosql.md](nosql/modelo_nosql.md).
+Las consultas SQL están en [db/consultas/](db/consultas/), las de MongoDB en
+[nosql/modelo_nosql.md](nosql/modelo_nosql.md) y los comandos de Redis en
+[nosql/redis/comandos/](nosql/redis/comandos/).
 
 ## Limitaciones y posibles mejoras
 

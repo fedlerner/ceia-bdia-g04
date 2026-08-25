@@ -221,7 +221,7 @@ La solución combina tres motores:
 | --- | --- | --- |
 | PostgreSQL | Modelo lógico relacional (tablas, columnas, claves primarias y foráneas, restricciones de integridad, relaciones 1:1, 1:N y N:M) | **Pendiente** — [`../db/estructura/`](../db/estructura/) |
 | MongoDB | Modelo documental: colección `user_events` como Time Series Collection | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) |
-| Redis | Modelo clave-valor: `recommendations:{user_id}:{context}` con TTL | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) |
+| Redis | Modelo clave-valor: cuatro estructuras (String, Hash, Sorted Set y contadores) con tres políticas de expiración | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) §2, implementación en [`../nosql/redis/`](../nosql/redis/) |
 
 ### 5.1 Qué datos se almacenan en cada componente y por qué
 
@@ -229,7 +229,10 @@ PostgreSQL aporta principalmente información sobre el **estado actual del negoc
 inventario, pedidos, reseñas), donde importan las relaciones y las restricciones de integridad.
 MongoDB aporta información sobre el **comportamiento observado del usuario**, que se genera con mucha
 frecuencia, es inmutable y presenta metadatos variables según el tipo de evento. Redis guarda
-únicamente el resultado ya calculado de las recomendaciones, con un TTL corto.
+únicamente datos temporales, reconstruibles y sensibles a la latencia: recomendaciones ya calculadas,
+estado de sesiones anónimas, rankings precalculados y contadores de rate limit. Redis no es fuente de verdad de
+ningún dato del modelo: todo su contenido puede reconstruirse desde los otros dos motores y el motor
+de recomendaciones.
 
 Esta separación evita duplicar innecesariamente los datos transaccionales en MongoDB y permite que
 cada tecnología se utilice para el tipo de información para el que resulta más adecuada.
@@ -249,6 +252,24 @@ cada tecnología se utilice para el tipo de información para el que resulta má
 - Del lado documental: la decisión de mantener una única colección `user_events` con `event_type` y
   `metadata` en lugar de una colección por tipo de evento, y la de no embeber datos transaccionales
   en los eventos (sólo se referencian `user_id`, `product_id` y `order_id`).
+
+### 6.1 Duplicación deliberada en la capa clave-valor
+
+Redis **duplica** a propósito información que ya existe en PostgreSQL y MongoDB. Es una
+desnormalización asumida, con tres decisiones asociadas:
+
+| Decisión | Alternativa descartada | Compromiso aceptado |
+| --- | --- | --- |
+| Guardar el resultado del motor como documento JSON completo | Guardar solo los `product_id` y releer el catálogo en cada solicitud | El valor puede quedar desactualizado respecto del catálogo; se acota con el TTL |
+| Materializar el ranking de productos más vistos | Ejecutar la agregación de MongoDB en cada visita | El ranking tiene hasta una hora de retraso |
+| TTL como mecanismo de consistencia | Invalidar en cada evento del usuario | Consistencia eventual de hasta 10 minutos, a cambio de conservar el beneficio de la cache |
+
+En los tres casos el compromiso es el mismo: **se cambia exactitud instantánea por latencia**. Es
+aceptable porque ningún dato de Redis es fuente de verdad; el precio aplicado, el stock y el pedido
+se leen siempre de PostgreSQL.
+
+El valor cacheado conserva `model_version` para poder determinar qué versión del modelo produjo una
+recomendación servida desde cache, según lo exige la regla de negocio 9.
 
 ---
 
@@ -278,11 +299,39 @@ que se genera continuamente y se consulta principalmente por rangos temporales.
 masivas y distribuidas, pero introduce una mayor complejidad de modelado y operación. MongoDB ofrece
 suficiente escalabilidad para el volumen esperado y mayor flexibilidad para este sistema.
 
-### 7.3 Redis — cache de recomendaciones
+### 7.3 Redis — capa clave-valor
 
-Evita ejecutar repetidamente el mismo proceso cuando un usuario solicita recomendaciones varias veces
-en un período reducido, reduciendo las consultas a PostgreSQL y MongoDB y, principalmente, la
-cantidad de veces que debe ejecutarse el motor de recomendaciones y el modelo de IA.
+**Tipo de datos y variabilidad:** datos temporales, reconstruibles y de estructura simple, a los que
+siempre se accede por un identificador conocido de antemano (cliente, sesión, producto, ventana
+temporal). No requieren relaciones, integridad referencial ni consultas por atributos internos.
+
+**Patrones de consulta:** acceso directo por clave. No hay una sola consulta de esta capa que
+necesite filtrar por el contenido del valor, que es la condición bajo la cual un modelo clave-valor
+resulta apropiado.
+
+**Consistencia requerida:** baja. Servir una recomendación con hasta diez minutos de antigüedad es
+aceptable; servir un precio o un stock desactualizado no lo es, y por eso esos datos no pasan por
+Redis.
+
+El problema que resuelve es de latencia, y la medición lo cuantifica: 258 ms por el camino
+del motor contra 0,60 ms desde Redis sobre la misma solicitud.
+
+**Alternativas evaluadas:**
+
+| Alternativa | Por qué se descartó |
+| --- | --- |
+| Cache en memoria del proceso backend | No se comparte entre instancias: cada réplica ejecutaría el motor por su cuenta y la tasa de aciertos caería al escalar horizontalmente. Tampoco sobrevive a un reinicio del proceso. |
+| Vista materializada en PostgreSQL | Sirve para el ranking agregado, pero no para recomendaciones personalizadas por cliente y contexto. Además cargaría de escrituras la base transaccional y no ofrece expiración automática. |
+| Memcached | Cubre la cache pura, pero solo tiene pares clave-valor de tipo String. No resolvería la sesión como Hash, el ranking como Sorted Set ni el rate limit atómico. |
+| No usar cache | Cada solicitud ejecutaría el motor y el modelo de IA, que son los componentes más costosos de la arquitectura. |
+
+**Complejidad operativa:** baja. Un contenedor, sin esquema que migrar y sin persistencia que
+administrar.
+
+**Limitaciones asumidas:** los datos viven en memoria y se pierden al reiniciar; con
+`allkeys-lru` cualquier clave puede ser descartada bajo presión de memoria; y Redis no ofrece control
+de acceso por clave comparable al Row Level Security de PostgreSQL. Las tres son aceptables porque
+ningún dato de esta capa es fuente de verdad.
 
 ---
 
@@ -297,7 +346,12 @@ cantidad de veces que debe ejecutarse el motor de recomendaciones y el modelo de
 | Índices y vistas | Pendiente — [`../db/indices_vistas/`](../db/indices_vistas/) |
 | Consultas SQL representativas | Escritas como propuesta lógica, sin ejecutar — [`../db/consultas/`](../db/consultas/) |
 | Colección `user_events` en MongoDB | Modelo definido; creación y carga pendientes |
-| Cache Redis | Modelo de clave y valor definidos; implementación pendiente |
+| **Redis** | **Implementado y verificado** — [`../nosql/redis/`](../nosql/redis/) |
+
+La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
+RedisInsight, script de carga con autovalidación, cinco archivos de comandos representativos y dos
+demostraciones con evidencia medida (cache-aside y descarte por límite de memoria). Es la única
+tecnología de la solución con implementación mínima terminada a la fecha.
 
 ---
 
@@ -332,6 +386,17 @@ Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/co
 Cuatro consultas sobre MongoDB, en [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md): historial
 reciente de un usuario, productos más interactuados, eventos de una sesión y productos más
 visualizados.
+
+Comandos representativos sobre Redis, en [`../nosql/redis/comandos/`](../nosql/redis/comandos/), cada
+uno con la pregunta que responde y su comparación con el equivalente SQL:
+
+| Archivo | Qué resuelve | Comandos centrales |
+| --- | --- | --- |
+| `01_cache_recomendaciones.md` | Servir recomendaciones sin ejecutar el motor; invalidar antes del vencimiento | `GET`, `SET ... EX`, `TTL`, `DEL`, `INFO stats` |
+| `02_sesiones_anonimas.md` | Sostener el estado de un visitante no registrado con expiración deslizante | `HGETALL`, `HGET`, `HINCRBY`, `EXPIRE` |
+| `03_rankings_precalculados.md` | Top de productos más vistos sin recorrer `user_events` | `ZREVRANGE`, `ZINCRBY`, `ZREVRANK`, `ZCOUNT`, `ZADD` |
+| `04_rate_limit_y_contadores.md` | Acotar invocaciones al motor por cliente y ventana | `INCR`, `EXPIRE ... NX`, `MGET` |
+| `05_expiracion_memoria_y_patrones.md` | Patrones de búsqueda, tamaño en memoria y descarte por límite | `SCAN ... MATCH`, `OBJECT ENCODING`, `MEMORY USAGE`, `CONFIG GET` |
 
 ### Cobertura de los requisitos del punto 8
 
@@ -381,6 +446,22 @@ MongoDB y Redis, y flujo completo de recomendación con resolución de cache HIT
 Falta desarrollar: matriz de roles y permisos, restricciones de acceso concretas por motor, y el
 riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de IA.
 
+### 13.1 Seguridad de la capa clave-valor (implementado)
+
+| Aspecto | Decisión |
+| --- | --- |
+| Minimización | La sesión anónima guarda comportamiento, no identidad: `started_at`, `last_seen_at`, `events_count`, `last_product_id` y `preferred_category`. **No** almacena dirección IP, user agent, correo ni teléfono. |
+| Retención | El TTL actúa como política de retención automática: la sesión desaparece sola a los 30 minutos de inactividad, sin proceso de purga. |
+| Qué no se cachea | Ningún dato personal del cliente. El valor de la cache contiene únicamente identificadores de producto y puntuaciones. |
+| Aislamiento | El prefijo de la clave separa los espacios de nombres, y el discriminador `user` / `sess` evita que una sesión anónima resuelva contra la entrada de un cliente registrado. |
+| Acceso | `requirepass` activo y puerto publicado únicamente en `127.0.0.1`. |
+| Protección del motor de IA | El rate limit por cliente y ventana acota cuántas veces puede invocarse el motor de recomendaciones y el modelo, que son los recursos más costosos. |
+
+**Limitación reconocida:** Redis no ofrece roles ni permisos por clave comparables al Row Level
+Security de PostgreSQL. El control de acceso real vive en el backend, que debe ser el único
+componente que hable con Redis. Exponer Redis directamente a un cliente permitiría leer las claves de
+cualquier otro usuario, ya que basta conocer el identificador para construir la clave.
+
 ---
 
 ## 14. Consideraciones de escalabilidad y rendimiento
@@ -388,8 +469,8 @@ riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de 
 **Pendiente de desarrollar.** Elementos ya definidos que deben servir de base:
 
 - Las estructuras que más crecerían son la colección `user_events` y las tablas de pedidos e ítems.
-- Los eventos se mantienen separados del modelo transaccional justamente para no sobrecargarlo con un
-  volumen que crece continuamente y tiene propósito principalmente analítico.
+- Los eventos se mantienen separados del modelo transaccional para no sobrecargarlo con un volumen que
+  crece continuamente y tiene propósito principalmente analítico.
 - La Time Series Collection organiza eficientemente datos que se agregan continuamente y se consultan
   por rangos temporales.
 - Redis precalcula y reutiliza las recomendaciones ya generadas, con TTL de 5 a 15 minutos.
@@ -399,6 +480,31 @@ riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de 
 
 Falta desarrollar: qué datos podrían particionarse, qué componentes podrían separarse y qué
 compromisos existen entre simplicidad, rendimiento, consistencia y costo.
+
+### 14.1 Escalabilidad de la capa clave-valor (implementado)
+
+**Qué crece:** las entradas de cache crecen con clientes activos × contextos; las sesiones, con
+visitantes concurrentes, aunque se autolimitan por el TTL de 30 minutos; los rankings están acotados
+por el tamaño del catálogo.
+
+**Dimensionamiento medido:** `MEMORY USAGE` da 312 bytes para una entrada de cache con tres
+recomendaciones, 208 para una sesión y 216 para el ranking de ocho productos. La estimación de RAM se
+calcula sobre estos valores medidos, no sobre supuestos.
+
+**Qué se precalcula:** el ranking de productos más vistos, que de otro modo exigiría recorrer
+`user_events` en cada visita a la página principal.
+
+**Límite y descarte:** con `maxmemory` de 256 MB y política `allkeys-lru`, Redis descarta las claves
+menos usadas recientemente al alcanzar el límite. El demo lo verifica: con el límite bajado a 4 MB e
+insertando 6000 claves, se descartaron 4757, **incluidas las tres claves del estado inicial**. De ahí la restricción
+de diseño: ninguna información que deba sobrevivir puede residir únicamente en Redis.
+
+**Si el volumen creciera:** réplicas de solo lectura para repartir las lecturas, o Redis Cluster
+particionando por hash slot. La convención de claves ya es compatible con el particionado, porque
+cada clave es independiente y ninguna operación cruza dos claves.
+
+**Compromiso central:** el TTL introduce consistencia eventual de hasta 10 minutos a cambio de una
+reducción de latencia medida en dos órdenes de magnitud (258 ms contra 0,60 ms).
 
 ---
 

@@ -1,11 +1,13 @@
 # Modelo NoSQL
 
-> Fuente: documento de primera bajada de modelado del grupo.
+> Fuente: documento de primera bajada de modelado del grupo, ampliado con la implementación.
 
 La solución combina tres motores. Este documento cubre los dos componentes NoSQL:
 
 - **MongoDB** — eventos de interacción del usuario (base documental / series de tiempo).
-- **Redis** — cache de corto plazo de las recomendaciones generadas (clave-valor).
+  Modelo definido; implementación pendiente.
+- **Redis** — capa clave-valor: cache de recomendaciones, sesiones anónimas, rankings
+  precalculados y rate limit. Modelo e implementación completos en [`redis/`](redis/).
 
 Los datos transaccionales y de catálogo permanecen en **PostgreSQL** (ver [`../db/`](../db/)).
 
@@ -276,12 +278,15 @@ Datos del comportamiento:
 
 ---
 
-# 2. Modelado de la cache — Redis
+# 2. Modelado de la capa clave-valor — Redis
 
-Redis se utilizará como una cache de corto plazo ubicada entre la aplicación y el motor de
+> Implementación en [`redis/`](redis/). Los comandos de cada estructura están en
+> [`redis/comandos/`](redis/comandos/).
+
+Redis se utiliza como capa clave-valor de corto plazo ubicada entre la aplicación y el motor de
 recomendaciones.
 
-El objetivo es evitar ejecutar repetidamente el mismo proceso cuando un usuario solicita
+El objetivo principal es evitar ejecutar repetidamente el mismo proceso cuando un usuario solicita
 recomendaciones varias veces en un período reducido. De esta manera, se reducen las consultas a
 PostgreSQL y MongoDB y, principalmente, la cantidad de veces que debe ejecutarse el motor de
 recomendaciones y el modelo de IA.
@@ -303,49 +308,205 @@ flowchart LR
     BE --> FE
 ```
 
-## 2.1 Clave de cache
+## 2.1 Alcance de la capa clave-valor
 
-Una clave podría tener la siguiente estructura:
+Además de la cache de recomendaciones, Redis resuelve otras tres necesidades del caso que comparten
+la misma característica: son datos temporales, reconstruibles y sensibles a la latencia.
+
+| # | Estructura | Necesidad del caso que resuelve |
+| --- | --- | --- |
+| 1 | Cache de recomendaciones | Evitar reejecutar el motor ante solicitudes repetidas. |
+| 2 | Sesión de visitante anónimo | Sostener el estado de un visitante no registrado sin escribir datos personales en PostgreSQL. |
+| 3 | Ranking precalculado | Servir la agregación "productos más vistos" sin recorrer `user_events` en cada visita. |
+| 4 | Rate limit y contadores | Acotar cuántas veces un cliente puede invocar el motor y llevar acumulados operativos. |
+
+Las cuatro corresponden a usos característicos del modelo clave-valor: caché, sesiones, rankings,
+resultados precalculados, contadores y limitación de consultas por usuario.
+
+Lo que **no** va en Redis: nada que deba sobrevivir. El pedido, el precio aplicado, el inventario y
+el catálogo viven en PostgreSQL; los eventos, en MongoDB. Redis no es fuente de verdad de ningún
+dato del modelo.
+
+## 2.2 Convención de nombres de claves
+
+Redis no tiene esquema ni índices secundarios: **la clave es el único criterio de acceso**. Por eso
+su diseño es la decisión de modelado central de esta capa.
 
 ```text
-recommendations:{user_id}:{context}
+{dominio}:{tipo_de_sujeto}:{identificador}[:{cualificador}]
 ```
 
-Por ejemplo:
+Reglas adoptadas:
+
+1. Segmentos separados por `:`, siguiendo la convención habitual de Redis.
+2. El primer segmento identifica el dominio funcional (`reco`, `session`, `ranking`, `ratelimit`,
+   `contador`) y permite recorrer cada familia con `SCAN MATCH`.
+3. Cuando el sujeto puede ser un cliente registrado o una sesión anónima, el segundo segmento lo
+   discrimina (`user` / `sess`). **Sin este discriminador, un `session_id` y un `customer_id` con el
+   mismo texto compartirían entrada de cache**, y una sesión anónima podría recibir las
+   recomendaciones de un cliente registrado.
+4. Los nombres se mantienen cortos: la clave ocupa memoria en cada entrada. Por eso la primera
+   versión del documento, que proponía `recommendations:{user_id}:{context}`, se abrevió a `reco:`.
+
+## 2.3 Claves, valores y estructuras
+
+| Estructura | Clave | Tipo | Valor | Expiración |
+| --- | --- | --- | --- | --- |
+| Cache de recomendaciones | `reco:user:{customer_id}:{contexto}`<br>`reco:sess:{session_id}:{contexto}` | String | Documento JSON con `generated_at`, `model_version`, `source` y la lista `recommendations` ordenada por `score` | TTL fijo de 600 s |
+| Sesión anónima | `session:{session_id}` | Hash | Campos `started_at`, `last_seen_at`, `events_count`, `last_product_id`, `preferred_category` | TTL deslizante de 1800 s |
+| Ranking precalculado | `ranking:productos:vistos:{ventana}` | Sorted Set | Miembro = `product_id`, score = cantidad de visualizaciones | TTL de 3600 s |
+| Rate limit | `ratelimit:reco:{customer_id}:{ventana}` | String (contador) | Cantidad de solicitudes dentro de la ventana | TTL igual a la ventana (60 s) |
+| Contadores operativos | `contador:reco:{metrica}` | String (contador) | Acumulado | Sin expiración |
+
+Los `{contexto}` previstos son `home`, `product`, `cart` y `category`, que corresponden a la página
+principal, la ficha de producto, el carrito y el listado por categoría.
+
+### Por qué cada tipo
+
+- **String para la cache:** el valor se consume siempre completo, y Redis lo trata como bytes
+  opacos. No hay necesidad de acceder a partes del documento.
+- **Hash para la sesión:** la aplicación lee campos sueltos (`last_product_id`) y actualiza otros de
+  forma atómica (`HINCRBY events_count`). Con un String JSON habría que traer y reescribir el
+  documento entero en cada evento.
+- **Sorted Set para el ranking:** el orden es una propiedad de la estructura, no del momento de la
+  consulta. Recuperar el top N cuesta O(log n + m) y actualizarlo con `ZINCRBY` no requiere
+  reordenar nada.
+- **String con `INCR` para el rate limit:** el incremento es atómico, y `EXPIRE ... NX` fija la
+  ventana solo en la primera solicitud. Son dos operaciones O(1) sin tabla ni proceso de purga.
+
+## 2.4 Criterios de acceso y patrones de búsqueda
+
+| Operación | Comandos | Costo |
+| --- | --- | --- |
+| Leer la cache | `GET` | O(1) |
+| Escribir la cache con TTL | `SET ... EX` | O(1) |
+| Invalidar explícitamente | `DEL` | O(1) |
+| Leer la sesión completa | `HGETALL` | O(n) sobre campos |
+| Leer o actualizar un campo | `HGET`, `HSET`, `HINCRBY` | O(1) |
+| Renovar la sesión | `EXPIRE` | O(1) |
+| Top N del ranking | `ZREVRANGE ... WITHSCORES` | O(log n + m) |
+| Actualizar el ranking | `ZINCRBY`, `ZADD` | O(log n) |
+| Filtrar por umbral | `ZCOUNT`, `ZRANGEBYSCORE` | O(log n + m) |
+| Contar solicitudes | `INCR` + `EXPIRE ... NX` | O(1) |
+| Recorrer una familia de claves | `SCAN ... MATCH` | incremental |
+
+**Sobre índices:** Redis no tiene índices secundarios. No es posible preguntar "qué recomendaciones
+se generaron con `model_version` v1", porque el valor es opaco para el servidor. El acceso es siempre
+por clave, y el prefijo cumple el papel que cumple el índice en el modelo relacional. Para recorrer
+una familia se usa `SCAN MATCH`, nunca `KEYS`: este último es O(n) sobre toda la base y, como Redis
+atiende los comandos de forma secuencial, bloquea a todos los demás clientes mientras se ejecuta.
+
+## 2.5 Políticas de expiración
+
+El diseño usa tres regímenes distintos, decididos por estructura según qué significa que ese dato
+quede obsoleto:
+
+| Régimen | Estructuras | Comportamiento |
+| --- | --- | --- |
+| TTL fijo | Cache de recomendaciones, ranking | Se asigna al escribir y **no** se renueva al leer. La entrada debe envejecer para regenerarse con los eventos nuevos del usuario. |
+| TTL deslizante | Sesión anónima | Se renueva con `EXPIRE` en cada actividad. La sesión debe sobrevivir mientras el visitante navegue. |
+| Sin expiración | Contadores operativos | Acumulados que no tienen sentido si se reinician solos. |
+
+El TTL de la cache (10 minutos, dentro del rango de 5 a 15 previsto) es más corto que el del ranking
+(1 hora) porque una recomendación personalizada cambia mucho más rápido que una agregación sobre una
+ventana de siete días.
+
+Además del TTL, existe la **invalidación explícita** con `DEL` para eventos que no pueden esperar al
+vencimiento, como una compra que vuelve obsoleta la recomendación vigente.
+
+Redis no ejecuta un proceso que recorra todas las claves: el vencimiento es perezoso (al leer una
+clave vencida, la elimina y responde `nil`) y activo (un ciclo de fondo muestrea claves con TTL).
+
+## 2.6 Modelo físico
+
+Configuración declarada en [`redis/docker-compose.yml`](redis/docker-compose.yml):
+
+| Parámetro | Valor | Justificación |
+| --- | --- | --- |
+| `maxmemory` | `256mb` | Sin límite explícito, Redis crece hasta agotar la memoria del host. El límite convierte un problema de infraestructura en una política de cache. |
+| `maxmemory-policy` | `allkeys-lru` | Todo el contenido es reconstruible, de modo que descartar por recencia entre todas las claves es aceptable. |
+| `save` / `appendonly` | deshabilitados | Redis es una cache: persistir agregaría costo de disco sin aportar garantías que el diseño necesite. |
+| `requirepass` | activo | Autenticación mínima; el puerto además se publica solo en `127.0.0.1`. |
+
+Alternativas de política evaluadas y descartadas: `noeviction` convertiría la presión de memoria en
+errores de escritura del backend; `volatile-lru` dejaría crecer sin control los contadores sin TTL;
+`allkeys-lfu` favorecería claves populares históricas frente a recomendaciones recientes, que es lo
+contrario de lo que necesita la personalización.
+
+## 2.7 Evidencia medida
+
+Salida real de [`redis/scripts/demo_cache_aside.py`](redis/scripts/demo_cache_aside.py), con una
+latencia de motor simulada de 250 ms:
 
 ```text
-recommendations:user-123:home
+  #   resultado      latencia   productos
+  1   MISS          258.50 ms   product-004, product-001, product-003
+  2   HIT             0.59 ms   product-004, product-001, product-003
+  3   HIT             0.51 ms   product-004, product-001, product-003
+  4   HIT             0.68 ms   product-004, product-001, product-003
+  5   HIT             0.63 ms   product-004, product-001, product-003
+
+  MISS (motor)             258.50 ms   n=1
+  HIT  (Redis)               0.60 ms   n=4
+  Reduccion                 428.0 x
+
+  keyspace_hits                 4
+  keyspace_misses               1
 ```
 
-Esto permite diferenciar recomendaciones solicitadas para distintos contextos, por ejemplo:
+Salida real de [`redis/scripts/demo_limite_memoria.sh`](redis/scripts/demo_limite_memoria.sh),
+con `maxmemory` bajado a 4 MB e inserción de 6000 claves de 1 KB:
 
-- página principal;
-- página de producto;
-- carrito;
-- categoría.
+```text
+  DBSIZE                    1250   (se insertaron 6000 claves)
+  evicted_keys              4757   (+4757 en esta corrida)
+  used_memory               4.00M
 
-## 2.2 Valor almacenado
-
-El valor podría ser un documento JSON similar a:
-
-```json
-{
-  "generated_at": "2026-08-19T15:40:00Z",
-  "model_version": "v1",
-  "recommendations": [
-    { "product_id": "product-123", "score": 0.94 },
-    { "product_id": "product-456", "score": 0.89 }
-  ]
-}
+  reco:user:user-123:home                DESCARTADA por la politica allkeys-lru
+  session:session-456                    DESCARTADA por la politica allkeys-lru
+  ranking:productos:vistos:7d            DESCARTADA por la politica allkeys-lru
 ```
 
-La información puede almacenarse con un **TTL reducido**, por ejemplo entre 5 y 15 minutos.
+La segunda salida confirma una restricción del diseño: con `allkeys-lru` el descarte alcanza a
+cualquier clave, tenga TTL o no. Ninguna información que deba sobrevivir puede residir únicamente en
+Redis.
 
-El TTL evita que una recomendación quede almacenada indefinidamente, permitiendo que los nuevos
-eventos del usuario eventualmente provoquen una nueva generación.
+## 2.8 Seguridad de esta capa
 
-## 2.3 Pendientes de este componente
+- **Minimización:** la sesión anónima guarda comportamiento, no identidad. No almacena dirección IP,
+  user agent, correo ni teléfono. El TTL actúa además como política de retención automática.
+- **Qué no se cachea:** ningún dato personal del cliente. El valor de la cache contiene únicamente
+  identificadores de producto y puntuaciones; para resolver una recomendación no hace falta copiar
+  datos del cliente a Redis.
+- **Aislamiento:** el prefijo de la clave separa los espacios de nombres. El discriminador
+  `user` / `sess` evita que una sesión anónima resuelva contra la entrada de un cliente registrado.
+- **Acceso:** `requirepass` activo y puerto publicado solo en `127.0.0.1`. Redis no tiene roles ni
+  permisos por clave comparables a los de PostgreSQL; el control de acceso real vive en el backend,
+  que es el único componente que debería hablar con Redis.
+- **Rate limit:** acota cuántas veces un cliente puede invocar el motor de recomendaciones y el
+  modelo de IA, que son los recursos más caros de la arquitectura.
 
-- Definir el comportamiento de la cache para sesiones anónimas (clave por `session_id`).
-- Definir si corresponde invalidar explícitamente la clave ante ciertos eventos (por ejemplo, una
-  compra) además del vencimiento por TTL.
+## 2.9 Escalabilidad de esta capa
+
+- **Qué crece:** la cantidad de entradas de cache crece con clientes activos × contextos. Las
+  sesiones crecen con visitantes concurrentes, pero se autolimitan por el TTL de 30 minutos. Los
+  rankings son un conjunto acotado por el tamaño del catálogo.
+- **Dimensionamiento:** `MEMORY USAGE` da la medición por clave (312 bytes para una entrada de cache
+  con tres recomendaciones, 208 para una sesión, 216 para el ranking de ocho productos). La
+  estimación de RAM se calcula sobre esos valores medidos, no sobre supuestos.
+- **Compromiso asumido:** el TTL introduce **consistencia eventual**. Durante hasta 10 minutos un
+  cliente puede recibir una recomendación que ya no refleja sus últimos eventos. Es un compromiso
+  aceptado a cambio de latencia: la alternativa sería invalidar en cada evento, lo que anularía el
+  beneficio de la cache.
+- **Si el volumen creciera:** réplicas de solo lectura para repartir las lecturas, o Redis Cluster
+  particionando por hash slot. La convención de claves ya es compatible con el particionado, porque
+  cada clave es independiente y ninguna operación cruza dos claves.
+
+## 2.10 Pendientes de este componente
+
+- [ ] Reemplazar la generación simulada del demo por la llamada real al motor cuando PostgreSQL y
+      MongoDB estén implementados.
+- [ ] Definir en el backend el límite numérico del rate limit (la implementación usa 30 por minuto
+      como valor de ejemplo).
+- [ ] Decidir si la compra dispara una invalidación explícita con `DEL` además del vencimiento por
+      TTL.

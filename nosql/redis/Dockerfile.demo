@@ -1,0 +1,7 @@
+# Imagen minima para ejecutar el demo de cache-aside. Evita tener que
+# instalar redis-py en el equipo de cada integrante.
+FROM python:3.13-alpine
+
+RUN pip install --no-cache-dir redis==5.2.1
+
+WORKDIR /workspace

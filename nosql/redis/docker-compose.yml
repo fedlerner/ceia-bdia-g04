@@ -1,0 +1,97 @@
+# ------------------------------------------------------------
+# Capa clave-valor del TP Integrador - Grupo 04.
+# Requiere copiar .env.example a .env antes de levantar la pila.
+#
+# Redis se configura sin persistencia de forma deliberada: es una cache y
+# todo su contenido puede reconstruirse desde PostgreSQL, MongoDB y el motor
+# de recomendaciones. Al reiniciar el contenedor se pierden las claves.
+#
+# El archivo es autonomo, pero esta preparado para integrarse al compose
+# unificado del trabajo mediante `include:`. Por eso los puertos salen de
+# .env, los container_name llevan el prefijo bdia_g04_ y la red no usa un
+# nombre propio de este componente.
+# ------------------------------------------------------------
+
+name: bdia_g04_redis
+
+services:
+  redis:
+    image: redis:8.2-alpine
+    container_name: bdia_g04_redis_server
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Los scripts que alteran la configuracion de forma temporal necesitan
+      # conocer los valores declarados para poder volver a ellos, en lugar de
+      # leer los que esten en curso.
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY}
+      REDIS_MAXMEMORY_POLICY: ${REDIS_MAXMEMORY_POLICY}
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --maxmemory
+      - ${REDIS_MAXMEMORY}
+      - --maxmemory-policy
+      - ${REDIS_MAXMEMORY_POLICY}
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    ports:
+      - "127.0.0.1:${REDIS_LISTEN_PORT}:6379"
+    volumes:
+      - ./datos:/datos:ro
+      - ./scripts:/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli --no-auth-warning -a "$$REDIS_PASSWORD" ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - bdia_g04_network
+
+  redisinsight:
+    image: redis/redisinsight:2.70
+    container_name: bdia_g04_redisinsight
+    restart: unless-stopped
+    environment:
+      RI_APP_PORT: "5540"
+    ports:
+      - "127.0.0.1:${REDISINSIGHT_LISTEN_PORT}:5540"
+    volumes:
+      - redisinsight_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - bdia_g04_network
+
+  demo:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+    image: bdia-g04-redis-demo:1.0
+    container_name: bdia_g04_redis_demo
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["trap : TERM INT; sleep infinity & wait"]
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - bdia_g04_network
+
+volumes:
+  redisinsight_data:
+
+networks:
+  bdia_g04_network:
+    driver: bridge

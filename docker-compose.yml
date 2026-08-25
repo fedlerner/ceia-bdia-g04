@@ -1,0 +1,35 @@
+# ------------------------------------------------------------
+# Compose unificado del TP Integrador - Grupo 04.
+#
+# Levanta los motores de la solucion a partir del compose de cada
+# componente, sin duplicar su definicion. Cada integrante mantiene el archivo
+# de su parte y este solo lo incorpora.
+#
+# Para incorporar un componente alcanza con descomentar su bloque, una vez
+# que el archivo exista: Compose falla si se incluye una ruta inexistente.
+#
+# El `env_file` de cada bloque es deliberado y no debe omitirse. Compose
+# resuelve igual el .env del directorio incluido, pero si ese archivo falta
+# no informa ningun error: las variables quedan vacias y el servicio arranca
+# mal configurado. En el caso de Redis eso significa `--requirepass ""`, es
+# decir sin contrasena. Declarandolo, la ausencia del .env corta la ejecucion
+# con un mensaje que nombra el archivo faltante.
+#
+# Requiere que cada componente tenga su .env creado a partir de su
+# .env.example. Ver README.md.
+# ------------------------------------------------------------
+
+name: bdia_g04_tp
+
+include:
+  # Redis - cache de recomendaciones, sesiones anonimas, rankings y rate limit.
+  - path: nosql/redis/docker-compose.yml
+    env_file: nosql/redis/.env
+
+  # PostgreSQL - datos transaccionales y de catalogo.
+  # - path: db/docker-compose.yml
+  #   env_file: db/.env
+
+  # MongoDB - eventos de interaccion del usuario.
+  # - path: nosql/mongodb/docker-compose.yml
+  #   env_file: nosql/mongodb/.env
