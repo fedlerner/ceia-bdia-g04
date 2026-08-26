@@ -47,7 +47,8 @@ WITH validations AS (
                FROM sku s
                LEFT JOIN sku_price sp
                  ON sp.sku_id = s.sku_id
-                AND sp.valid_to IS NULL
+                AND sp.valid_from <= CURRENT_TIMESTAMP
+                AND (sp.valid_to IS NULL OR sp.valid_to > CURRENT_TIMESTAMP)
                GROUP BY s.sku_id
                HAVING COUNT(sp.price_id) <> 1
            )
@@ -187,6 +188,28 @@ WITH validations AS (
     FROM customer_session cs
     JOIN customer c ON c.customer_id = cs.customer_id
     WHERE cs.session_code = 'session-456'
+
+    UNION ALL
+
+    SELECT 19,
+           'La vista selecciona el precio efectivo y no el precio futuro',
+           COUNT(*) = 1
+           AND BOOL_AND(current_price = 95000)
+    FROM v_active_catalog
+    WHERE sku_code = 'AUR-LUM-050'
+
+    UNION ALL
+
+    SELECT 20,
+           'order-321 identifica la compra efectiva de user-123',
+           COUNT(*) = 1
+           AND BOOL_AND(c.customer_code = 'user-123')
+           AND BOOL_AND(so.order_status = 'completed')
+           AND BOOL_AND(so.payment_status = 'approved')
+           AND BOOL_AND(so.ordered_at = TIMESTAMPTZ '2026-08-19 12:42:00-03')
+    FROM sales_order so
+    JOIN customer c ON c.customer_id = so.customer_id
+    WHERE so.order_code = 'order-321'
 )
 SELECT
     sort_order,

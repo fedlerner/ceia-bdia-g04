@@ -12,7 +12,7 @@ docker compose logs postgres
 ```
 
 La primera inicialización ejecuta DDL, índices y vista, datos sintéticos, cinco
-consultas y dieciocho controles de estado. Todos los controles deben devolver
+consultas y veinte controles de estado. Todos los controles deben devolver
 `OK`.
 
 La validación limpia completa puede ejecutarse desde Git Bash:
@@ -21,13 +21,13 @@ La validación limpia completa puede ejecutarse desde Git Bash:
 ./scripts/validar_postgresql.sh --reset
 ```
 
-Además de reconstruir la base, el script ejecuta cuatro pruebas negativas de
+Además de reconstruir la base, el script ejecuta nueve pruebas negativas de
 integridad y una prueba con dos inserciones concurrentes sobre el mismo pedido.
 
 La opción `--reset` elimina solamente el contenedor y el volumen administrados
 por `db/docker-compose.yml`. No afecta Redis, MongoDB ni otros proyectos.
 
-Para repetir solamente los dieciocho controles de estado:
+Para repetir solamente los veinte controles de estado:
 
 ```bash
 docker compose exec -T postgres psql -U bdia_admin -d bdia_store \

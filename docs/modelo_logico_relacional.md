@@ -18,7 +18,7 @@ a Redis; no se duplican como tablas transaccionales.
 | `inventory_movement` | `movement_id` | `sku_id → sku`; registro inmutable que explica el stock. |
 | `customer` | `customer_id` | Cliente identificado externamente por `customer_code`. |
 | `customer_session` | `session_id` | `customer_id → customer` opcional; `session_code` conecta los motores. |
-| `sales_order` | `order_id` | `customer_id → customer`; estados simples de pedido, pago y envío. |
+| `sales_order` | `order_id` | `customer_id → customer`; `order_code` es el código externo; estados simples de pedido, pago y envío. |
 | `order_item` | `order_item_id` | `order_id → sales_order`, `sku_id → sku`; conserva el precio aplicado. |
 | `review` | `review_id` | `customer_id → customer`, `product_id → product`. |
 | `recommendation` | `recommendation_id` | Cliente o sesión; trazabilidad persistente de resultados sintéticos. |
@@ -32,6 +32,7 @@ a Redis; no se duplican como tablas transaccionales.
 | Variante | `sku_id` | `sku_code` (`AUR-LUM-050`) |
 | Cliente | `customer_id` | `customer_code` (`user-123`) |
 | Sesión | `session_id` | `session_code` (`session-456`) |
+| Pedido | `order_id` | `order_code` (`order-321`) |
 
 MongoDB y Redis usan exclusivamente los códigos compartidos. Así no dependen
 del orden de generación de claves internas en PostgreSQL.
@@ -58,6 +59,7 @@ se almacenan dentro de JSONB.
 - Cada SKU tiene como máximo un precio vigente y no admite períodos superpuestos.
 - Precios, cantidades y stock no pueden ser negativos.
 - Cada tipo de movimiento exige un signo coherente: las ventas descuentan y los ingresos reponen.
+- Una venta de inventario exige un pedido completado y pagado, el mismo SKU y una cantidad que no supere lo comprado.
 - Los movimientos de inventario son inmutables y actualizan el stock mediante trigger.
 - Una reseña por cliente y producto, con calificación de 1 a 5.
 - Una recomendación debe pertenecer a un cliente, a una sesión o a ambos de manera coherente.

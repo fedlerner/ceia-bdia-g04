@@ -57,7 +57,7 @@ El precio vigente se asocia al SKU. Además, el precio efectivamente aplicado de
 | SKU | `sku_id`, `product_id`, `sku_code`, `presentation`, `size`, `attributes`, `active` |
 | Precio de SKU | `price_id`, `sku_id`, `amount`, `currency`, `valid_from`, `valid_to` |
 | Inventario | `sku_id`, `available_qty`, `low_stock_threshold`, `updated_at` |
-| Pedido | `order_id`, `customer_id`, `ordered_at`, `order_status`, `payment_status`, `shipping_status`, `total_amount` |
+| Pedido | `order_id`, `order_code`, `customer_id`, `ordered_at`, `order_status`, `payment_status`, `shipping_status`, `total_amount` |
 | Ítem de pedido | `order_id`, `sku_id`, `quantity`, `unit_price_applied` |
 | Evento documental | `timestamp`, `user_id`, `session_id`, `event_type`, `product_id`, `sku_id`, `metadata` |
 | Recomendación | `recommendation_id`, `customer_id` o sesión, `generated_at`, `method`, `model_version` |
@@ -76,7 +76,7 @@ El precio vigente se asocia al SKU. Además, el precio efectivamente aplicado de
 9. Una recomendación debe registrar su fecha, método y, si corresponde, versión del modelo.
 10. El acceso a los datos personales debe restringirse según el rol.
 11. Los eventos pertenecen a MongoDB y no se duplican como tabla transaccional en PostgreSQL.
-12. MongoDB y Redis referencian `product_code`, `customer_code`, `session_code` y `sku_code`, no las claves internas.
+12. MongoDB y Redis referencian `product_code`, `customer_code`, `session_code`, `order_code` y `sku_code`, no las claves internas.
 
 ## 6. Representación conceptual resumida
 

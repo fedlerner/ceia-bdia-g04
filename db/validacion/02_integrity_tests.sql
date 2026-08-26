@@ -105,3 +105,123 @@ BEGIN
 END;
 $$;
 \echo '4 | Recomendación con cliente y sesión incompatibles rechazada | OK'
+
+DO $$
+DECLARE
+    test_sku_id BIGINT;
+    cancelled_order_id BIGINT;
+BEGIN
+    SELECT sku_id INTO STRICT test_sku_id
+    FROM sku
+    WHERE sku_code = 'CHR-BAS-030-N';
+
+    SELECT order_id INTO STRICT cancelled_order_id
+    FROM sales_order
+    WHERE order_code = 'order-325';
+
+    BEGIN
+        INSERT INTO inventory_movement
+            (sku_id, order_id, movement_type, quantity_change, reason)
+        VALUES
+            (test_sku_id, cancelled_order_id, 'sale', -1, 'Prueba inválida');
+
+        RAISE EXCEPTION 'ERROR: una venta para un pedido cancelado fue aceptada';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+END;
+$$;
+\echo '5 | Venta vinculada a pedido cancelado rechazada | OK'
+
+DO $$
+DECLARE
+    absent_sku_id BIGINT;
+    effective_order_id BIGINT;
+BEGIN
+    SELECT sku_id INTO STRICT absent_sku_id
+    FROM sku
+    WHERE sku_code = 'AUR-NOC-050';
+
+    SELECT order_id INTO STRICT effective_order_id
+    FROM sales_order
+    WHERE order_code = 'order-321';
+
+    BEGIN
+        INSERT INTO inventory_movement
+            (sku_id, order_id, movement_type, quantity_change, reason)
+        VALUES
+            (absent_sku_id, effective_order_id, 'sale', -1, 'Prueba inválida');
+
+        RAISE EXCEPTION 'ERROR: una venta de un SKU ausente del pedido fue aceptada';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+END;
+$$;
+\echo '6 | Venta de SKU ausente del pedido rechazada | OK'
+
+DO $$
+DECLARE
+    purchased_sku_id BIGINT;
+    effective_order_id BIGINT;
+BEGIN
+    SELECT sku_id INTO STRICT purchased_sku_id
+    FROM sku
+    WHERE sku_code = 'AUR-LUM-050';
+
+    SELECT order_id INTO STRICT effective_order_id
+    FROM sales_order
+    WHERE order_code = 'order-321';
+
+    BEGIN
+        INSERT INTO inventory_movement
+            (sku_id, order_id, movement_type, quantity_change, reason)
+        VALUES
+            (purchased_sku_id, effective_order_id, 'sale', -1, 'Prueba inválida');
+
+        RAISE EXCEPTION 'ERROR: una venta superior a la cantidad comprada fue aceptada';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+END;
+$$;
+\echo '7 | Venta superior a la cantidad comprada rechazada | OK'
+
+DO $$
+BEGIN
+    BEGIN
+        UPDATE sales_order
+           SET order_status = 'cancelled'
+         WHERE order_code = 'order-321';
+
+        RAISE EXCEPTION 'ERROR: un pedido con venta registrada dejó de ser efectivo';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+END;
+$$;
+\echo '8 | Cambio incompatible de pedido con venta rechazada | OK'
+
+DO $$
+BEGIN
+    BEGIN
+        UPDATE order_item oi
+           SET quantity = 1
+          FROM sales_order so, sku s
+         WHERE oi.order_id = so.order_id
+           AND oi.sku_id = s.sku_id
+           AND so.order_code = 'order-322'
+           AND s.sku_code = 'CHR-LAB-CAR';
+
+        RAISE EXCEPTION 'ERROR: un ítem quedó por debajo de la cantidad vendida';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+END;
+$$;
+\echo '9 | Reducción de ítem por debajo de lo vendido rechazada | OK'

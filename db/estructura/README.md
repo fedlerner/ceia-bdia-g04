@@ -12,5 +12,5 @@
 Los eventos de navegación no se duplican en PostgreSQL: su fuente canónica es
 MongoDB. Redis conserva únicamente estado temporal y caché.
 
-`product_code`, `customer_code`, `session_code` y `sku_code` son identificadores
+`product_code`, `customer_code`, `session_code`, `order_code` y `sku_code` son identificadores
 externos estables. Las claves numéricas y UUID son internas de PostgreSQL.

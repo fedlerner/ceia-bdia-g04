@@ -4,6 +4,10 @@ PostgreSQL es la fuente principal del catálogo. MongoDB y Redis deben referenci
 los productos mediante `product_code` y las variantes mediante `sku_code`; las
 claves numéricas `product_id` y `sku_id` son internas de PostgreSQL.
 
+El mismo contrato se aplica a clientes, sesiones y pedidos: `customer_code`,
+`session_code` y `order_code` son compartidos; sus claves internas no salen de PostgreSQL. El evento
+de compra de ejemplo referencia `order-321`.
+
 | product_code | Producto | Marca | Categoría principal | SKU |
 | --- | --- | --- | --- | --- |
 | `product-001` | Perfume Floral Lumière | Aurelia | Perfumes | `AUR-LUM-050`, `AUR-LUM-100` |

@@ -126,8 +126,8 @@ CREATE TABLE sku_price (
         )
 );
 
--- Refuerza y optimiza la búsqueda del precio vigente.
-CREATE UNIQUE INDEX sku_one_current_price_uq
+-- Cada SKU puede tener una sola fila de precio sin fecha de cierre.
+CREATE UNIQUE INDEX sku_one_open_ended_price_uq
     ON sku_price (sku_id)
     WHERE valid_to IS NULL;
 
@@ -188,6 +188,7 @@ CREATE TABLE customer_session (
 
 CREATE TABLE sales_order (
     order_id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    order_code         VARCHAR(40) NOT NULL,
     customer_id        BIGINT NOT NULL,
     ordered_at         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     order_status       VARCHAR(20) NOT NULL DEFAULT 'pending',
@@ -200,6 +201,8 @@ CREATE TABLE sales_order (
     CONSTRAINT sales_order_customer_fk
         FOREIGN KEY (customer_id) REFERENCES customer (customer_id)
         ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT sales_order_code_uq UNIQUE (order_code),
+    CONSTRAINT sales_order_code_format_ck CHECK (order_code ~ '^order-[0-9]+$'),
     CONSTRAINT sales_order_status_ck CHECK (
         order_status IN ('pending', 'confirmed', 'completed', 'cancelled')
     ),
@@ -399,6 +402,125 @@ CREATE TRIGGER order_item_refresh_total_trg
 AFTER INSERT OR UPDATE OR DELETE ON order_item
 FOR EACH ROW EXECUTE FUNCTION apply_order_total_delta();
 
+-- Una salida por venta solo puede descontar unidades realmente compradas.
+-- El bloqueo del ítem serializa ventas concurrentes del mismo pedido y SKU.
+CREATE OR REPLACE FUNCTION validate_sale_inventory_movement()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    purchased_qty BIGINT;
+    already_sold_qty BIGINT;
+BEGIN
+    -- Los signos inválidos quedan a cargo de inventory_movement_sign_ck.
+    IF NEW.movement_type <> 'sale' OR NEW.quantity_change >= 0 THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT oi.quantity
+      INTO purchased_qty
+      FROM order_item oi
+      JOIN sales_order so ON so.order_id = oi.order_id
+     WHERE oi.order_id = NEW.order_id
+       AND oi.sku_id = NEW.sku_id
+       AND so.order_status = 'completed'
+       AND so.payment_status = 'approved'
+     FOR UPDATE OF oi, so;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'La venta requiere un pedido completado y pagado que contenga el SKU';
+    END IF;
+
+    SELECT COALESCE(-SUM(quantity_change), 0)
+      INTO already_sold_qty
+      FROM inventory_movement
+     WHERE order_id = NEW.order_id
+       AND sku_id = NEW.sku_id
+       AND movement_type = 'sale';
+
+    IF already_sold_qty + ABS(NEW.quantity_change) > purchased_qty THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'La venta supera la cantidad comprada para el pedido y SKU';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER inventory_movement_validate_sale_trg
+BEFORE INSERT ON inventory_movement
+FOR EACH ROW EXECUTE FUNCTION validate_sale_inventory_movement();
+
+-- Una compra ya reflejada en inventario no puede quedar asociada luego a un
+-- pedido no efectivo ni a un ítem que deje de respaldar la cantidad vendida.
+CREATE OR REPLACE FUNCTION protect_effective_order_with_sales()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF (NEW.order_status <> 'completed' OR NEW.payment_status <> 'approved')
+       AND EXISTS (
+           SELECT 1
+             FROM inventory_movement im
+            WHERE im.order_id = OLD.order_id
+              AND im.movement_type = 'sale'
+       ) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'Un pedido con ventas registradas debe permanecer completado y pagado';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER sales_order_protect_effective_sale_trg
+BEFORE UPDATE OF order_status, payment_status ON sales_order
+FOR EACH ROW EXECUTE FUNCTION protect_effective_order_with_sales();
+
+CREATE OR REPLACE FUNCTION protect_order_item_with_sales()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    sold_qty INTEGER;
+BEGIN
+    SELECT COALESCE(-SUM(quantity_change), 0)
+      INTO sold_qty
+      FROM inventory_movement
+     WHERE order_id = OLD.order_id
+       AND sku_id = OLD.sku_id
+       AND movement_type = 'sale';
+
+    IF TG_OP = 'DELETE'
+       OR NEW.order_id <> OLD.order_id
+       OR NEW.sku_id <> OLD.sku_id THEN
+        IF sold_qty > 0 THEN
+            RAISE EXCEPTION USING
+                ERRCODE = '23514',
+                MESSAGE = 'No se puede quitar o reasignar un ítem con ventas registradas';
+        END IF;
+    ELSIF NEW.quantity < sold_qty THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'La cantidad del ítem no puede ser menor que la ya descontada';
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER order_item_protect_sales_trg
+BEFORE UPDATE OR DELETE ON order_item
+FOR EACH ROW EXECUTE FUNCTION protect_order_item_with_sales();
+
 -- Cada movimiento modifica el stock actual. La restricción de inventory
 -- impide que el resultado sea negativo.
 CREATE OR REPLACE FUNCTION apply_inventory_movement()
@@ -449,6 +571,9 @@ COMMENT ON COLUMN customer.customer_code IS
 
 COMMENT ON COLUMN customer_session.session_code IS
     'Identificador externo de sesión compartido con MongoDB y Redis';
+
+COMMENT ON COLUMN sales_order.order_code IS
+    'Identificador externo estable del pedido compartido con MongoDB';
 
 COMMENT ON COLUMN product.attributes IS
     'Atributos variables comunes al producto; no reemplaza relaciones normalizadas';

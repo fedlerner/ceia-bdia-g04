@@ -44,8 +44,9 @@ test_order_id="$("${psql_base[@]}" -qAt <<'SQL'
 SET search_path TO bdia, public;
 WITH new_order AS (
     INSERT INTO sales_order
-        (customer_id, order_status, payment_status, shipping_status, currency)
-    SELECT customer_id, 'pending', 'pending', 'pending', 'ARS'
+        (order_code, customer_id, order_status, payment_status, shipping_status, currency)
+    SELECT 'order-' || (EXTRACT(EPOCH FROM clock_timestamp()) * 1000000)::BIGINT,
+           customer_id, 'pending', 'pending', 'pending', 'ARS'
     FROM customer
     WHERE customer_code = 'user-127'
     RETURNING order_id

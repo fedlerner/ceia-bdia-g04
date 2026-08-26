@@ -17,7 +17,8 @@ productos definido en
 
 `user_events.json` usa `product-001`, el identificador canónico de Perfume Floral Lumière. Los
 identificadores `user-123` y `session-456` también coinciden con los códigos externos de PostgreSQL
-y con las claves de Redis.
+y con las claves de Redis. El evento `purchase` referencia `order-321`, código externo del pedido
+completado y pagado de `user-123` en PostgreSQL.
 
 Los scripts de carga a PostgreSQL van en [`../../db/datos/`](../../db/datos/); el estado inicial de
 Redis se carga desde [`../../nosql/redis/`](../../nosql/redis/).

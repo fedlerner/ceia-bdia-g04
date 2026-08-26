@@ -161,6 +161,17 @@ SELECT sku_id,
        TIMESTAMPTZ '2026-08-01 00:00:00-03'
 FROM sku;
 
+-- Precio futuro programado: permite comprobar que una fila abierta todavía
+-- no es necesariamente el precio efectivo en el momento de la consulta.
+UPDATE sku_price
+   SET valid_to = TIMESTAMPTZ '2099-01-01 00:00:00-03'
+ WHERE sku_id = (SELECT sku_id FROM sku WHERE sku_code = 'AUR-LUM-050');
+
+INSERT INTO sku_price (sku_id, amount, currency, valid_from)
+SELECT sku_id, 125000, 'ARS', TIMESTAMPTZ '2099-01-01 00:00:00-03'
+FROM sku
+WHERE sku_code = 'AUR-LUM-050';
+
 INSERT INTO inventory (sku_id, available_qty, low_stock_threshold)
 SELECT sku_id,
        0,
@@ -243,32 +254,32 @@ INSERT INTO customer_session (session_id, session_code, customer_id, started_at,
 -- ---------------------------------------------------------------------------
 
 INSERT INTO sales_order
-    (customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
-SELECT customer_id, TIMESTAMPTZ '2026-08-10 11:00:00-03',
+    (order_code, customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
+SELECT 'order-321', customer_id, TIMESTAMPTZ '2026-08-19 12:42:00-03',
        'completed', 'approved', 'delivered', 'ARS'
 FROM customer WHERE email = 'ana.torres@example.test';
 
 INSERT INTO sales_order
-    (customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
-SELECT customer_id, TIMESTAMPTZ '2026-08-12 14:30:00-03',
+    (order_code, customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
+SELECT 'order-322', customer_id, TIMESTAMPTZ '2026-08-12 14:30:00-03',
        'completed', 'approved', 'delivered', 'ARS'
 FROM customer WHERE email = 'bruno.diaz@example.test';
 
 INSERT INTO sales_order
-    (customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
-SELECT customer_id, TIMESTAMPTZ '2026-08-15 16:20:00-03',
+    (order_code, customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
+SELECT 'order-323', customer_id, TIMESTAMPTZ '2026-08-15 16:20:00-03',
        'completed', 'approved', 'delivered', 'ARS'
 FROM customer WHERE email = 'carla.mendez@example.test';
 
 INSERT INTO sales_order
-    (customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
-SELECT customer_id, TIMESTAMPTZ '2026-08-20 09:10:00-03',
+    (order_code, customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
+SELECT 'order-324', customer_id, TIMESTAMPTZ '2026-08-20 09:10:00-03',
        'completed', 'approved', 'delivered', 'ARS'
 FROM customer WHERE email = 'diego.ruiz@example.test';
 
 INSERT INTO sales_order
-    (customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
-SELECT customer_id, TIMESTAMPTZ '2026-08-22 17:40:00-03',
+    (order_code, customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
+SELECT 'order-325', customer_id, TIMESTAMPTZ '2026-08-22 17:40:00-03',
        'cancelled', 'refunded', 'cancelled', 'ARS'
 FROM customer WHERE email = 'ana.torres@example.test';
 
@@ -278,7 +289,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'AUR-LUM-050'
 WHERE c.email = 'ana.torres@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-10 11:00:00-03';
+  AND so.order_code = 'order-321';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 28000
@@ -286,7 +297,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'DER-ROS-050'
 WHERE c.email = 'ana.torres@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-10 11:00:00-03';
+  AND so.order_code = 'order-321';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 95000
@@ -294,7 +305,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'AUR-LUM-050'
 WHERE c.email = 'bruno.diaz@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-12 14:30:00-03';
+  AND so.order_code = 'order-322';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 2, 18000
@@ -302,7 +313,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'CHR-LAB-CAR'
 WHERE c.email = 'bruno.diaz@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-12 14:30:00-03';
+  AND so.order_code = 'order-322';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 145000
@@ -310,7 +321,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'AUR-LUM-100'
 WHERE c.email = 'carla.mendez@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-15 16:20:00-03';
+  AND so.order_code = 'order-323';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 28000
@@ -318,7 +329,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'DER-ROS-050'
 WHERE c.email = 'carla.mendez@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-15 16:20:00-03';
+  AND so.order_code = 'order-323';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 18000
@@ -326,7 +337,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'CHR-LAB-CAR'
 WHERE c.email = 'carla.mendez@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-15 16:20:00-03';
+  AND so.order_code = 'order-323';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 15000
@@ -334,7 +345,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'NAT-SHA-300'
 WHERE c.email = 'diego.ruiz@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-20 09:10:00-03';
+  AND so.order_code = 'order-324';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 15500
@@ -342,7 +353,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'NAT-ACO-300'
 WHERE c.email = 'diego.ruiz@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-20 09:10:00-03';
+  AND so.order_code = 'order-324';
 
 INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
 SELECT so.order_id, s.sku_id, 1, 35000
@@ -350,7 +361,7 @@ FROM sales_order so
 JOIN customer c ON c.customer_id = so.customer_id
 JOIN sku s ON s.sku_code = 'CHR-BAS-030-N'
 WHERE c.email = 'ana.torres@example.test'
-  AND so.ordered_at = TIMESTAMPTZ '2026-08-22 17:40:00-03';
+  AND so.order_code = 'order-325';
 
 -- Solo los pedidos completados producen movimientos de venta.
 INSERT INTO inventory_movement

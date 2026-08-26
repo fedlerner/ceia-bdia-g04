@@ -91,7 +91,8 @@ JOIN sku s
   ON s.product_id = p.product_id
 JOIN sku_price sp
   ON sp.sku_id = s.sku_id
- AND sp.valid_to IS NULL
+ AND sp.valid_from <= CURRENT_TIMESTAMP
+ AND (sp.valid_to IS NULL OR sp.valid_to > CURRENT_TIMESTAMP)
 JOIN inventory i
   ON i.sku_id = s.sku_id
 WHERE p.active = TRUE
