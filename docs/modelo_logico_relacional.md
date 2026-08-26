@@ -24,6 +24,178 @@ a Redis; no se duplican como tablas transaccionales.
 | `recommendation` | `recommendation_id` | Cliente o sesión; trazabilidad persistente de resultados sintéticos. |
 | `recommendation_item` | `(recommendation_id, sku_id)` | Posición y puntuación de cada SKU recomendado. |
 
+## Diagrama de clases (UML)
+
+Representación UML del mismo modelo relacional. Los tipos son lógicos (portables), no los tipos
+exactos de PostgreSQL: esos se detallan recién en el [modelo físico](modelo_fisico.md).
+
+```mermaid
+classDiagram
+    class Brand {
+        +int brand_id
+        +string name
+        +boolean active
+        +datetime created_at
+    }
+    class Category {
+        +int category_id
+        +string name
+        +string description
+        +boolean active
+        +datetime created_at
+    }
+    class Product {
+        +int product_id
+        +string product_code
+        +int brand_id
+        +string name
+        +string description
+        +json attributes
+        +boolean active
+        +datetime created_at
+        +datetime updated_at
+    }
+    class ProductCategory {
+        +int product_id
+        +int category_id
+        +boolean is_primary
+    }
+    class Sku {
+        +int sku_id
+        +int product_id
+        +string sku_code
+        +string presentation
+        +decimal size_value
+        +string size_unit
+        +json attributes
+        +boolean active
+        +datetime created_at
+        +datetime updated_at
+    }
+    class SkuPrice {
+        +int price_id
+        +int sku_id
+        +decimal amount
+        +string currency
+        +datetime valid_from
+        +datetime valid_to
+        +datetime created_at
+    }
+    class Inventory {
+        +int sku_id
+        +int available_qty
+        +int low_stock_threshold
+        +datetime updated_at
+    }
+    class InventoryMovement {
+        +int movement_id
+        +int sku_id
+        +int order_id
+        +string movement_type
+        +int quantity_change
+        +string reason
+        +datetime occurred_at
+    }
+    class Customer {
+        +int customer_id
+        +string customer_code
+        +string full_name
+        +string email
+        +string phone
+        +boolean active
+        +datetime created_at
+        +datetime updated_at
+    }
+    class CustomerSession {
+        +uuid session_id
+        +string session_code
+        +int customer_id
+        +datetime started_at
+        +datetime ended_at
+        +datetime created_at
+    }
+    class SalesOrder {
+        +int order_id
+        +string order_code
+        +int customer_id
+        +datetime ordered_at
+        +string order_status
+        +string payment_status
+        +string shipping_status
+        +decimal total_amount
+        +string currency
+        +datetime created_at
+        +datetime updated_at
+    }
+    class OrderItem {
+        +int order_item_id
+        +int order_id
+        +int sku_id
+        +int quantity
+        +decimal unit_price_applied
+    }
+    class Review {
+        +int review_id
+        +int customer_id
+        +int product_id
+        +int rating
+        +string review_text
+        +string moderation_status
+        +datetime created_at
+        +datetime updated_at
+    }
+    class Recommendation {
+        +int recommendation_id
+        +int customer_id
+        +uuid session_id
+        +datetime generated_at
+        +string method
+        +string model_version
+        +json context
+    }
+    class RecommendationItem {
+        +int recommendation_id
+        +int sku_id
+        +int position
+        +decimal score
+        +string reason
+    }
+
+    Brand "1" -- "0..*" Product : tiene
+    Product "1" -- "0..*" Sku : tiene
+    Product "1" -- "0..*" ProductCategory : se_clasifica_en
+    Category "1" -- "0..*" ProductCategory : agrupa
+    Sku "1" -- "0..*" SkuPrice : tiene_historial
+    Sku "1" -- "1" Inventory : posee
+    Sku "1" -- "0..*" OrderItem : referenciado_en
+    Sku "1" -- "0..*" InventoryMovement : afecta
+    Sku "1" -- "0..*" RecommendationItem : recomienda
+    Customer "1" -- "0..*" SalesOrder : realiza
+    SalesOrder "1" -- "1..*" OrderItem : contiene
+    SalesOrder "0..1" -- "0..*" InventoryMovement : origina
+    Customer "0..1" -- "0..*" CustomerSession : inicia
+    Customer "1" -- "0..*" Review : escribe
+    Product "1" -- "0..*" Review : recibe
+    Customer "0..1" -- "0..*" Recommendation : recibe
+    CustomerSession "0..1" -- "0..*" Recommendation : recibe
+    Recommendation "1" -- "0..*" RecommendationItem : contiene
+```
+
+**Convenciones del diagrama:**
+
+- El primer atributo de cada clase es su clave primaria (compuesta en `ProductCategory` y
+  `RecommendationItem`, donde ambos atributos listados forman la clave).
+- Todo atributo `*_id` que no sea la clave primaria de su propia clase es una clave foránea hacia la
+  clase del mismo nombre (p. ej., `brand_id` en `Product` referencia a `Brand`).
+- `Inventory.sku_id` es, a la vez, clave primaria y clave foránea: es la relación 1:1 con `Sku`.
+- Los tipos son lógicos: `json` corresponde a JSONB, `uuid` a UUID y `decimal`/`datetime` a los
+  campos numéricos y de fecha-hora de PostgreSQL. El detalle exacto (precisión, longitud,
+  nulabilidad) está en el [modelo físico](modelo_fisico.md).
+- A diferencia del modelo conceptual, aquí `ProductCategory` y `RecommendationItem` aparecen como
+  clases explícitas porque resuelven relaciones N:M o llevan atributos propios (`is_primary`,
+  `position`, `score`); y aparece `InventoryMovement`, ausente en el modelo conceptual por ser un
+  mecanismo de auditoría de la implementación relacional y no un concepto de negocio.
+
 ## Identificadores entre motores
 
 | Concepto | Clave interna PostgreSQL | Código compartido |

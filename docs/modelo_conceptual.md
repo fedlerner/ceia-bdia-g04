@@ -87,5 +87,116 @@ CLIENTES / SESIONES →  EVENTOS         →  RECOMENDACIONES
 
 ## 7. Diagrama entidad-relación
 
-> **Pendiente.** La consigna pide un Diagrama Entidad-Relación, UML u otra representación
-> equivalente, exportado como `docs/modelo_conceptual.png`.
+```mermaid
+erDiagram
+    MARCA ||--o{ PRODUCTO : "produce"
+    PRODUCTO ||--o{ SKU : "se_presenta_como"
+    PRODUCTO }o--o{ CATEGORIA : "se_clasifica_en"
+    SKU ||--o{ PRECIO : "tiene_historial_de"
+    SKU ||--|| INVENTARIO : "posee"
+    CLIENTE ||--o{ PEDIDO : "realiza"
+    PEDIDO ||--|{ ITEM_PEDIDO : "contiene"
+    SKU ||--o{ ITEM_PEDIDO : "es_vendido_como"
+    CLIENTE |o--o{ SESION : "inicia"
+    CLIENTE |o--o{ EVENTO : "genera"
+    SESION |o--o{ EVENTO : "genera"
+    PRODUCTO |o--o{ EVENTO : "es_visto_en"
+    CLIENTE ||--o{ RESENA : "escribe"
+    PRODUCTO ||--o{ RESENA : "recibe"
+    CLIENTE |o--o{ RECOMENDACION : "recibe"
+    SESION |o--o{ RECOMENDACION : "recibe"
+    RECOMENDACION ||--o{ ITEM_RECOMENDACION : "contiene"
+    SKU ||--o{ ITEM_RECOMENDACION : "es_sugerido_como"
+
+    CLIENTE {
+        string customer_code
+        string full_name
+        string email
+        boolean active
+    }
+    SESION {
+        string session_code
+        datetime started_at
+        datetime ended_at
+    }
+    MARCA {
+        string name
+    }
+    CATEGORIA {
+        string name
+    }
+    PRODUCTO {
+        string product_code
+        string name
+        boolean active
+    }
+    SKU {
+        string sku_code
+        string presentation
+        boolean active
+    }
+    PRECIO {
+        decimal amount
+        string currency
+        datetime valid_from
+        datetime valid_to
+    }
+    INVENTARIO {
+        int available_qty
+        int low_stock_threshold
+    }
+    PEDIDO {
+        string order_code
+        datetime ordered_at
+        string order_status
+        string payment_status
+        string shipping_status
+        decimal total_amount
+    }
+    ITEM_PEDIDO {
+        int quantity
+        decimal unit_price_applied
+    }
+    EVENTO {
+        string event_type
+        datetime timestamp
+        string metadata
+    }
+    RESENA {
+        int rating
+        string review_text
+        string moderation_status
+    }
+    RECOMENDACION {
+        datetime generated_at
+        string method
+        string model_version
+    }
+    ITEM_RECOMENDACION {
+        int position
+        decimal score
+    }
+```
+
+**Equivalencia con los nombres de la sección 2:** `SESION` = Sesión, `CATEGORIA` = Categoría,
+`PRECIO` = Precio de SKU, `EVENTO` = Evento de interacción, `RESENA` = Reseña. Los identificadores
+del diagrama evitan tildes y la letra ñ por compatibilidad con el renderizador de Mermaid.
+
+**Por qué Precio es una entidad propia y no un atributo de SKU:** la sección 1 exige conservar el
+precio vigente y su historia comercial. Modelarlo como entidad con vigencia (`valid_from`/`valid_to`)
+en lugar de un atributo simple de SKU es lo que permite representar esa historia; es el mismo criterio
+que ya aplica la sección 4 al listar "Precio de SKU" junto a sus propios atributos.
+
+**Restricciones que la notación de cardinalidad no expresa:**
+
+- Un evento debe asociarse a un cliente identificado, a una sesión, o a ambos (regla de negocio
+  N.° 8 de la sección 5). El diagrama muestra ambas relaciones como opcionales porque ninguna es
+  individualmente obligatoria, pero al menos una debe estar presente.
+- Una recomendación debe pertenecer a un cliente, a una sesión, o a ambos de manera coherente (regla
+  de negocio N.° 9 de la sección 5; ver también la restricción física `recommendation_target_ck` en
+  el [modelo físico](modelo_fisico.md)).
+
+**Fuera de alcance del modelo conceptual:** los movimientos de inventario (auditoría de stock) y las
+tablas puente que resuelven relaciones N:M (`product_category`, `recommendation_item` como tabla de
+unión) son decisiones de implementación relacional. Se introducen recién en el
+[modelo lógico](modelo_logico_relacional.md) y en el [modelo físico](modelo_fisico.md).

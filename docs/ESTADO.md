@@ -11,11 +11,11 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | --- | --- | --- | --- | --- |
 | 1 | Análisis del caso de uso | Completo | [`informe.md` §1](informe.md) | Nada |
 | 2 | Relevamiento de datos necesarios | Completo | [`informe.md` §2–3](informe.md) | Nada |
-| 3 | Modelo conceptual | Parcial | [`modelo_conceptual.md`](modelo_conceptual.md) | Diagrama ER/UML exportado como `modelo_conceptual.png` |
-| 4 | Modelo lógico o equivalente | Completo | [`informe.md` §5](informe.md), [`../db/estructura/`](../db/estructura/), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | Nada |
+| 3 | Modelo conceptual | Completo | [`modelo_conceptual.md`](modelo_conceptual.md) | Nada (diagrama ER incorporado como Mermaid embebido; exportar a PNG es opcional para la entrega final) |
+| 4 | Modelo lógico o equivalente | Completo | [`informe.md` §5](informe.md), [`../db/estructura/`](../db/estructura/), diagrama UML en [`modelo_logico_relacional.md`](modelo_logico_relacional.md), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | Nada |
 | 5 | Normalización y decisiones de diseño | Parcial | [`informe.md` §6](informe.md) | La duplicación en Redis está justificada en §6.1. Falta justificar la normalización relacional y las decisiones de embebido/referencia en MongoDB |
 | 6 | Selección tecnológica | Parcial | [`informe.md` §7](informe.md) | Redis está justificado en §7.3, con sus alternativas descartadas. Falta la justificación de PostgreSQL según los 10 criterios de la consigna |
-| 7 | Modelo físico e implementación mínima | Parcial | [`../nosql/redis/`](../nosql/redis/), [`../db/`](../db/) | PostgreSQL y Redis están implementados y verificados. Falta crear `user_events` en MongoDB |
+| 7 | Modelo físico e implementación mínima | Parcial | [`../nosql/redis/`](../nosql/redis/), [`../db/`](../db/), diagrama en [`modelo_fisico.md`](modelo_fisico.md) | PostgreSQL y Redis están implementados y verificados. Falta crear `user_events` en MongoDB |
 | 8 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/) | Las cinco consultas PostgreSQL están implementadas y se ejecutan durante la inicialización; faltan las consultas ejecutables de MongoDB |
 | 9 | Semiestructurados, no estructurados y vectorial | Parcial | [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md) | Cerrar los cinco ítems que pide la consigna, en especial los riesgos |
 | 10 | Arquitectura de datos | Parcial | [`arquitectura.md`](arquitectura.md) | Ingesta, capa analítica, justificación del enfoque arquitectónico, `arquitectura.png` |
@@ -27,9 +27,9 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | Entregable | Estado | Dónde |
 | --- | --- | --- |
 | Informe técnico | Parcial | [`informe.md`](informe.md) → exportar a `informe.pdf` |
-| Modelo conceptual | Parcial | [`modelo_conceptual.md`](modelo_conceptual.md) + diagrama pendiente |
-| Modelo lógico relacional o equivalente | Completo | Relacional en [`../db/estructura/`](../db/estructura/); documental y clave-valor en [`../nosql/`](../nosql/) |
-| Modelo físico o equivalente | Parcial | PostgreSQL en [`../db/`](../db/) y Redis en [`../nosql/redis/`](../nosql/redis/); MongoDB pendiente |
+| Modelo conceptual | Completo | [`modelo_conceptual.md`](modelo_conceptual.md) (incluye diagrama ER) |
+| Modelo lógico relacional o equivalente | Completo | Relacional en [`../db/estructura/`](../db/estructura/) y su diagrama UML en [`modelo_logico_relacional.md`](modelo_logico_relacional.md); documental y clave-valor en [`../nosql/`](../nosql/) |
+| Modelo físico o equivalente | Parcial | PostgreSQL en [`../db/`](../db/) (diagrama en [`modelo_fisico.md`](modelo_fisico.md)) y Redis en [`../nosql/redis/`](../nosql/redis/); MongoDB pendiente |
 | Arquitectura general de datos | Parcial | [`arquitectura.md`](arquitectura.md) |
 | Archivos de implementación mínima | Parcial | PostgreSQL y Redis implementados; MongoDB pendiente |
 | Datos de ejemplo | Completo | Catálogo y transacciones en [`../db/datos/`](../db/datos/), eventos JSON en [`../data/ejemplos/`](../data/ejemplos/) y estado Redis en [`../nosql/redis/datos/`](../nosql/redis/datos/) |
