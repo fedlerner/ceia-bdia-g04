@@ -176,8 +176,8 @@ El contenedor ejecuta en orden:
 5. `db/validacion/`: controles automáticos.
 
 La validación empírica se repitió el 25/08/2026 con PostgreSQL 16 mediante Docker Compose después de
-la revisión de la PR. El contenedor quedó `Up (healthy)` y finalizaron correctamente dieciocho
-controles de estado, cuatro pruebas negativas y una prueba de concurrencia; su procedimiento
+la revisión de la PR. El contenedor quedó `Up (healthy)` y finalizaron correctamente veinte
+controles de estado, nueve pruebas negativas y una prueba de concurrencia; su procedimiento
 reproducible está documentado en
 [`db/validacion/README.md`](db/validacion/README.md).
 

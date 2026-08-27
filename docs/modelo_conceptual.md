@@ -196,7 +196,8 @@ que ya aplica la sección 4 al listar "Precio de SKU" junto a sus propios atribu
   de negocio N.° 9 de la sección 5; ver también la restricción física `recommendation_target_ck` en
   el [modelo físico](modelo_fisico.md)).
 
-**Fuera de alcance del modelo conceptual:** los movimientos de inventario (auditoría de stock) y las
-tablas puente que resuelven relaciones N:M (`product_category`, `recommendation_item` como tabla de
-unión) son decisiones de implementación relacional. Se introducen recién en el
-[modelo lógico](modelo_logico_relacional.md) y en el [modelo físico](modelo_fisico.md).
+**Fuera de alcance del modelo conceptual:** los movimientos de inventario (auditoría de stock) y la
+implementación física de la relación N:M producto-categoría mediante `product_category`. En cambio,
+`ITEM_RECOMENDACION` sí es una entidad asociativa conceptual porque su posición, puntaje y motivo son
+atributos de negocio; su tabla relacional se detalla en el [modelo lógico](modelo_logico_relacional.md)
+y en el [modelo físico](modelo_fisico.md).

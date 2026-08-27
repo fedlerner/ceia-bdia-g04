@@ -6,13 +6,13 @@ La implementación mínima de PostgreSQL fue ejecutada inicialmente el **25/08/2
 Compose y PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y los
 14 controles originales devolvieron `OK`.
 
-Después de la revisión de la PR, el procedimiento se amplió a 18 controles de estado, 4 pruebas
+Después de la revisión de la PR, el procedimiento se amplió a 20 controles de estado, 9 pruebas
 negativas de integridad y 1 prueba de concurrencia. La ejecución limpia se repitió correctamente el
 **25/08/2026** y finalizó con:
 
 ```text
-VALIDACIÓN COMPLETA: 5 consultas, 18 controles de estado,
-4 controles de integridad y 1 control de concurrencia OK.
+VALIDACIÓN COMPLETA: 5 consultas, 20 controles de estado,
+9 controles de integridad y 1 control de concurrencia OK.
 ```
 
 La ejecución se realizó desde Git Bash, dentro de `db/`. En el equipo de validación el puerto externo

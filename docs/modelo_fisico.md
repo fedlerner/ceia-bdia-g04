@@ -24,12 +24,12 @@ erDiagram
     category ||--o{ product_category : "agrupa"
     product ||--o{ sku : "tiene"
     sku ||--o{ sku_price : "tiene"
-    sku ||--|| inventory : "posee"
+    sku ||--o| inventory : "posee"
     sku ||--o{ order_item : "vendido_en"
     sku ||--o{ inventory_movement : "afectado_en"
     sku ||--o{ recommendation_item : "recomendado_en"
     customer ||--o{ sales_order : "realiza"
-    sales_order ||--|{ order_item : "contiene"
+    sales_order ||--o{ order_item : "contiene"
     sales_order |o--o{ inventory_movement : "origina"
     customer |o--o{ customer_session : "inicia"
     customer ||--o{ review : "escribe"
@@ -185,14 +185,14 @@ El detalle exacto y ejecutable de cada tipo, restricción y valor por defecto es
 | --- | --- | --- |
 | `product_one_primary_category_uq` | `product_category` | Un producto tiene, como máximo, una categoría marcada como principal (índice único parcial `WHERE is_primary = TRUE`). |
 | `product_brand_name_uq` | `product` | El nombre del producto es único dentro de su marca. |
-| `sku_one_open_ended_price_uq` | `sku_price` | Un SKU tiene, como máximo, un precio vigente sin fecha de cierre (índice único parcial `WHERE valid_to IS NULL`). |
+| `sku_one_open_ended_price_uq` | `sku_price` | Un SKU tiene, como máximo, un precio sin fecha de cierre (índice único parcial `WHERE valid_to IS NULL`). |
 | `sku_price_no_overlapping_periods_excl` | `sku_price` | Los períodos de precio de un mismo SKU no pueden superponerse (restricción de exclusión `gist`). |
 | `order_item_order_sku_uq` | `order_item` | Un SKU aparece, como máximo, una vez por pedido. |
 | `review_customer_product_uq` | `review` | Un cliente escribe, como máximo, una reseña por producto. |
 | `customer_email_lower_uq` (índice) | `customer` | El correo es único sin distinguir mayúsculas y minúsculas. |
 | `recommendation_target_ck` | `recommendation` | `customer_id` y `session_id` no pueden ser ambos nulos (ver regla de negocio en [modelo_conceptual.md §5](modelo_conceptual.md) y la nota de cardinalidad en su §7). |
 | `recommendation_session_customer_fk` | `recommendation` | Si una recomendación tiene sesión y cliente a la vez, el par debe existir en `customer_session` (clave foránea compuesta sobre `(session_id, customer_id)`). |
-| `inventory_movement_sign_ck` / `inventory_movement_sale_order_ck` | `inventory_movement` | El signo de `quantity_change` depende del tipo de movimiento; una venta exige `order_id`. |
+| `inventory_movement_sign_ck` / `inventory_movement_order_required_ck` | `inventory_movement` | El signo de `quantity_change` depende del tipo de movimiento; ventas, devoluciones y cancelaciones exigen `order_id`. |
 | Disparadores de inmutabilidad y validación (sección 4) | `inventory_movement`, `sales_order`, `order_item` | Ver tabla de triggers. |
 
 ## 3. Índices y vista operativa
@@ -229,7 +229,8 @@ Fuente: [`../db/estructura/01_schema.sql`](../db/estructura/01_schema.sql).
 | `set_updated_at` | `product`, `sku`, `customer`, `sales_order`, `review` | Actualiza `updated_at` en cada modificación. |
 | `apply_order_total_delta` | `order_item` → `sales_order` | Mantiene `total_amount` del pedido por deltas atómicos al insertar, actualizar o eliminar ítems. |
 | `validate_sale_inventory_movement` | `inventory_movement` | Una salida de tipo venta exige un pedido completado y pagado que respalde esa cantidad del SKU. |
-| `protect_effective_order_with_sales` | `sales_order` | Un pedido con ventas ya registradas no puede dejar de estar completado y pagado. |
+| `validate_compensating_inventory_movement` | `inventory_movement` | Una devolución o cancelación solo compensa unidades previamente vendidas del mismo pedido y SKU, sin superar la cantidad vendida. |
+| `protect_effective_order_with_sales` | `sales_order` | Un pedido con ventas sin compensar no puede dejar de estar completado y pagado; la transición se permite tras compensación total. |
 | `protect_order_item_with_sales` | `order_item` | Un ítem con ventas registradas no se puede quitar, reasignar ni reducir por debajo de lo ya vendido. |
 | `apply_inventory_movement` | `inventory_movement` → `inventory` | Aplica cada movimiento al stock vigente; la restricción de `inventory` impide que quede negativo. |
 | `prevent_inventory_movement_change` | `inventory_movement` | Los movimientos son inmutables: no se editan ni se borran, solo se compensan. |

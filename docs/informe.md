@@ -370,7 +370,7 @@ implementación.
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
 La capa relacional PostgreSQL se validó nuevamente con Docker Compose después de la revisión de la
-PR: el contenedor alcanzó estado saludable y devolvieron `OK` dieciocho controles de estado, cuatro
+PR: el contenedor alcanzó estado saludable y devolvieron `OK` veinte controles de estado, nueve
 pruebas negativas de integridad y una prueba concurrente. El procedimiento y la evidencia se
 encuentran en
 [`../db/validacion/README.md`](../db/validacion/README.md).
@@ -568,7 +568,7 @@ Redis completan la propuesta multi-motor, asignando cada tipo de información a 
 adecuada.
 
 La implementación mínima de PostgreSQL quedó validada con datos sintéticos, cinco consultas
-representativas, dieciocho controles de estado, cuatro pruebas negativas y una prueba de
+representativas, veinte controles de estado, nueve pruebas negativas y una prueba de
 concurrencia. MongoDB continúa como componente pendiente de implementación; por eso la solución
 multi-motor todavía no debe considerarse cerrada.
 
