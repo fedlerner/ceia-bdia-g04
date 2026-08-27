@@ -84,10 +84,10 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ├── docker-compose.yml              # Compose unificado (include de cada componente)
 ├── docs/
 │   ├── informe.md                  # Informe técnico (15 puntos de la consigna)
-│   ├── modelo_conceptual.md        # Entidades, atributos, relaciones y reglas de negocio
-│   ├── modelo_logico_relacional.md # Tablas, claves, normalización e integración
-│   ├── arquitectura.md             # Arquitectura de datos y flujo de recomendación
-│   └── (diagramas .png a exportar)
+│   ├── modelo_conceptual.md        # Entidades, atributos, relaciones, reglas y diagrama ER
+│   ├── modelo_logico_relacional.md # Tablas, claves, normalización, integración y diagrama UML
+│   ├── modelo_fisico.md            # Diagrama físico PostgreSQL, índices, triggers y notas NoSQL
+│   └── arquitectura.md             # Arquitectura de datos y flujo de recomendación
 ├── data/
 │   └── ejemplos/                   # Documentos y registros de ejemplo
 ├── db/                             # PostgreSQL
