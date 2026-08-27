@@ -566,6 +566,14 @@ BEGIN
        AND sku_id = OLD.sku_id
        AND movement_type = 'sale';
 
+    IF TG_OP = 'UPDATE'
+       AND sold_qty > 0
+       AND NEW.unit_price_applied IS DISTINCT FROM OLD.unit_price_applied THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'No se puede modificar el precio histórico de un ítem con ventas registradas';
+    END IF;
+
     IF TG_OP = 'DELETE'
        OR NEW.order_id <> OLD.order_id
        OR NEW.sku_id <> OLD.sku_id THEN

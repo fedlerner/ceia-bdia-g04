@@ -231,7 +231,7 @@ Fuente: [`../db/estructura/01_schema.sql`](../db/estructura/01_schema.sql).
 | `validate_sale_inventory_movement` | `inventory_movement` | Una salida de tipo venta exige un pedido completado y pagado que respalde esa cantidad del SKU. |
 | `validate_compensating_inventory_movement` | `inventory_movement` | Una devolución o cancelación solo compensa unidades previamente vendidas del mismo pedido y SKU, sin superar la cantidad vendida. |
 | `protect_effective_order_with_sales` | `sales_order` | Un pedido con ventas sin compensar no puede dejar de estar completado y pagado; la transición se permite tras compensación total. |
-| `protect_order_item_with_sales` | `order_item` | Un ítem con ventas registradas no se puede quitar, reasignar ni reducir por debajo de lo ya vendido. |
+| `protect_order_item_with_sales` | `order_item` | Un ítem con ventas registradas no se puede quitar, reasignar, reducir por debajo de lo vendido ni cambiar de precio. |
 | `apply_inventory_movement` | `inventory_movement` → `inventory` | Aplica cada movimiento al stock vigente; la restricción de `inventory` impide que quede negativo. |
 | `prevent_inventory_movement_change` | `inventory_movement` | Los movimientos son inmutables: no se editan ni se borran, solo se compensan. |
 
@@ -252,8 +252,8 @@ clave misma cumple ese rol.
 
 | Estructura | Clave | Tipo Redis |
 | --- | --- | --- |
-| Cache de recomendaciones | `reco:user:{customer_id}:{contexto}` / `reco:sess:{session_id}:{contexto}` | String (JSON), TTL 600 s |
-| Sesión anónima | `session:{session_id}` | Hash, TTL deslizante 1800 s |
+| Cache de recomendaciones | `reco:user:{customer_code}:{contexto}` / `reco:sess:{session_code}:{contexto}` | String (JSON), TTL 600 s |
+| Estado temporal de sesión | `session:{session_code}` | Hash, TTL deslizante 1800 s |
 | Ranking precalculado | `ranking:productos:vistos:{ventana}` | Sorted Set, TTL 3600 s |
 | Rate limit y contadores | `ratelimit:reco:...:{ventana}` / `contador:{reco}:{metrica}` | String contador |
 

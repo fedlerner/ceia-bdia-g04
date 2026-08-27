@@ -306,3 +306,23 @@ BEGIN
 END;
 $$;
 \echo '9 | Reducción de ítem por debajo de lo vendido rechazada | OK'
+
+DO $$
+BEGIN
+    BEGIN
+        UPDATE order_item oi
+           SET unit_price_applied = unit_price_applied + 1
+          FROM sales_order so, sku s
+         WHERE oi.order_id = so.order_id
+           AND oi.sku_id = s.sku_id
+           AND so.order_code = 'order-322'
+           AND s.sku_code = 'CHR-LAB-CAR';
+
+        RAISE EXCEPTION 'ERROR: se modificó el precio histórico de un ítem vendido';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+END;
+$$;
+\echo '10 | Modificación del precio histórico de un ítem vendido rechazada | OK'

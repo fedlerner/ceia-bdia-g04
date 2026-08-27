@@ -241,8 +241,8 @@ son acumulados propios de Redis. Lo que comparten las cuatro estructuras es que 
 Esta separación evita duplicar innecesariamente los datos transaccionales en MongoDB y permite que
 cada tecnología se utilice para el tipo de información para el que resulta más adecuada.
 
-Los códigos externos `product_code`, `customer_code`, `session_code` y `sku_code` conectan los
-motores sin exponer las claves internas de PostgreSQL.
+Los códigos externos `product_code`, `customer_code`, `session_code`, `order_code` y `sku_code`
+conectan los motores sin exponer las claves internas de PostgreSQL.
 
 ---
 
@@ -370,9 +370,9 @@ implementación.
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
 La capa relacional PostgreSQL se validó nuevamente con Docker Compose después de la revisión de la
-PR: el contenedor alcanzó estado saludable y devolvieron `OK` veinte controles de estado, nueve
-pruebas negativas de integridad y una prueba concurrente. El procedimiento y la evidencia se
-encuentran en
+PR: el contenedor alcanzó estado saludable y devolvieron `OK` veinte controles de estado, dos
+controles de comportamiento, diez pruebas negativas de integridad y una prueba concurrente. El
+procedimiento y la evidencia se encuentran en
 [`../db/validacion/README.md`](../db/validacion/README.md).
 
 La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
@@ -479,7 +479,7 @@ riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de 
 | --- | --- |
 | Minimización | La sesión anónima guarda comportamiento, no identidad: `started_at`, `last_seen_at`, `events_count`, `last_product_id` y `preferred_category`. **No** almacena dirección IP, user agent, correo ni teléfono. |
 | Retención | El TTL actúa como política de retención automática: la sesión desaparece sola a los 30 minutos de inactividad, sin proceso de purga. |
-| Qué se guarda del cliente | El valor está minimizado por atributos: sólo identificadores de producto y puntuaciones, sin nombre, correo ni teléfono. La clave sí incorpora un identificador seudónimo (`reco:user:{customer_id}:...`), acotado por el TTL como retención máxima y protegido por el control de acceso del backend. |
+| Qué se guarda del cliente | El valor está minimizado por atributos: sólo identificadores de producto y puntuaciones, sin nombre, correo ni teléfono. La clave sí incorpora el código externo seudónimo (`reco:user:{customer_code}:...`), acotado por el TTL como retención máxima y protegido por el control de acceso del backend. |
 | Aislamiento | El prefijo de la clave separa los espacios de nombres, y el discriminador `user` / `sess` evita que una sesión anónima resuelva contra la entrada de un cliente registrado. |
 | Acceso | `requirepass` activo y puerto publicado únicamente en `127.0.0.1`. |
 | Protección del motor de IA | El rate limit por cliente y ventana acota cuántas veces puede invocarse el motor de recomendaciones y el modelo, que son los recursos más costosos. |
@@ -568,8 +568,9 @@ Redis completan la propuesta multi-motor, asignando cada tipo de información a 
 adecuada.
 
 La implementación mínima de PostgreSQL quedó validada con datos sintéticos, cinco consultas
-representativas, veinte controles de estado, nueve pruebas negativas y una prueba de
-concurrencia. MongoDB continúa como componente pendiente de implementación; por eso la solución
+representativas, veinte controles de estado, dos controles de comportamiento, diez pruebas
+negativas y una prueba de concurrencia. MongoDB continúa como componente pendiente de
+implementación; por eso la solución
 multi-motor todavía no debe considerarse cerrada.
 
 ---

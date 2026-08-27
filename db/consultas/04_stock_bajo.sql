@@ -26,6 +26,7 @@ JOIN sku s ON s.sku_id = i.sku_id
 JOIN product p ON p.product_id = s.product_id
 JOIN brand b ON b.brand_id = p.brand_id
 WHERE p.active = TRUE
+  AND b.active = TRUE
   AND s.active = TRUE
   AND i.available_qty <= i.low_stock_threshold
 ORDER BY i.available_qty ASC, p.name;

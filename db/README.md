@@ -21,8 +21,9 @@ La validación limpia completa puede ejecutarse desde Git Bash:
 ./scripts/validar_postgresql.sh --reset
 ```
 
-Además de reconstruir la base, el script ejecuta nueve pruebas negativas de
-integridad y una prueba con dos inserciones concurrentes sobre el mismo pedido.
+Además de reconstruir la base, el script ejecuta dos controles de comportamiento,
+diez pruebas negativas de integridad y una prueba con dos inserciones concurrentes
+sobre el mismo pedido.
 
 La opción `--reset` elimina solamente el contenedor y el volumen administrados
 por `db/docker-compose.yml`. No afecta Redis, MongoDB ni otros proyectos.

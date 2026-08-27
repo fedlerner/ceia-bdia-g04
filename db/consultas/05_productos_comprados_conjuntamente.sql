@@ -41,11 +41,8 @@ WHERE op1.product_id = (SELECT product_id FROM target_product)
   AND p2.active = TRUE
   AND EXISTS (
     SELECT 1
-    FROM sku s2
-    JOIN inventory i2 ON i2.sku_id = s2.sku_id
-    WHERE s2.product_id = p2.product_id
-      AND s2.active = TRUE
-      AND i2.available_qty > 0
+    FROM v_active_catalog vac
+    WHERE vac.product_id = p2.product_id
   )
 GROUP BY p2.product_id, p2.product_code, p2.name
 ORDER BY pedidos_conjuntos DESC
