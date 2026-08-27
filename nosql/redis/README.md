@@ -156,10 +156,11 @@ mediante `include:`, de modo que la capa puede levantarse de dos formas equivale
 directorio, o junto al resto de la solución desde la raíz del repositorio. **No conviene usar las dos
 a la vez**, porque los nombres de contenedor son los mismos y entran en conflicto.
 
-Para que la inclusión funcione sin modificar este archivo, los puertos salen de `.env`, los
-`container_name` llevan el prefijo `bdia_g04_` y la red se llama `bdia_g04_network` en lugar de un
-nombre propio de este componente. Al incluirse, el `name:` de este archivo se ignora y prevalece el
-del compose de la raíz.
+Para que la inclusión funcione sin modificar este archivo, los puertos salen de `.env` y los
+`container_name` llevan el prefijo `bdia_g04_`. Cuando se ejecuta de forma aislada, Compose crea la
+red predeterminada del componente; cuando se incluye desde la raíz, los servicios usan la red
+predeterminada de la composición unificada. Al incluirse, el `name:` de este archivo se ignora y
+prevalece el del compose de la raíz.
 
 ## Problemas frecuentes
 

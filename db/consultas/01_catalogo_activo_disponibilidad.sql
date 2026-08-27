@@ -29,6 +29,7 @@ JOIN sku_price sp
  AND (sp.valid_to IS NULL OR sp.valid_to > CURRENT_TIMESTAMP)
 JOIN inventory i ON i.sku_id = s.sku_id
 WHERE p.active = TRUE
+  AND b.active = TRUE
   AND s.active = TRUE
 GROUP BY p.product_id, p.product_code, p.name, b.name, sp.currency
 HAVING SUM(i.available_qty) > 0

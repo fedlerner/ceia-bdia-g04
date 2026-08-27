@@ -190,21 +190,102 @@ END;
 $$;
 \echo '7 | Venta superior a la cantidad comprada rechazada | OK'
 
+BEGIN;
+
 DO $$
+DECLARE
+    first_sku_id BIGINT;
+    second_sku_id BIGINT;
+    effective_order_id BIGINT;
 BEGIN
+    SELECT order_id INTO STRICT effective_order_id
+    FROM sales_order
+    WHERE order_code = 'order-321';
+
+    SELECT sku_id INTO STRICT first_sku_id
+    FROM sku
+    WHERE sku_code = 'AUR-LUM-050';
+
+    SELECT sku_id INTO STRICT second_sku_id
+    FROM sku
+    WHERE sku_code = 'DER-ROS-050';
+
     BEGIN
         UPDATE sales_order
            SET order_status = 'cancelled'
-         WHERE order_code = 'order-321';
+         WHERE order_id = effective_order_id;
 
-        RAISE EXCEPTION 'ERROR: un pedido con venta registrada dejó de ser efectivo';
+        RAISE EXCEPTION 'ERROR: un pedido con ventas sin compensar dejó de ser efectivo';
     EXCEPTION
         WHEN check_violation THEN
             NULL;
     END;
+
+    BEGIN
+        INSERT INTO inventory_movement
+            (sku_id, movement_type, quantity_change, reason)
+        VALUES
+            (first_sku_id, 'return', 1, 'Prueba inválida');
+
+        RAISE EXCEPTION 'ERROR: una devolución sin pedido fue aceptada';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+
+    BEGIN
+        INSERT INTO inventory_movement
+            (sku_id, order_id, movement_type, quantity_change, reason)
+        VALUES
+            (first_sku_id, effective_order_id, 'return', 2, 'Prueba inválida');
+
+        RAISE EXCEPTION 'ERROR: una devolución superior a lo vendido fue aceptada';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+
+    INSERT INTO inventory_movement
+        (sku_id, order_id, movement_type, quantity_change, reason)
+    VALUES
+        (first_sku_id, effective_order_id, 'return', 1, 'Devolución completa de prueba');
+
+    BEGIN
+        UPDATE sales_order
+           SET payment_status = 'refunded'
+         WHERE order_id = effective_order_id;
+
+        RAISE EXCEPTION 'ERROR: un reembolso parcial fue aceptado';
+    EXCEPTION
+        WHEN check_violation THEN
+            NULL;
+    END;
+
+    INSERT INTO inventory_movement
+        (sku_id, order_id, movement_type, quantity_change, reason)
+    VALUES
+        (second_sku_id, effective_order_id, 'cancellation', 1, 'Cancelación completa de prueba');
+
+    UPDATE sales_order
+       SET order_status = 'cancelled',
+           payment_status = 'refunded',
+           shipping_status = 'cancelled'
+     WHERE order_id = effective_order_id;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM sales_order
+        WHERE order_id = effective_order_id
+          AND order_status = 'cancelled'
+          AND payment_status = 'refunded'
+    ) THEN
+        RAISE EXCEPTION 'ERROR: la compensación total no permitió cancelar y reembolsar el pedido';
+    END IF;
 END;
 $$;
-\echo '8 | Cambio incompatible de pedido con venta rechazada | OK'
+
+ROLLBACK;
+\echo '8 | Pedido solo cancelable y reembolsable tras compensación total | OK'
 
 DO $$
 BEGIN

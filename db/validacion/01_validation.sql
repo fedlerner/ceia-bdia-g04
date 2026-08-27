@@ -115,8 +115,10 @@ WITH validations AS (
     SELECT 12,
            'El catálogo usa los ocho códigos externos canónicos',
            COUNT(*) = 8
-           AND MIN(product_code) = 'product-001'
-           AND MAX(product_code) = 'product-008'
+           AND ARRAY_AGG(product_code ORDER BY product_code) = ARRAY[
+               'product-001', 'product-002', 'product-003', 'product-004',
+               'product-005', 'product-006', 'product-007', 'product-008'
+           ]::VARCHAR[]
     FROM product
 
     UNION ALL

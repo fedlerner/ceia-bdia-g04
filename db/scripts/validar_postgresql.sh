@@ -11,7 +11,7 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 if ! docker info >/dev/null 2>&1; then
-    echo "ERROR: Docker Desktop no está iniciado." >&2
+    echo "ERROR: No se pudo acceder al daemon de Docker. Verificá que Docker esté iniciado y que tu usuario tenga permisos." >&2
     exit 1
 fi
 

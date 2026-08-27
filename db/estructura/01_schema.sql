@@ -256,8 +256,8 @@ CREATE TABLE inventory_movement (
         OR (movement_type IN ('receipt', 'return', 'cancellation') AND quantity_change > 0)
         OR (movement_type = 'adjustment' AND quantity_change <> 0)
     ),
-    CONSTRAINT inventory_movement_sale_order_ck CHECK (
-        movement_type <> 'sale' OR order_id IS NOT NULL
+    CONSTRAINT inventory_movement_order_required_ck CHECK (
+        movement_type NOT IN ('sale', 'return', 'cancellation') OR order_id IS NOT NULL
     )
 );
 
@@ -454,23 +454,94 @@ CREATE TRIGGER inventory_movement_validate_sale_trg
 BEFORE INSERT ON inventory_movement
 FOR EACH ROW EXECUTE FUNCTION validate_sale_inventory_movement();
 
--- Una compra ya reflejada en inventario no puede quedar asociada luego a un
--- pedido no efectivo ni a un ítem que deje de respaldar la cantidad vendida.
+-- Los movimientos compensatorios solo pueden reponer unidades previamente
+-- vendidas del mismo pedido y SKU. El bloqueo del ítem serializa devoluciones,
+-- cancelaciones y ventas concurrentes sobre la misma compra.
+CREATE OR REPLACE FUNCTION validate_compensating_inventory_movement()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    sold_qty BIGINT;
+    compensated_qty BIGINT;
+BEGIN
+    IF NEW.movement_type NOT IN ('return', 'cancellation') THEN
+        RETURN NEW;
+    END IF;
+
+    PERFORM 1
+      FROM order_item oi
+      JOIN sales_order so ON so.order_id = oi.order_id
+     WHERE oi.order_id = NEW.order_id
+       AND oi.sku_id = NEW.sku_id
+     FOR UPDATE OF oi, so;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'La devolución o cancelación requiere un ítem del pedido para el SKU';
+    END IF;
+
+    SELECT COALESCE(-SUM(quantity_change) FILTER (WHERE movement_type = 'sale'), 0),
+           COALESCE(SUM(quantity_change) FILTER (
+               WHERE movement_type IN ('return', 'cancellation')
+           ), 0)
+      INTO sold_qty, compensated_qty
+      FROM inventory_movement
+     WHERE order_id = NEW.order_id
+       AND sku_id = NEW.sku_id;
+
+    IF sold_qty = 0 THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'No se puede compensar un pedido y SKU sin ventas registradas';
+    END IF;
+
+    IF compensated_qty + NEW.quantity_change > sold_qty THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'La devolución o cancelación supera la cantidad vendida para el pedido y SKU';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER inventory_movement_validate_compensation_trg
+BEFORE INSERT ON inventory_movement
+FOR EACH ROW EXECUTE FUNCTION validate_compensating_inventory_movement();
+
+-- Una compra con ventas aún no compensadas no puede quedar asociada luego a
+-- un pedido no efectivo. Los ítems con ventas conservan su trazabilidad aun
+-- cuando el pedido haya sido compensado.
 CREATE OR REPLACE FUNCTION protect_effective_order_with_sales()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    has_uncompensated_sale BOOLEAN;
 BEGIN
-    IF (NEW.order_status <> 'completed' OR NEW.payment_status <> 'approved')
-       AND EXISTS (
-           SELECT 1
-             FROM inventory_movement im
-            WHERE im.order_id = OLD.order_id
-              AND im.movement_type = 'sale'
-       ) THEN
+    IF NEW.order_status <> 'completed' OR NEW.payment_status <> 'approved' THEN
+        SELECT EXISTS (
+            SELECT 1
+              FROM inventory_movement im
+             WHERE im.order_id = OLD.order_id
+             GROUP BY im.sku_id
+            HAVING SUM(
+                CASE
+                    WHEN im.movement_type = 'sale' THEN -im.quantity_change
+                    WHEN im.movement_type IN ('return', 'cancellation') THEN -im.quantity_change
+                    ELSE 0
+                END
+            ) > 0
+        )
+          INTO has_uncompensated_sale;
+
+        IF has_uncompensated_sale THEN
         RAISE EXCEPTION USING
             ERRCODE = '23514',
-            MESSAGE = 'Un pedido con ventas registradas debe permanecer completado y pagado';
+                MESSAGE = 'Un pedido con ventas sin compensar debe permanecer completado y pagado';
+        END IF;
     END IF;
 
     RETURN NEW;

@@ -59,9 +59,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
-    networks:
-      - bdia_g04_network
-
   redisinsight:
     image: redis/redisinsight:2.70
     container_name: bdia_g04_redisinsight
@@ -75,9 +72,6 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    networks:
-      - bdia_g04_network
-
   demo:
     build:
       context: .
@@ -96,12 +90,5 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    networks:
-      - bdia_g04_network
-
 volumes:
   redisinsight_data:
-
-networks:
-  bdia_g04_network:
-    driver: bridge

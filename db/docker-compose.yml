@@ -30,12 +30,5 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
-    networks:
-      - bdia_g04_network
-
 volumes:
   bdia_postgres_data:
-
-networks:
-  bdia_g04_network:
-    driver: bridge
