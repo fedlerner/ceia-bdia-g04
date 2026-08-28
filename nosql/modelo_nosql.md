@@ -95,7 +95,7 @@ Los atributos principales son:
 
 | Atributo | Descripción |
 | --- | --- |
-| `_id` | Identificador único del evento |
+| `_id` | Identificador único del evento, con la salvedad que se indica más abajo |
 | `timestamp` | Momento en que ocurrió el evento |
 | `user_id` | Usuario que generó la interacción |
 | `session_id` | Sesión de navegación asociada |
@@ -106,6 +106,12 @@ Los atributos principales son:
 El atributo `metadata` permite mantener cierta flexibilidad documental sin crear estructuras
 diferentes para cada evento. Esta flexibilidad permite incorporar nuevos metadatos y tipos de eventos
 durante la evolución del sistema sin modificar la estructura de los eventos existentes.
+
+Sobre `_id` corresponde una aclaración. En una colección común MongoDB crea el índice `_id_` y
+rechaza un identificador repetido; una Time Series Collection no lo hace, y sus únicos índices son
+el que genera el `metaField` y los que se declaran de forma explícita. La unicidad de `_id` es
+entonces una propiedad que sostiene la carga y no el motor: `generar_datos.js` la verifica sobre el
+archivo de datos antes de crear la colección y aborta si encuentra un duplicado.
 
 Los documentos de ejemplo (`product_view`, `search`, `add_to_cart`, `purchase`) están en
 [`../data/ejemplos/user_events.json`](../data/ejemplos/user_events.json); los datos de carga
@@ -134,6 +140,7 @@ La colección `user_events` se implementa como una **Time Series Collection**, d
 | `timeField` | `timestamp` | Los eventos poseen naturalmente una dimensión temporal y las consultas más frecuentes usan rangos de fechas. |
 | `metaField` | `user_id` | El acceso dominante es por usuario, y agrupar los buckets por `user_id` sirve directamente las consultas de la sección 1.4. En los eventos anónimos el campo está ausente y el metadato queda nulo; ver más abajo. |
 | `granularity` | `seconds` | Coincide con la precisión con la que se registran los eventos. |
+| `expireAfterSeconds` | `7776000` (90 días) | Acota la colección al horizonte que necesitan las consultas y evita un proceso de limpieza propio; se detalla en la política de retención. |
 
 La ventaja principal para este caso es que los eventos se agregan continuamente y raramente son
 modificados, y que las consultas más frecuentes filtran por usuario y por rangos temporales como:
@@ -167,8 +174,8 @@ dejan margen suficiente sin que el volumen crezca de forma indefinida. Es la res
 que plantea el propio caso, donde los eventos se generan continuamente y solo se agregan.
 
 Un análisis de horizonte más largo, por ejemplo estacional entre años, no corresponde a esta
-colección operacional sino a un almacenamiento analítico separado, según lo previsto en la
-arquitectura de datos.
+colección operacional. Requeriría un almacenamiento analítico separado, cuya definición sigue abierta
+en [`../docs/arquitectura.md`](../docs/arquitectura.md).
 
 ## 1.4 Consultas principales para el sistema de recomendaciones
 
@@ -187,7 +194,7 @@ db.user_events.find({
   user_id: "user-123",
   timestamp: {
     $gte: ISODate("2026-08-13T00:00:00Z"),
-    $lt: ISODate("2026-08-21T00:00:00Z")
+    $lt: ISODate("2026-08-20T00:00:00Z")
   }
 }).sort({
   timestamp: -1
@@ -212,7 +219,7 @@ db.user_events.aggregate([
       },
       timestamp: {
         $gte: ISODate("2026-08-13T00:00:00Z"),
-        $lt: ISODate("2026-08-21T00:00:00Z")
+        $lt: ISODate("2026-08-20T00:00:00Z")
       }
     }
   },

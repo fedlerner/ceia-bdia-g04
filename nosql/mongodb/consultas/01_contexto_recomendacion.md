@@ -3,11 +3,12 @@
 Estas consultas alimentan al motor de recomendaciones. Devuelven el comportamiento **reciente y
 relevante** de un usuario, por eso acotan explícitamente una ventana temporal sobre `timestamp`.
 
-Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`:
+Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`.
 
 Cada bloque se puede copiar y pegar tal cual. Las fechas son literales para que el resultado sea
-reproducible contra el estado inicial de [`../seed_data.json`](../seed_data.json) (eventos entre el
-2026-08-13 y el 2026-08-20).
+reproducible contra el estado inicial de [`../seed_data.json`](../seed_data.json), cuyos eventos van
+del 2026-08-13 al 2026-08-21. Las ventanas de siete días de esta página abarcan del 13 al 19 inclusive,
+de modo que no alcanzan los eventos del 20 y del 21.
 
 ## Consulta 1. Historial reciente de un usuario
 
@@ -20,7 +21,7 @@ db.user_events.find({
   user_id: "user-123",
   timestamp: {
     $gte: ISODate("2026-08-13T00:00:00Z"),
-    $lt: ISODate("2026-08-21T00:00:00Z")
+    $lt: ISODate("2026-08-20T00:00:00Z")
   }
 }).sort({
   timestamp: -1
@@ -51,7 +52,7 @@ db.user_events.aggregate([
       },
       timestamp: {
         $gte: ISODate("2026-08-13T00:00:00Z"),
-        $lt: ISODate("2026-08-21T00:00:00Z")
+        $lt: ISODate("2026-08-20T00:00:00Z")
       }
     }
   },

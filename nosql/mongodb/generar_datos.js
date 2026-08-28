@@ -30,6 +30,7 @@ const SEED_PATH = "/scripts/seed_data.json";
 // Retencion de los eventos. Ver ../modelo_nosql.md, seccion 1.3.
 const RETENCION_DIAS = 90;
 const RETENCION_SEGUNDOS = RETENCION_DIAS * 24 * 60 * 60;
+const LIMITE_RETENCION = new Date(Date.now() - RETENCION_SEGUNDOS * 1000);
 
 const database = db.getSiblingDB(DB_NAME);
 
@@ -42,6 +43,19 @@ const database = db.getSiblingDB(DB_NAME);
 const crudos = JSON.parse(fs.readFileSync(SEED_PATH, "utf8"));
 const errores = [];
 
+// La forma del archivo se comprueba antes que su contenido. Sin esto, un
+// arreglo vacio no genera ningun error por documento, la ejecucion sigue y
+// insertMany falla con un error del driver despues del drop, dejando la
+// coleccion vacia: el mismo fallo destructivo que esta validacion evita.
+if (!Array.isArray(crudos)) {
+  print("El seed no es un arreglo JSON; no se carga nada. La base NO fue modificada.");
+  quit(1);
+}
+if (crudos.length === 0) {
+  print("El seed no tiene documentos; no se carga nada. La base NO fue modificada.");
+  quit(1);
+}
+
 const docs = crudos.map(function (d, i) {
   const ts = new Date(d.timestamp);
   if (isNaN(ts.getTime())) {
@@ -53,12 +67,35 @@ const docs = crudos.map(function (d, i) {
   if (!d.user_id && !d.session_id) {
     errores.push("documento " + i + " (" + d._id + "): no tiene ni user_id ni session_id");
   }
+  if (!isNaN(ts.getTime()) && ts < LIMITE_RETENCION) {
+    errores.push("documento " + i + " (" + d._id + "): " + d.timestamp +
+      " supera la retencion de " + RETENCION_DIAS + " dias; MongoDB lo eliminaria por TTL");
+  }
   return Object.assign({}, d, { timestamp: ts });
+});
+
+// Los _id se comprueban sobre el conjunto y no documento por documento. Las
+// Time Series Collections no imponen unicidad sobre _id, a diferencia de una
+// coleccion comun, de modo que MongoDB aceptaria los duplicados sin error y el
+// conteo final seguiria coincidiendo con el del archivo.
+const vistos = {};
+crudos.forEach(function (d, i) {
+  if (d._id === undefined) return;
+  if (Object.prototype.hasOwnProperty.call(vistos, d._id)) {
+    errores.push("documento " + i + " (" + d._id + "): _id duplicado, ya usado por el documento " +
+      vistos[d._id]);
+  } else {
+    vistos[d._id] = i;
+  }
 });
 
 if (errores.length > 0) {
   print("El seed tiene " + errores.length + " problema(s); no se carga nada:");
   errores.forEach(function (e) { print("  " + e); });
+  print("");
+  print("Si el motivo es la retencion, las fechas del seed envejecieron: hay que");
+  print("actualizarlas, y con ellas los resultados esperados de consultas/, o ampliar");
+  print("RETENCION_DIAS. La base NO fue modificada.");
   quit(1);
 }
 
@@ -106,24 +143,13 @@ verificar("retencion en segundos", RETENCION_SEGUNDOS, opciones.expireAfterSecon
 verificar("indice del metaField", true, indices.indexOf("user_id_1_timestamp_1") !== -1);
 verificar("indice { event_type: 1 }", true, indices.indexOf("event_type_1") !== -1);
 
-// Todos los eventos deben caer dentro de la ventana de retencion. Si alguno
-// la supera, el monitor de TTL de MongoDB lo eliminaria poco despues de esta
-// carga: el script informaria exito y los datos desapareceran a continuacion,
-// sin ningun aviso. Comprobarlo aqui convierte esa perdida silenciosa en un
-// error explicito.
-//
-// Se compara contra la retencion y no contra un rango de fechas fijo, para que
-// la comprobacion siga siendo valida al agregar eventos de cualquier fecha.
-const limite = new Date(Date.now() - RETENCION_SEGUNDOS * 1000);
-const vencidos = coll.countDocuments({ timestamp: { $lt: limite } });
-verificar("eventos dentro de la retencion (" + RETENCION_DIAS + " dias)", 0, vencidos);
-
-if (vencidos > 0) {
-  print("");
-  print("  " + vencidos + " evento(s) del seed son anteriores a " + limite.toISOString() + ".");
-  print("  MongoDB los eliminara por TTL en cuanto corra su monitor.");
-  print("  Actualizar las fechas de seed_data.json o ampliar RETENCION_DIAS.");
-}
+// La retencion ya se comprobo sobre el seed antes de tocar la base, de modo que
+// volver a contar documentos vencidos daria cero siempre. Lo util aqui es otra
+// cosa: cuanto margen le queda al evento mas antiguo antes de alcanzarla.
+const masViejo = coll.find({}, { timestamp: 1 }).sort({ timestamp: 1 }).limit(1).toArray()[0];
+const margenDias = Math.floor(
+  (masViejo.timestamp.getTime() - LIMITE_RETENCION.getTime()) / (24 * 60 * 60 * 1000)
+);
 
 // El modelo admite eventos de clientes identificados y de visitantes
 // anonimos; el seed debe ejercitar los dos casos.
@@ -138,3 +164,5 @@ if (fallos > 0) {
 
 print("Cargados " + coll.countDocuments() + " eventos en " + DB_NAME + "." + COLL +
       " (" + anonimos + " de visitante anonimo), con retencion de " + RETENCION_DIAS + " dias.");
+print("El evento mas antiguo es del " + masViejo.timestamp.toISOString().substring(0, 10) +
+      " y le quedan " + margenDias + " dias antes de alcanzar la retencion.");

@@ -31,9 +31,20 @@ El script recrea `user_events` como serie de tiempo (`timeField: "timestamp"`,
 carga los 22 eventos de [`seed_data.json`](seed_data.json), de los cuales 3 corresponden a un
 visitante anónimo identificado solo por `session_id`.
 
-El script valida el seed antes de escribir y, una vez cargado, comprueba contra la base el conteo, el
-`timeField`, el `metaField`, la retención y los dos índices. Si algo no cuadra termina con código de
-error y no modifica la colección existente.
+El script valida el seed **antes** de tocar la base, de modo que un archivo mal formado corta con
+código de error y deja la carga anterior intacta. Rechaza que el archivo no sea un arreglo o esté
+vacío, y por cada documento que el `timestamp` no sea una fecha válida, que falte `event_type`, que no
+haya ni `user_id` ni `session_id`, y que la fecha supere la ventana de retención. Sobre el conjunto,
+comprueba además que los `_id` no se repitan.
+
+Superada esa validación recrea la colección y verifica contra la base siete propiedades: el conteo, el
+`timeField`, el `metaField`, la retención, los dos índices y que el seed incluya al menos un evento de
+visitante anónimo. Termina con error si alguna no se cumple, e informa cuántos días le quedan al
+evento más antiguo antes de alcanzar la retención.
+
+Conviene tener presente el alcance de esa garantía: **sólo la validación previa es no destructiva**.
+Una vez que el script llega al `drop()`, un fallo posterior deja la colección recreada, y posiblemente
+sin todos los datos. En ese caso alcanza con volver a ejecutar `make generar-datos`.
 
 En Windows PowerShell, el primer comando es `Copy-Item .env.example .env`.
 
@@ -47,7 +58,7 @@ de entorno del contenedor, no del `.env` local.
 | Objetivo | Acción |
 | --- | --- |
 | `make generar-datos` | Crea `user_events` y carga `seed_data.json`. Idempotente: al ejecutarlo de nuevo se recrea la colección desde cero. |
-| `make shell` | Abre una consola interactiva de `mongosh` ya autenticada. |
+| `make shell` | Abre una consola interactiva de `mongosh`, autenticada y ya posicionada en la base del componente. Sin eso `mongosh` conectaría a `test`, donde `db.user_events` no existe y las consultas de [`consultas/`](consultas/) devolverían cero. |
 
 Ejemplos:
 
@@ -141,8 +152,28 @@ las dos a la vez**, porque los nombres de contenedor son los mismos y entran en 
 
 ## Problemas frecuentes
 
-- `MongoServerError: Authentication failed` indica que el contenedor no arrancó con las credenciales
-  que usa `mongosh`. Conviene recrearlo con `docker compose up -d --wait` para que tome el `.env`.
+- `MongoServerError: Authentication failed` suele aparecer tras cambiar las credenciales en `.env`.
+  **Recrear el contenedor no alcanza**: la imagen de MongoDB aplica `MONGO_INITDB_ROOT_USERNAME` y
+  `MONGO_INITDB_ROOT_PASSWORD` sólo al inicializar `/data/db`, y ese directorio vive en un volumen que
+  sobrevive a `docker compose up -d --force-recreate`. Comprobado: tras cambiar la contraseña y
+  recrear, la nueva falla, la anterior sigue funcionando y el healthcheck deja el contenedor
+  `unhealthy`. Hay dos salidas: volver a poner en `.env` las credenciales con las que se inicializó el
+  volumen, o **borrar el volumen** para reinicializarlo, lo que **elimina todos los eventos
+  cargados**:
+
+  ```bash
+  docker rm -f bdia_g04_mongodb
+  docker volume rm bdia_g04_mongodb_data
+  ```
+
+  Se elimina el contenedor **por su nombre** y no con `docker compose down`, porque este último
+  actúa sobre el proyecto del directorio desde el que se lo invoca: si la pila se levantó desde la
+  raíz y el comando se ejecuta acá, no detiene nada y el borrado del volumen falla con
+  `volume is in use`. Por su nombre funciona con cualquiera de los dos modos de arranque, igual que
+  el `Makefile` y `scripts/reiniciar_datos.sh`.
+
+  Después se vuelve a levantar la pila como de costumbre, con `docker compose up -d --wait`, y se
+  ejecuta `make generar-datos`.
 - Si el puerto 27017 u 8081 está ocupado en el equipo, se cambia `MONGO_LISTEN_PORT` o
   `MONGO_EXPRESS_LISTEN_PORT` en `.env`. El puerto sigue vinculado a `127.0.0.1`.
 - La colección `user_events` se recrea en cada `make generar-datos`: es el comportamiento esperado.

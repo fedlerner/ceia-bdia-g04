@@ -317,11 +317,11 @@ aceptable; servir un precio o un stock desactualizado no lo es, y por eso esos d
 Redis.
 
 El problema que resuelve es de latencia. El demo lo ilustra con 258 ms por el camino del motor contra
-0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta
-PostgreSQL, MongoDB ni el motor, porque ninguno está implementado todavía, sino que los sustituye por
-una espera fija de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y
-el costo real de resolver desde Redis, no un benchmark del camino completo. La magnitud de la mejora
-dependerá de cuánto tarde el motor cuando exista.
+0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta el
+motor de recomendaciones, que queda fuera del alcance del trabajo, sino que lo sustituye por una
+espera fija de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y el
+costo real de resolver desde Redis, no un benchmark del camino completo. La magnitud de la mejora en
+un sistema real dependerá de cuánto tarde el motor que se construya sobre esta capa.
 
 **Alternativas evaluadas:**
 
@@ -346,7 +346,7 @@ ningún dato de esta capa es fuente de verdad.
 
 ## 8. Implementación mínima realizada
 
-**Pendiente.** Estado actual:
+**Parcial.** Estado actual:
 
 | Componente | Estado |
 | --- | --- |
@@ -354,23 +354,34 @@ ningún dato de esta capa es fuente de verdad.
 | Carga de datos de ejemplo | Pendiente, en [`../db/datos/`](../db/datos/) |
 | Índices y vistas | Pendiente, en [`../db/indices_vistas/`](../db/indices_vistas/) |
 | Consultas SQL representativas | Escritas como propuesta lógica, sin ejecutar, en [`../db/consultas/`](../db/consultas/) |
-| Colección `user_events` en MongoDB | Modelo definido; creación y carga pendientes |
+| **MongoDB** (`user_events`) | **Implementada y verificada**, en [`../nosql/mongodb/`](../nosql/mongodb/) |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
 La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
 RedisInsight, script de carga con autovalidación, cinco archivos de comandos representativos y dos
-demostraciones con evidencia medida (cache-aside y descarte por límite de memoria). Es la única
-tecnología de la solución con implementación mínima terminada a la fecha.
+demostraciones con evidencia medida (cache-aside y descarte por límite de memoria).
+
+La capa documental también: `docker-compose.yml` con MongoDB 8.0 y mongo-express, creación de
+`user_events` como Time Series Collection con retención de 90 días, carga de 22 eventos con
+validación previa del archivo de datos y siete comprobaciones sobre lo cargado, y ocho consultas
+representativas ejecutadas contra la base. La implementación pendiente es la de PostgreSQL.
 
 ---
 
 ## 9. Datos de ejemplo utilizados
 
-Disponibles en [`../data/ejemplos/`](../data/ejemplos/):
+Documentos de muestra en [`../data/ejemplos/`](../data/ejemplos/):
 
 - `user_events.json`: documentos de ejemplo de los cuatro tipos de evento (`product_view`, `search`,
   `add_to_cart`, `purchase`).
 - `redis_recommendations.json`: valor de ejemplo de la cache.
+
+Conjuntos que se cargan efectivamente en cada motor:
+
+- [`../nosql/mongodb/seed_data.json`](../nosql/mongodb/seed_data.json): 22 eventos de tres clientes
+  identificados y un visitante anónimo, entre el 13 y el 21 de agosto de 2026.
+- [`../nosql/redis/datos/estado_inicial.redis`](../nosql/redis/datos/estado_inicial.redis): las seis
+  claves del estado inicial de la capa clave-valor.
 
 **Pendiente:** los ocho productos del catálogo, clientes, pedidos, ítems y reseñas sintéticos.
 
@@ -392,9 +403,14 @@ Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/co
 5. **Productos comprados conjuntamente.** Venta cruzada basada en compras reales; usa CTE,
    agregación y subconsulta `EXISTS` para validar disponibilidad.
 
-Cuatro consultas sobre MongoDB, en [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md): historial
-reciente de un usuario, productos más interactuados, eventos de una sesión y productos más
-visualizados.
+Ocho consultas sobre MongoDB, en [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/), cada
+una con su pregunta de negocio, su justificación y el resultado esperado contra el estado inicial:
+
+| Archivo | Qué resuelve |
+| --- | --- |
+| `01_contexto_recomendacion.md` | Historial reciente de un usuario, productos más interactuados y reconstrucción de una sesión |
+| `02_analiticas_productos.md` | Productos más visualizados y categorías con mayor interés |
+| `03_analiticas_comportamiento.md` | Búsquedas por usuario, relación entre vistas y carrito, y actividad por sesión |
 
 Comandos representativos sobre Redis, en [`../nosql/redis/comandos/`](../nosql/redis/comandos/), cada
 uno con la pregunta que responde y su comparación con el equivalente SQL:
@@ -529,10 +545,10 @@ reiniciar y `allkeys-lru` los descarta bajo presión de memoria, como verifica e
 best-effort y no una fuente de métricas de negocio.
 
 **Compromiso central:** el TTL introduce consistencia eventual de hasta 10 minutos a cambio de
-resolver la solicitud desde memoria. El costo del acierto está medido en 0,60 ms; el del fallo
-todavía no puede medirse, porque el motor no está implementado y el demo lo sustituye por una espera
-fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un resultado
-verificado del camino completo.
+resolver la solicitud desde memoria. El costo del acierto está medido en 0,60 ms; el del fallo no
+corresponde a esta capa, porque depende del motor que queda fuera del alcance, y el demo lo sustituye
+por una espera fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un
+resultado verificado del camino completo.
 
 ---
 

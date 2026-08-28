@@ -16,7 +16,7 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | 5 | Normalización y decisiones de diseño | Parcial | [`informe.md` §6](informe.md) | La duplicación en Redis está justificada en §6.1. Falta justificar la normalización relacional y las decisiones de embebido/referencia en MongoDB |
 | 6 | Selección tecnológica | Parcial | [`informe.md` §7](informe.md) | Redis está justificado en §7.3, con sus alternativas descartadas. Falta la justificación de PostgreSQL según los 10 criterios de la consigna |
 | 7 | Modelo físico e implementación mínima | Parcial | [`../nosql/redis/`](../nosql/redis/), [`../nosql/mongodb/`](../nosql/mongodb/), [`../db/`](../db/) | Redis y MongoDB (`user_events`) están implementados. Falta DDL, carga de datos, índices y vistas en PostgreSQL |
-| 8 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/) | Los comandos de Redis fueron ejecutados y verificados. Falta ajustar las SQL al modelo físico y ejecutarlas sobre datos reales |
+| 8 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/), [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) | Los comandos de Redis y las ocho consultas de MongoDB fueron ejecutados y verificados contra su estado inicial. Falta ajustar las SQL al modelo físico y ejecutarlas sobre datos reales |
 | 9 | Semiestructurados, no estructurados y vectorial | Parcial | [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md) | Cerrar los cinco ítems que pide la consigna, en especial los riesgos |
 | 10 | Arquitectura de datos | Parcial | [`arquitectura.md`](arquitectura.md) | Ingesta, capa analítica, justificación del enfoque arquitectónico, `arquitectura.png` |
 | 11 | Seguridad, permisos y aislamiento | Parcial | [`informe.md` §13](informe.md) | La capa clave-valor está cubierta en §13.1. Falta la matriz de roles y permisos, las restricciones en PostgreSQL y el riesgo de exposición vía IA |
@@ -33,7 +33,7 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | Arquitectura general de datos | Parcial | [`arquitectura.md`](arquitectura.md) |
 | Archivos de implementación mínima | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/) y MongoDB en [`../nosql/mongodb/`](../nosql/mongodb/); PostgreSQL pendiente |
 | Datos de ejemplo | Parcial | [`../data/ejemplos/`](../data/ejemplos/), [`../nosql/redis/datos/`](../nosql/redis/datos/) y [`../nosql/mongodb/`](../nosql/mongodb/); falta el catálogo relacional |
-| Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/) y [`../nosql/redis/comandos/`](../nosql/redis/comandos/) |
+| Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/) y [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) |
 | README del proyecto | Parcial | [`../README.md`](../README.md), faltan los integrantes |
 
 ## Coherencia entre componentes

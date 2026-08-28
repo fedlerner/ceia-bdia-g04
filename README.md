@@ -135,8 +135,8 @@ cp nosql/mongodb/.env.example nosql/mongodb/.env
 docker compose up -d --wait
 ```
 
-Si falta algún `.env`, Compose corta e indica cuál. A medida que PostgreSQL y MongoDB estén listos,
-se descomenta su bloque en el compose de la raíz y se agrega el `cp` correspondiente.
+Si falta algún `.env`, Compose corta e indica cuál. Cuando PostgreSQL esté listo, se descomenta su
+bloque en el compose de la raíz y se agrega el `cp` correspondiente.
 
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
@@ -152,9 +152,21 @@ docker compose exec redis sh /scripts/00_cargar_datos.sh
 Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
 de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
 
-### PostgreSQL y MongoDB (pendientes)
+### MongoDB (implementado)
 
-> Los scripts de `db/` y la colección `user_events` todavía no están implementados.
+Creación de la colección `user_events` y carga de los eventos de ejemplo:
+
+```bash
+make -C nosql/mongodb generar-datos
+```
+
+El script verifica lo que cargó y devuelve error si algo no cuadra. Las consultas representativas
+están en [`nosql/mongodb/consultas/`](nosql/mongodb/consultas/) y el detalle de la puesta en marcha
+en [nosql/mongodb/README.md](nosql/mongodb/README.md).
+
+### PostgreSQL (pendiente)
+
+> Los scripts de `db/` todavía no están implementados.
 > Ver [docs/ESTADO.md](docs/ESTADO.md) para el detalle de lo que falta.
 
 Orden previsto de ejecución una vez implementado:
@@ -163,7 +175,6 @@ Orden previsto de ejecución una vez implementado:
 2. `db/datos/`: carga de datos de ejemplo (catálogo de 8 productos y datos sintéticos).
 3. `db/indices_vistas/`: creación de índices y vistas.
 4. `db/consultas/`: ejecución de las 5 consultas representativas.
-5. `nosql/mongodb/`: creación de la colección `user_events` y carga de eventos de ejemplo.
 
 ## Principales decisiones de diseño
 

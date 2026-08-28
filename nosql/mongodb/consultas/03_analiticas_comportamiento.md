@@ -111,8 +111,9 @@ db.user_events.aggregate([
 ```
 
 **Resultado esperado:** cinco sesiones. `session-456` y `session-502` con 6 eventos, `session-457`
-con 4, y `session-901` y `session-460` con 3 cada una, todas con su primer y último evento. La
-última corresponde al visitante anónimo y aparece sin `user_id`.
+con 4, y `session-901` y `session-460` con 3 cada una, todas con su primer y último evento.
+`session-460` es la del visitante anónimo y aparece sin `user_id`. El orden entre esas dos últimas no
+está determinado: el `$sort` es por cantidad de eventos y ambas tienen la misma.
 
 **Justificación:** complementa la reconstrucción detallada de una sesión (ver
 [`01_contexto_recomendacion.md`](01_contexto_recomendacion.md), consulta 3) con una vista agregada

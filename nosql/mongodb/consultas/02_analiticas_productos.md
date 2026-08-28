@@ -39,6 +39,7 @@ catálogo con 1 cada uno.
 
 **Justificación:** el índice secundario `{ event_type: 1 }` sirve el `$match` sobre el tipo de
 evento.
+
 ## Consulta 2. Categorías con mayor interés
 
 **Pregunta de negocio:** ¿qué categorías concentran la atención de los usuarios?
