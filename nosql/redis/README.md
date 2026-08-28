@@ -125,8 +125,11 @@ Dockerfile.demo                  imagen minima con redis-py
 datos/estado_inicial.redis       estado inicial de las 4 estructuras
 scripts/00_cargar_datos.sh       carga y verificacion del estado
 scripts/reiniciar_datos.sh       restauracion del estado inicial
+scripts/renovar_sesion.lua       renovacion atomica de sesion sin revivirla
 scripts/demo_cache_aside.py      medicion de latencia MISS contra HIT
 scripts/demo_limite_memoria.sh   limite de memoria y descarte de claves
+scripts/renovar_sesion.lua       renovacion atomica de sesion
+scripts/requirements.txt         version de redis-py
 comandos/                        comandos representativos por estructura
 ```
 

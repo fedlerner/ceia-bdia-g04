@@ -233,10 +233,10 @@ MongoDB aporta información sobre el **comportamiento observado del usuario**, q
 frecuencia, es inmutable y presenta metadatos variables según el tipo de evento. Redis guarda
 únicamente datos temporales, descartables y sensibles a la latencia: recomendaciones ya calculadas,
 estado de sesiones anónimas, rankings precalculados y contadores de rate limit. Redis no es fuente de
-verdad de ningún dato del modelo. Las recomendaciones, las sesiones y los rankings son **reconstruibles**: se derivan de PostgreSQL,
-MongoDB y el motor. Los contadores operativos y la cuota de rate limit en curso **no lo son**, porque
-son acumulados propios de Redis. Lo que comparten las cuatro estructuras es que su contenido es
-**descartable**: perderlo es aceptable.
+verdad de ningún dato del modelo. Las recomendaciones, las sesiones y los rankings son
+**reconstruibles**: se derivan de PostgreSQL, MongoDB y el motor. Los contadores operativos y la
+cuota de rate limit en curso **no lo son**, porque son acumulados propios de Redis. Lo que comparten
+las cuatro estructuras es que su contenido es **descartable**: perderlo es aceptable.
 
 Esta separación evita duplicar innecesariamente los datos transaccionales en MongoDB y permite que
 cada tecnología se utilice para el tipo de información para el que resulta más adecuada.
@@ -328,11 +328,11 @@ aceptable; servir un precio o un stock desactualizado no lo es, y por eso esos d
 Redis.
 
 El problema que resuelve es de latencia. El demo lo ilustra con 258 ms por el camino del motor contra
-0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta
-PostgreSQL, MongoDB ni el motor, porque ninguno está implementado todavía, sino que los sustituye por
-una espera fija de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y
-el costo real de resolver desde Redis, no un benchmark del camino completo. La magnitud de la mejora
-dependerá de cuánto tarde el motor cuando exista.
+0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta el motor
+de recomendaciones, que queda fuera del alcance del trabajo, sino que lo sustituye por una espera fija
+de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y el costo real de
+resolver desde Redis, que es lo que corresponde a esta capa. La magnitud de la mejora en un sistema
+real dependerá de cuánto tarde el motor que se construya sobre ella.
 
 **Alternativas evaluadas:**
 
@@ -349,16 +349,16 @@ parte del despliegue: RedisInsight, que es el visor web, y `demo`, que solo ejec
 medición.
 
 **Limitaciones asumidas:** los datos viven en memoria y se pierden al reiniciar; con
-`allkeys-lru` cualquier clave puede ser descartada bajo presión de memoria; y Redis no ofrece control
-de acceso por clave comparable al Row Level Security de PostgreSQL. Las tres son aceptables porque
+`allkeys-lru` cualquier clave puede ser descartada bajo presión de memoria; y el control de acceso
+se delega en el backend, porque el ACL de Redis filtra por nombre de clave y no por contenido, de modo
+que no equivale al Row Level Security de PostgreSQL (ver sección 13.1). Las tres son aceptables porque
 ningún dato de esta capa es fuente de verdad.
 
 ---
 
 ## 8. Implementación mínima realizada
 
-La implementación mínima de PostgreSQL quedó ejecutada y validada. MongoDB continúa pendiente de
-implementación.
+Los tres motores tienen su implementación mínima ejecutada y verificada.
 
 | Componente | Estado |
 | --- | --- |
@@ -367,7 +367,7 @@ implementación.
 | Índices y vistas | Implementados y validados, en [`../db/indices_vistas/`](../db/indices_vistas/) |
 | Consultas SQL representativas | Cinco consultas implementadas y ejecutables, en [`../db/consultas/`](../db/consultas/) |
 | Roles y permisos PostgreSQL | Implementados y validados con Docker, en [`../db/seguridad/`](../db/seguridad/) |
-| Colección `user_events` en MongoDB | Modelo definido; creación y carga pendientes |
+| **MongoDB** (`user_events`) | **Implementada y verificada**, en [`../nosql/mongodb/`](../nosql/mongodb/) |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
 La validación actualizada de la capa relacional se ejecutó correctamente el 28/08/2026 con Docker
@@ -380,18 +380,29 @@ La capa clave-valor está implementada por completo: `docker-compose.yml` con Re
 RedisInsight, script de carga con autovalidación, cinco archivos de comandos representativos y dos
 demostraciones con evidencia medida (cache-aside y descarte por límite de memoria).
 
+La capa documental también: `docker-compose.yml` con MongoDB 8.0 y mongo-express, creación de
+`user_events` como Time Series Collection con retención de 90 días, carga de 22 eventos con
+validación previa del archivo de datos y siete comprobaciones sobre lo cargado, y ocho consultas
+representativas ejecutadas contra la base.
+
 ---
 
 ## 9. Datos de ejemplo utilizados
 
-Disponibles en [`../data/ejemplos/`](../data/ejemplos/):
+Documentos de muestra en [`../data/ejemplos/`](../data/ejemplos/):
 
 - `user_events.json`: documentos de ejemplo de los cuatro tipos de evento (`product_view`, `search`,
   `add_to_cart`, `purchase`).
 - `redis_recommendations.json`: valor de ejemplo de la cache.
 
-Los ocho productos del catálogo, clientes, pedidos, ítems y reseñas sintéticos están disponibles en
-[`../db/datos/`](../db/datos/) y fueron utilizados en la validación de PostgreSQL.
+Conjuntos que se cargan efectivamente en cada motor:
+
+- [`../db/datos/`](../db/datos/): los ocho productos del catálogo, clientes, pedidos, ítems y reseñas
+  sintéticos, utilizados en la validación de PostgreSQL.
+- [`../nosql/mongodb/seed_data.json`](../nosql/mongodb/seed_data.json): 22 eventos de tres clientes
+  identificados y un visitante anónimo, entre el 13 y el 21 de agosto de 2026.
+- [`../nosql/redis/datos/estado_inicial.redis`](../nosql/redis/datos/estado_inicial.redis): las seis
+  claves del estado inicial de la capa clave-valor.
 
 ---
 
@@ -411,9 +422,14 @@ Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/co
 5. **Productos comprados conjuntamente.** Venta cruzada basada en compras reales; usa CTE,
    agregación y subconsulta `EXISTS` para validar disponibilidad.
 
-Cuatro consultas sobre MongoDB, en [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md): historial
-reciente de un usuario, productos más interactuados, eventos de una sesión y productos más
-visualizados.
+Ocho consultas sobre MongoDB, en [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/), cada
+una con su pregunta de negocio, su justificación y el resultado esperado contra el estado inicial:
+
+| Archivo | Qué resuelve |
+| --- | --- |
+| `01_contexto_recomendacion.md` | Historial reciente de un usuario, productos más interactuados y reconstrucción de una sesión |
+| `02_analiticas_productos.md` | Productos más visualizados y categorías con mayor interés |
+| `03_analiticas_comportamiento.md` | Búsquedas por usuario, relación entre vistas y carrito, y actividad por sesión |
 
 Comandos representativos sobre Redis, en [`../nosql/redis/comandos/`](../nosql/redis/comandos/), cada
 uno con la pregunta que responde y su comparación con el equivalente SQL:
@@ -483,7 +499,7 @@ fuera del repositorio, y heredar únicamente el rol necesario.
 `sales_order.total_amount` se deriva de `order_item`. `bdia_app` carece de permisos `INSERT` y
 `UPDATE` sobre esas columnas. Los triggers pueden mantenerlas porque
 `apply_inventory_movement` y `apply_order_total_delta` son `SECURITY DEFINER`, tienen un
-`search_path` fijo en esquemas confiables —con `pg_temp` al final— y pertenecen
+`search_path` fijo en esquemas confiables, con `pg_temp` al final, y pertenecen
 al administrador. Se revocó de `PUBLIC` el acceso al esquema, a tablas,
 secuencias y funciones; también se definieron privilegios predeterminados
 restrictivos para objetos futuros.
@@ -518,10 +534,16 @@ Se verificó forzando el límite de memoria con un contador en 30 de 30: la clav
 protegerlos exigiría una instancia o base independiente. Se acepta dentro de este alcance porque la
 función del límite es acotar el uso normal y no resistir un abuso deliberado.
 
-**Limitación reconocida:** Redis no ofrece roles ni permisos por clave comparables al Row Level
-Security de PostgreSQL. El control de acceso real vive en el backend, que debe ser el único
-componente que hable con Redis. Exponer Redis directamente a un cliente permitiría leer las claves de
-cualquier otro usuario, ya que basta conocer el identificador para construir la clave.
+**Limitación reconocida:** el control de acceso real vive en el backend, que debe ser el único
+componente que hable con Redis. Conviene precisar el alcance de esa limitación. Redis 8.2 sí dispone
+de ACL, con usuarios y permisos por patrón de clave y por comando: se comprobó que un usuario acotado
+a `~reco:user:user-123:*` con `+get` lee esa entrada, y recibe `NOPERM` tanto al pedir la clave de
+otro sujeto como al intentar escribir. Lo que ese mecanismo no da es un filtrado por contenido
+equivalente al Row Level Security de PostgreSQL, que decide fila por fila según el resultado de la
+consulta: el ACL alcanza al nombre de la clave, no a lo que hay dentro del valor. En este alcance no
+se definen usuarios ACL porque el único cliente es el backend. Exponer Redis directamente a un cliente
+sin ACL le permitiría leer las claves de cualquier otro usuario, ya que basta conocer el identificador
+para construir la clave.
 
 ---
 
@@ -573,10 +595,10 @@ reiniciar y `allkeys-lru` los descarta bajo presión de memoria, como verifica e
 best-effort y no una fuente de métricas de negocio.
 
 **Compromiso central:** el TTL introduce consistencia eventual de hasta 10 minutos a cambio de
-resolver la solicitud desde memoria. El costo del acierto está medido en 0,60 ms; el del fallo
-todavía no puede medirse, porque el motor no está implementado y el demo lo sustituye por una espera
-fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un resultado
-verificado del camino completo.
+resolver la solicitud desde memoria. El costo del acierto está medido en 0,60 ms; el del fallo no
+corresponde a esta capa, porque depende del motor que queda fuera del alcance, y el demo lo sustituye
+por una espera fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un
+resultado verificado del camino completo.
 
 ---
 

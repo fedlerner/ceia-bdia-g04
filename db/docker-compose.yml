@@ -36,5 +36,18 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+    networks:
+      - bdia_g04_network
+
 volumes:
+  # El nombre se fija de forma explicita, igual que en nosql/redis y nosql/mongodb.
+  # Sin `name`, Compose lo prefija con el del proyecto, de modo que levantar desde
+  # este directorio y levantar desde la raiz crean dos volumenes distintos.
   bdia_postgres_data:
+    name: bdia_g04_postgres_data
+
+networks:
+  # La misma red que declaran los otros dos componentes, para que los tres queden
+  # en una sola al incluirlos desde el compose de la raiz.
+  bdia_g04_network:
+    driver: bridge

@@ -5,7 +5,7 @@
 La solución combina tres motores. Este documento cubre los dos componentes NoSQL:
 
 - **MongoDB**: eventos de interacción del usuario (base documental / series de tiempo).
-  Modelo definido; implementación pendiente.
+  Modelo e implementación completos en [`mongodb/`](mongodb/).
 - **Redis**, capa clave-valor: cache de recomendaciones, sesiones anónimas, rankings
   precalculados y rate limit. Modelo e implementación completos en [`redis/`](redis/).
 
@@ -14,6 +14,9 @@ Los datos transaccionales y de catálogo permanecen en **PostgreSQL** (ver [`../
 ---
 
 # 1. Eventos de usuario en MongoDB
+
+> Implementación en [`mongodb/`](mongodb/). Las ocho consultas representativas, con su resultado
+> esperado contra el estado inicial, están en [`mongodb/consultas/`](mongodb/consultas/).
 
 Para el almacenamiento de eventos se selecciona **MongoDB como base de datos documental**.
 
@@ -85,7 +88,9 @@ Cada documento tendrá una estructura general similar a:
   "session_id": "session-456",
   "event_type": "product_view",
   "product_id": "product-001",
-  "metadata": {}
+  "metadata": {
+    "category_id": "perfumes"
+  }
 }
 ```
 
@@ -93,7 +98,7 @@ Los atributos principales son:
 
 | Atributo | Descripción |
 | --- | --- |
-| `_id` | Identificador único del evento |
+| `_id` | Identificador único del evento, con la salvedad que se indica más abajo |
 | `timestamp` | Momento en que ocurrió el evento |
 | `user_id` | Usuario que generó la interacción |
 | `session_id` | Sesión de navegación asociada |
@@ -105,31 +110,104 @@ El atributo `metadata` permite mantener cierta flexibilidad documental sin crear
 diferentes para cada evento. Esta flexibilidad permite incorporar nuevos metadatos y tipos de eventos
 durante la evolución del sistema sin modificar la estructura de los eventos existentes.
 
+Los nombres son los de la colección y no los del modelo conceptual, que es independiente de la
+tecnología. La correspondencia es la siguiente:
+
+| Modelo conceptual ([`../docs/modelo_conceptual.md`](../docs/modelo_conceptual.md), sección 4) | Documento de `user_events` |
+| --- | --- |
+| `event_id` | `_id` |
+| `occurred_at` | `timestamp` |
+| `customer_id` | `user_id` |
+| `anonymous_session_id` | `session_id` |
+| `event_type` | `event_type` |
+| `product_id` | `product_id` |
+| `query_text` | `metadata.query`, sólo en los eventos `search` |
+| `context` | `metadata` |
+
+El atributo conceptual `sku_id` no se traslada: los eventos de navegación se registran sobre el
+producto y no sobre la variante vendible, que interviene recién en el pedido. La entidad conceptual
+"evento de interacción" se materializa únicamente acá, de modo que esta tabla es la única traducción
+que hay que seguir para ir del modelo conceptual al físico.
+
+Sobre `_id` corresponde una aclaración. En una colección común MongoDB crea el índice `_id_` y
+rechaza un identificador repetido; una Time Series Collection no lo hace, y sus únicos índices son
+el que genera el `metaField` y los que se declaran de forma explícita. La unicidad de `_id` es
+entonces una propiedad que sostiene la carga y no el motor: `generar_datos.js` la verifica sobre el
+archivo de datos antes de crear la colección y aborta si encuentra un duplicado.
+
 Los documentos de ejemplo (`product_view`, `search`, `add_to_cart`, `purchase`) están en
-[`../data/ejemplos/user_events.json`](../data/ejemplos/user_events.json).
+[`../data/ejemplos/user_events.json`](../data/ejemplos/user_events.json); los datos de carga
+completos, en [`mongodb/seed_data.json`](mongodb/seed_data.json).
+
+El sujeto de un evento puede ser un **cliente identificado** o un **visitante anónimo**. La regla es
+la misma que fija el relevamiento y que PostgreSQL implementa como restricción
+`recommendation_target_ck`: cada evento debe tener **al menos uno** de los dos identificadores. Un
+cliente registrado aporta `user_id` y, mientras navega, también `session_id`; un visitante anónimo
+aporta únicamente `session_id`.
+
+`user_id` es el criterio de acceso dominante, porque las consultas que alimentan al motor parten del
+cliente. En los eventos anónimos ese campo está ausente, con la consecuencia que se detalla en la
+sección 1.3.
 
 El evento `purchase` permite representar la secuencia de comportamiento del usuario, aunque la
 información comercial detallada de la orden continúa siendo responsabilidad de PostgreSQL.
 
 ## 1.3 Time Series Collection
 
-La colección `user_events` se implementaría como una **Time Series Collection**, utilizando
-`timestamp` como `timeField`.
+La colección `user_events` se implementa como una **Time Series Collection**, definida en
+[`mongodb/generar_datos.js`](mongodb/generar_datos.js) con:
 
-La ventaja principal para este caso es que los eventos poseen naturalmente una dimensión temporal y
-las consultas más frecuentes utilizan rangos como:
+| Parámetro | Valor | Justificación |
+| --- | --- | --- |
+| `timeField` | `timestamp` | Los eventos poseen naturalmente una dimensión temporal y las consultas más frecuentes usan rangos de fechas. |
+| `metaField` | `user_id` | El acceso dominante es por usuario, y agrupar los buckets por `user_id` sirve directamente las consultas de la sección 1.4. En los eventos anónimos el campo está ausente y el metadato queda nulo; ver más abajo. |
+| `granularity` | `seconds` | Coincide con la precisión con la que se registran los eventos. |
+| `expireAfterSeconds` | `7776000` (90 días) | Acota la colección al horizonte que necesitan las consultas y evita un proceso de limpieza propio; se detalla en la política de retención. |
+
+La ventaja principal para este caso es que los eventos se agregan continuamente y raramente son
+modificados, y que las consultas más frecuentes filtran por usuario y por rangos temporales como:
 
 - eventos del usuario durante los últimos 7 días;
 - eventos del último mes;
 - productos vistos durante la sesión actual.
 
-Esto resulta especialmente adecuado para un sistema donde los eventos se agregan continuamente y
-raramente son modificados.
+Con `user_id` como `metaField`, MongoDB genera automáticamente el índice compuesto
+`{ user_id: 1, timestamp: 1 }`, que resuelve el acceso por usuario y rango temporal sin necesidad de
+un índice adicional. Se declara además un índice secundario `{ event_type: 1 }` para las consultas
+analíticas que filtran por tipo de evento (sección 1.5). `session_id` se conserva como campo medido,
+útil para reconstruir el recorrido de una sesión, pero no lleva índice propio porque no es un criterio
+de acceso habitual por sí solo.
+
+**Eventos anónimos.** Al no tener `user_id`, su metadato queda nulo y no se agrupan con los de ningún
+cliente. Eso no impide consultarlos: las consultas por sesión de la sección 1.4 acotan siempre una
+ventana temporal, y esa ventana permite descartar buckets por el índice aun sin `user_id`. Se verificó
+con `explain` que la consulta por sesión resuelve con `IXSCAN` tanto para un cliente identificado como
+para un visitante anónimo. Lo que sí sería un recorrido completo es filtrar por `session_id` sin
+ventana temporal, algo que ninguna de las consultas del modelo hace.
+
+### Política de retención
+
+La colección se crea con `expireAfterSeconds` de 90 días. MongoDB elimina de forma automática los
+buckets cuyos eventos superan esa antigüedad, sin necesidad de un proceso de limpieza propio.
+
+El valor surge de los patrones de consulta: el motor de recomendaciones trabaja con ventanas de 7 a
+30 días y las consultas analíticas del apartado 1.5 no exceden ese horizonte, de modo que 90 días
+dejan margen suficiente sin que el volumen crezca de forma indefinida. Es la respuesta al problema
+que plantea el propio caso, donde los eventos se generan continuamente y solo se agregan.
+
+Un análisis de horizonte más largo, por ejemplo estacional entre años, no corresponde a esta
+colección operacional. Requeriría un almacenamiento analítico separado, cuya definición sigue abierta
+en [`../docs/arquitectura.md`](../docs/arquitectura.md).
 
 ## 1.4 Consultas principales para el sistema de recomendaciones
 
 Las consultas deben proporcionar un **contexto de comportamiento reciente y relevante** al motor.
 MongoDB proporcionará al motor el historial de comportamiento reciente y relevante del usuario.
+
+Como la colección es una Time Series Collection, estas consultas acotan explícitamente la ventana
+temporal sobre `timestamp` (el `timeField`): así el `$match` recorre solo los buckets del rango pedido
+y el índice automático `{ user_id: 1, timestamp: 1 }` resuelve el acceso por usuario y rango sin
+recorrer toda la colección.
 
 ### Historial reciente de un usuario
 
@@ -137,7 +215,8 @@ MongoDB proporcionará al motor el historial de comportamiento reciente y releva
 db.user_events.find({
   user_id: "user-123",
   timestamp: {
-    $gte: ISODate("2026-08-12T00:00:00Z")
+    $gte: ISODate("2026-08-13T00:00:00Z"),
+    $lt: ISODate("2026-08-20T00:00:00Z")
   }
 }).sort({
   timestamp: -1
@@ -159,6 +238,10 @@ db.user_events.aggregate([
       user_id: "user-123",
       event_type: {
         $in: ["product_view", "add_to_cart"]
+      },
+      timestamp: {
+        $gte: ISODate("2026-08-13T00:00:00Z"),
+        $lt: ISODate("2026-08-20T00:00:00Z")
       }
     }
   },
@@ -183,7 +266,10 @@ El resultado puede utilizarse como parte de las características entregadas al m
 ```javascript
 db.user_events.find({
   user_id: "user-123",
-  session_id: "session-456"
+  session_id: "session-456",
+  timestamp: {
+    $gte: ISODate("2026-08-13T00:00:00Z")
+  }
 }).sort({
   timestamp: 1
 })
@@ -268,13 +354,6 @@ Datos del comportamiento:
 - productos agregados al carrito
 - comportamiento de la sesión actual
 ```
-
-## 1.7 Pendientes de este componente
-
-- Definir los índices propuestos sobre `user_events` (por ejemplo `user_id + timestamp`,
-  `session_id`, `event_type`).
-- Definir la política de retención / expiración de eventos.
-- Definir el catálogo cerrado de valores de `event_type`.
 
 ---
 
@@ -401,10 +480,10 @@ alcance es una simplificación deliberada y no una propiedad del diseño.
 | --- | --- | --- |
 | Leer la cache | `GET` | O(1) |
 | Escribir la cache con TTL | `SET ... EX` | O(1) |
-| Invalidar explícitamente | `DEL` | O(1) |
+| Invalidar la cache de un cliente | `DEL` variádico sobre los cuatro contextos | O(1) por clave |
 | Leer la sesión completa | `HGETALL` | O(n) sobre campos |
 | Leer o actualizar un campo | `HGET`, `HSET`, `HINCRBY` | O(1) |
-| Renovar la sesión | `MULTI` + `HINCRBY` + `HSET` + `EXPIRE` + `EXEC` | O(1) |
+| Renovar la sesión sin revivirla | Script Lua `renovar_sesion.lua` (`EXISTS` + `HINCRBY` + `HSET` + `EXPIRE`) | O(1) |
 | Top N del ranking | `ZREVRANGE ... WITHSCORES` | O(log n + m) |
 | Actualizar el ranking (incremental) | `ZINCRBY` | O(log n) |
 | Reconstruir el ranking | `MULTI` + `DEL` + `ZADD` + `EXPIRE` + `EXEC` | O(n log n) |
@@ -443,8 +522,8 @@ El TTL de la cache (10 minutos, dentro del rango de 5 a 15 previsto) es más cor
 (1 hora) porque una recomendación personalizada cambia mucho más rápido que una agregación sobre una
 ventana de siete días.
 
-Además del TTL, existe la **invalidación explícita** con `DEL` para eventos que no pueden esperar al
-vencimiento, como una compra que vuelve obsoleta la recomendación vigente.
+Además del TTL, el diseño define una **invalidación explícita** con `DEL` para el único evento que no
+puede esperar al vencimiento: la compra, que vuelve obsoleta la recomendación vigente del cliente.
 
 Redis no ejecuta un proceso que recorra todas las claves: el vencimiento es perezoso (al leer una
 clave vencida, la elimina y responde `nil`) y activo (un ciclo de fondo muestrea claves con TTL).
@@ -519,7 +598,9 @@ Sobrevivieron las claves del estado inicial?
 Los números cierran: 6 claves iniciales + 6000 insertadas − 4768 descartadas = 1238, que es el
 `DBSIZE` final. `evicted_keys` es un acumulado del servidor desde su arranque; el valor relevante es
 el delta de la corrida, que el script informa entre paréntesis. El script recarga el estado inicial
-antes de medir, de modo que la línea base es siempre 6 y el resultado es reproducible.
+antes de medir, de modo que la línea base es siempre 6. Las cifras exactas dependen de cuánta
+memoria ocupa cada clave en el entorno donde se ejecute, así que una corrida propia puede cerrar en
+otro `DBSIZE`; lo que se repite es la relación entre los tres números.
 
 Las dos últimas filas son las que sostienen que los contadores son best-effort: no tienen TTL y aun
 así `allkeys-lru` los descarta. El resultado varía entre corridas, porque el descarte depende de la
@@ -572,11 +653,27 @@ Redis.
   el slot únicamente sobre la porción entre llaves, de modo que ambas claves caen en el mismo slot
   (7350) y el `MGET` sigue siendo válido. Sin el hash tag caerían en los slots 176 y 5737.
 
-## 2.10 Pendientes de este componente
+## 2.10 Alcance y decisiones abiertas
 
-- [ ] Reemplazar la generación simulada del demo por la llamada real al motor cuando PostgreSQL y
-      MongoDB estén implementados.
-- [ ] Definir en el backend el límite numérico del rate limit (la implementación usa 30 por minuto
-      como valor de ejemplo).
-- [ ] Decidir si la compra dispara una invalidación explícita con `DEL` además del vencimiento por
-      TTL.
+El trabajo consiste en diseñar e implementar la capa de datos, no la aplicación que la consume. Dos
+elementos quedan por lo tanto **fuera del alcance de forma deliberada** y no constituyen trabajo
+pendiente:
+
+- **El motor de recomendaciones.** `redis/scripts/demo_cache_aside.py` lo sustituye por una espera
+  fija porque no forma parte del entregable. Lo que el demo mide es el costo de resolver desde Redis,
+  que sí pertenece a esta capa.
+- **La política del rate limit.** Redis aporta el contador atómico y la expiración de la ventana;
+  fijar el límite numérico y decidir qué hacer al superarlo es responsabilidad de la aplicación. El
+  valor de 30 por minuto aparece en `redis/comandos/04` únicamente como ejemplo, para poder observar
+  el escenario de cuota agotada.
+
+Las dos decisiones de modelado que quedaban abiertas ya fueron tomadas:
+
+- **La compra invalida la cache del cliente.** Un `DEL` variádico elimina los cuatro contextos en una
+  sola operación, de modo que la siguiente solicitud regenera la recomendación con la compra ya
+  incorporada. No se invalidan ni el ranking ni la cache de la sesión anónima. Ver
+  `redis/comandos/01`, comando 5.
+- **Una sesión vencida no se revive.** La renovación pasa por el script
+  `redis/scripts/renovar_sesion.lua`, que comprueba la existencia de la clave y escribe en la misma
+  operación atómica. Una transacción no alcanza, porque `MULTI` no puede ramificar según un resultado
+  intermedio. Ver `redis/comandos/02`, comando 4.

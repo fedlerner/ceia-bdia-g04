@@ -7,7 +7,7 @@
 
 PostgreSQL es el único motor con esquema relacional completo e implementado (ver
 [`../db/estructura/01_schema.sql`](../db/estructura/01_schema.sql)). Redis está implementado como capa
-clave-valor y MongoDB está diseñado pero pendiente de implementación (ver
+clave-valor y MongoDB como capa documental (ver
 [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md)); ninguno de los dos tiene tablas ni claves
 foráneas propias, por lo que se resumen en la sección 5 en lugar de forzarlos a notación
 entidad-relación.
@@ -172,9 +172,9 @@ erDiagram
 **Nota de notación:** los tipos con precisión se escriben como `varchar_120` (equivalente a
 `VARCHAR(120)`) en lugar de `VARCHAR(120)`, para no depender del soporte de paréntesis y comas dentro
 de un tipo en todas las versiones del renderizador de Mermaid. Por el mismo motivo, cuando una columna
-es clave primaria y clave foránea a la vez —`product_category.product_id`,
+es clave primaria y clave foránea a la vez (`product_category.product_id`,
 `product_category.category_id`, `inventory.sku_id`, `recommendation_item.recommendation_id` y
-`recommendation_item.sku_id`— el diagrama la marca solo como `PK`; su condición de clave foránea surge
+`recommendation_item.sku_id`) el diagrama la marca solo como `PK`; su condición de clave foránea surge
 de la relación dibujada hacia `product`, `category`, `sku`, `recommendation` y `sku` respectivamente.
 El detalle exacto y ejecutable de cada tipo, restricción y valor por defecto está en
 [`../db/estructura/01_schema.sql`](../db/estructura/01_schema.sql).
@@ -257,7 +257,7 @@ PostgreSQL es el único motor con esquema relacional; Redis y MongoDB se modelan
 tienen tablas ni claves foráneas. El detalle completo está en
 [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md).
 
-**MongoDB — `user_events`** (diseñado, implementación pendiente): colección única de tipo *Time
+**MongoDB, `user_events`** (implementado): colección única de tipo *Time
 Series* (`timeField: timestamp`), un documento por evento (`product_view`, `search`, `add_to_cart`,
 `purchase`), con `user_id` y/o `session_id`, `event_type` y `metadata` de forma libre. No tiene
 relaciones ni claves foráneas: el vínculo con PostgreSQL es lógico, a través de los códigos
