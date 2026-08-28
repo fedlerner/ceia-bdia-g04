@@ -19,9 +19,12 @@ generar-datos:
 		--authenticationDatabase admin \
 		--file /scripts/generar_datos.js'
 
-# Abre una consola interactiva de mongosh.
+# Abre una consola interactiva de mongosh, ya posicionada en la base del
+# componente. Sin indicarla, mongosh conecta a `test` y las consultas de
+# consultas/, que usan db.user_events, devolverian cero sin ningun error.
 shell:
 	docker exec -it $(CONTENEDOR) sh -c 'mongosh \
 		--username "$$MONGO_INITDB_ROOT_USERNAME" \
 		--password "$$MONGO_INITDB_ROOT_PASSWORD" \
-		--authenticationDatabase admin'
+		--authenticationDatabase admin \
+		"$$MONGO_DATABASE"'

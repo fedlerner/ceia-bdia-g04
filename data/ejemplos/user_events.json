@@ -41,5 +41,16 @@
     "metadata": {
       "order_id": "order-1001"
     }
+  },
+  {
+    "_id": "evt-0021",
+    "timestamp": "2026-08-21T11:13:30Z",
+    "session_id": "session-460",
+    "event_type": "product_view",
+    "product_id": "product-001",
+    "metadata": {
+      "category_id": "perfumes",
+      "source": "search"
+    }
   }
 ]

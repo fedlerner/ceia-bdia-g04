@@ -115,10 +115,10 @@ El [`docker-compose.yml`](docker-compose.yml) de la raíz incorpora el compose d
 mediante `include:`, de modo que un solo comando levanta los que estén incorporados. Cada componente
 conserva su propio archivo y su propio `.env`.
 
-**Hoy sólo levanta Redis**, que es el único componente implementado: los bloques de PostgreSQL y
-MongoDB están escritos y comentados en el compose de la raíz, a la espera de que existan sus archivos.
-A medida que se incorporen, descomentar su bloque los suma sin tocar nada más. El estado de cada
-componente está en [docs/ESTADO.md](docs/ESTADO.md).
+**Hoy levanta Redis y MongoDB**, que son los componentes implementados. El bloque de PostgreSQL está
+escrito y comentado en el compose de la raíz, a la espera de que exista su archivo: cuando se
+incorpore, descomentarlo lo suma sin tocar nada más. El estado de cada componente está en
+[docs/ESTADO.md](docs/ESTADO.md).
 
 > `include:` requiere **Docker Compose 2.20 o posterior**. Con una versión anterior, el comando falla
 > antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
@@ -128,6 +128,7 @@ Antes de levantar la pila, cada componente necesita su `.env` creado a partir de
 
 ```bash
 cp nosql/redis/.env.example nosql/redis/.env
+cp nosql/mongodb/.env.example nosql/mongodb/.env
 ```
 
 ```bash

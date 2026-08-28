@@ -1,3 +1,14 @@
+# ------------------------------------------------------------
+# Eventos de interaccion del usuario (TP Integrador - Grupo 04).
+# Requiere copiar .env.example a .env antes de levantar la pila.
+#
+# Las variables se declaran con la sintaxis ${VAR:?mensaje}, que exige que
+# esten definidas. Sin ella un .env incompleto no produce ningun error: las
+# credenciales quedan vacias y la imagen de MongoDB arranca SIN autenticacion,
+# de modo que cualquiera que alcance el puerto puede listar y escribir bases.
+# Es la misma convencion que usa nosql/redis/docker-compose.yml.
+# ------------------------------------------------------------
+
 name: bdia_g04_mongodb
 
 services:
@@ -6,11 +17,11 @@ services:
     container_name: bdia_g04_mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      MONGO_DATABASE: ${MONGO_DATABASE}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      MONGO_DATABASE: ${MONGO_DATABASE:?no definida. Copiar .env.example a .env en nosql/mongodb}
     ports:
-      - "127.0.0.1:${MONGO_LISTEN_PORT}:27017"
+      - "127.0.0.1:${MONGO_LISTEN_PORT:?no definida. Copiar .env.example a .env en nosql/mongodb}:27017"
     volumes:
       - mongodb_data:/data/db
       - ./seed_data.json:/scripts/seed_data.json:ro
@@ -36,12 +47,12 @@ services:
     container_name: bdia_g04_mongo_express
     restart: unless-stopped
     environment:
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/?authSource=admin
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}:${MONGO_INITDB_ROOT_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}@mongodb:27017/?authSource=admin
       ME_CONFIG_BASICAUTH_ENABLED: "true"
-      ME_CONFIG_BASICAUTH_USERNAME: ${ME_CONFIG_BASICAUTH_USERNAME}
-      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD}
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_CONFIG_BASICAUTH_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
     ports:
-      - "127.0.0.1:${MONGO_EXPRESS_LISTEN_PORT}:8081"
+      - "127.0.0.1:${MONGO_EXPRESS_LISTEN_PORT:?no definida. Copiar .env.example a .env en nosql/mongodb}:8081"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -49,7 +60,13 @@ services:
       - bdia_g04_network
 
 volumes:
+  # El nombre se fija de forma explicita. Sin `name`, Compose lo prefija con el
+  # del proyecto, de modo que levantar desde este directorio y levantar desde la
+  # raiz del repositorio crean dos volumenes distintos y los datos cargados en
+  # uno no aparecen en el otro. Es la misma razon por la que se fijan los
+  # container_name y el nombre de la red.
   mongodb_data:
+    name: bdia_g04_mongodb_data
 
 networks:
   bdia_g04_network:

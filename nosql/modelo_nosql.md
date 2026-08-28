@@ -111,9 +111,15 @@ Los documentos de ejemplo (`product_view`, `search`, `add_to_cart`, `purchase`) 
 [`../data/ejemplos/user_events.json`](../data/ejemplos/user_events.json); los datos de carga
 completos, en [`mongodb/seed_data.json`](mongodb/seed_data.json).
 
-Todo evento corresponde a un usuario identificado: `user_id` está siempre presente y es el criterio
-de acceso principal. La colección no contempla eventos anónimos; `session_id` se conserva como dato
-auxiliar, útil para reconstruir el recorrido de una sesión y para analíticas.
+El sujeto de un evento puede ser un **cliente identificado** o un **visitante anónimo**. La regla es
+la misma que fija el relevamiento y que PostgreSQL implementa como restricción
+`recommendation_target_ck`: cada evento debe tener **al menos uno** de los dos identificadores. Un
+cliente registrado aporta `user_id` y, mientras navega, también `session_id`; un visitante anónimo
+aporta únicamente `session_id`.
+
+`user_id` es el criterio de acceso dominante, porque las consultas que alimentan al motor parten del
+cliente. En los eventos anónimos ese campo está ausente, con la consecuencia que se detalla en la
+sección 1.3.
 
 El evento `purchase` permite representar la secuencia de comportamiento del usuario, aunque la
 información comercial detallada de la orden continúa siendo responsabilidad de PostgreSQL.
@@ -126,7 +132,7 @@ La colección `user_events` se implementa como una **Time Series Collection**, d
 | Parámetro | Valor | Justificación |
 | --- | --- | --- |
 | `timeField` | `timestamp` | Los eventos poseen naturalmente una dimensión temporal y las consultas más frecuentes usan rangos de fechas. |
-| `metaField` | `user_id` | Todo evento corresponde a un usuario identificado, de modo que `user_id` está siempre presente. El acceso dominante es por usuario, y agrupar los buckets por `user_id` sirve directamente las consultas de la sección 1.4. |
+| `metaField` | `user_id` | El acceso dominante es por usuario, y agrupar los buckets por `user_id` sirve directamente las consultas de la sección 1.4. En los eventos anónimos el campo está ausente y el metadato queda nulo; ver más abajo. |
 | `granularity` | `seconds` | Coincide con la precisión con la que se registran los eventos. |
 
 La ventaja principal para este caso es que los eventos se agregan continuamente y raramente son
@@ -141,7 +147,28 @@ Con `user_id` como `metaField`, MongoDB genera automáticamente el índice compu
 un índice adicional. Se declara además un índice secundario `{ event_type: 1 }` para las consultas
 analíticas que filtran por tipo de evento (sección 1.5). `session_id` se conserva como campo medido,
 útil para reconstruir el recorrido de una sesión, pero no lleva índice propio porque no es un criterio
-de acceso habitual.
+de acceso habitual por sí solo.
+
+**Eventos anónimos.** Al no tener `user_id`, su metadato queda nulo y no se agrupan con los de ningún
+cliente. Eso no impide consultarlos: las consultas por sesión de la sección 1.4 acotan siempre una
+ventana temporal, y esa ventana permite descartar buckets por el índice aun sin `user_id`. Se verificó
+con `explain` que la consulta por sesión resuelve con `IXSCAN` tanto para un cliente identificado como
+para un visitante anónimo. Lo que sí sería un recorrido completo es filtrar por `session_id` sin
+ventana temporal, algo que ninguna de las consultas del modelo hace.
+
+### Política de retención
+
+La colección se crea con `expireAfterSeconds` de 90 días. MongoDB elimina de forma automática los
+buckets cuyos eventos superan esa antigüedad, sin necesidad de un proceso de limpieza propio.
+
+El valor surge de los patrones de consulta: el motor de recomendaciones trabaja con ventanas de 7 a
+30 días y las consultas analíticas del apartado 1.5 no exceden ese horizonte, de modo que 90 días
+dejan margen suficiente sin que el volumen crezca de forma indefinida. Es la respuesta al problema
+que plantea el propio caso, donde los eventos se generan continuamente y solo se agregan.
+
+Un análisis de horizonte más largo, por ejemplo estacional entre años, no corresponde a esta
+colección operacional sino a un almacenamiento analítico separado, según lo previsto en la
+arquitectura de datos.
 
 ## 1.4 Consultas principales para el sistema de recomendaciones
 

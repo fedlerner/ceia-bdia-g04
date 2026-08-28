@@ -2,7 +2,7 @@
 
 | Archivo | Contenido |
 | --- | --- |
-| [`user_events.json`](user_events.json) | Documentos de ejemplo de la colección `user_events` de MongoDB: `product_view`, `search`, `add_to_cart` y `purchase`. |
+| [`user_events.json`](user_events.json) | Documentos de ejemplo de la colección `user_events` de MongoDB: `product_view`, `search`, `add_to_cart` y `purchase`, más un evento de visitante anónimo identificado solo por `session_id`. El seed de carga completo está en [`../../nosql/mongodb/seed_data.json`](../../nosql/mongodb/seed_data.json). |
 | [`redis_recommendations.json`](redis_recommendations.json) | Valor de ejemplo de la cache de Redis, almacenado bajo la clave `reco:user:user-123:home` con un TTL de 600 segundos. |
 
 ## Pendiente

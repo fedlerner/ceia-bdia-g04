@@ -34,8 +34,8 @@ db.user_events.aggregate([
 ])
 ```
 
-**Resultado esperado:** `product-001` con 2 visualizaciones, seguido de los demás productos con 1
-cada uno.
+**Resultado esperado:** `product-001` con 3 visualizaciones, seguido de los demás productos del
+catálogo con 1 cada uno.
 
 **Justificación:** el índice secundario `{ event_type: 1 }` sirve el `$match` sobre el tipo de
 evento.
@@ -67,7 +67,7 @@ db.user_events.aggregate([
 ])
 ```
 
-**Resultado esperado:** `perfumes` con 3, `skincare` con 3, `maquillaje` con 2 y `capilar` con 1.
+**Resultado esperado:** `perfumes` con 4, `skincare` con 3, `maquillaje` con 2 y `capilar` con 1.
 
 **Justificación:** `metadata.category_id` permite responder esta pregunta sin unir con el catálogo
 de PostgreSQL; el evento lleva la categoría relevante en el momento de la interacción. El modelo

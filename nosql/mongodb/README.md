@@ -28,7 +28,12 @@ make generar-datos
 
 El script recrea `user_events` como serie de tiempo (`timeField: "timestamp"`,
 `metaField: "user_id"`, `granularity: "seconds"`), crea el índice secundario `{ event_type: 1 }` y
-carga los 19 eventos de [`seed_data.json`](seed_data.json).
+carga los 22 eventos de [`seed_data.json`](seed_data.json), de los cuales 3 corresponden a un
+visitante anónimo identificado solo por `session_id`.
+
+El script valida el seed antes de escribir y, una vez cargado, comprueba contra la base el conteo, el
+`timeField`, el `metaField`, la retención y los dos índices. Si algo no cuadra termina con código de
+error y no modifica la colección existente.
 
 En Windows PowerShell, el primer comando es `Copy-Item .env.example .env`.
 
@@ -99,6 +104,19 @@ formato copiar-y-pegar para ejecutar en `mongosh`:
 | [`01_contexto_recomendacion.md`](consultas/01_contexto_recomendacion.md) | Historial reciente de un usuario, productos más interactuados y eventos de una sesión (contexto para el motor). |
 | [`02_analiticas_productos.md`](consultas/02_analiticas_productos.md) | Productos más visualizados y categorías con mayor interés. |
 | [`03_analiticas_comportamiento.md`](consultas/03_analiticas_comportamiento.md) | Búsquedas por usuario, relación vistas/carrito y actividad por sesión. |
+
+## Los dos modos de arranque comparten los datos
+
+Este componente puede levantarse desde su propio directorio o junto al resto desde la raíz del
+repositorio, y **ambos usan el mismo volumen de datos**: los eventos cargados de una forma se ven al
+levantar de la otra.
+
+No es el comportamiento predeterminado de Docker Compose, que nombra los volúmenes anteponiendo el
+del proyecto y habría creado uno distinto por cada modo. El `docker-compose.yml` fija el nombre de
+forma explícita con `name: bdia_g04_mongodb_data`, por la misma razón por la que fija los
+`container_name` y el nombre de la red.
+
+Conviene mantener la convención en los demás componentes que persistan datos.
 
 ## Archivos
 

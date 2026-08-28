@@ -34,10 +34,16 @@ db.user_events.aggregate([
 ])
 ```
 
-**Resultado esperado:** `user-123` con 2 búsquedas, `user-124` y `user-125` con 1 cada uno.
+**Resultado esperado:** `user-123` con 2 búsquedas, `user-124` y `user-125` con 1 cada uno, más un
+grupo con `_id: null` y 1 búsqueda.
 
 **Justificación:** el `$match` por `event_type` se apoya en el índice secundario `{ event_type: 1 }`.
 La intensidad de búsqueda es una señal de intención que puede alimentar el modelo.
+
+El grupo `null` no es un error: corresponde a los eventos de visitantes anónimos, que el modelo
+identifica solo por `session_id` y que por lo tanto no tienen `user_id`. Agrupar por usuario los
+reúne a todos bajo `null`. Para analizarlos por separado hay que agrupar por `session_id`, como hace
+la consulta 3 de este archivo.
 
 ## Consulta 2. Relación entre visualizaciones y agregados al carrito
 
@@ -73,7 +79,7 @@ db.user_events.aggregate([
 ])
 ```
 
-**Resultado esperado:** `product-001` con 2 vistas y 1 carrito (ratio 2.0); `product-004`,
+**Resultado esperado:** `product-001` con 3 vistas y 2 carritos (ratio 1.5); `product-004`,
 `product-007` y `product-008` con 1 y 1 (ratio 1.0); los demás solo con vistas (ratio `null`).
 
 **Justificación:** los `$cond` dentro del `$group` cuentan cada tipo de evento por separado sin
@@ -104,8 +110,9 @@ db.user_events.aggregate([
 ])
 ```
 
-**Resultado esperado:** `session-456` y `session-502` con 6 eventos, `session-457` con 4 y
-`session-901` con 3, cada una con su primer y último evento.
+**Resultado esperado:** cinco sesiones. `session-456` y `session-502` con 6 eventos, `session-457`
+con 4, y `session-901` y `session-460` con 3 cada una, todas con su primer y último evento. La
+última corresponde al visitante anónimo y aparece sin `user_id`.
 
 **Justificación:** complementa la reconstrucción detallada de una sesión (ver
 [`01_contexto_recomendacion.md`](01_contexto_recomendacion.md), consulta 3) con una vista agregada
