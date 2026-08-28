@@ -288,9 +288,12 @@ recomendación servida desde cache, según lo exige la regla de negocio 9.
 ### 7.1 PostgreSQL: datos transaccionales
 
 PostgreSQL se selecciona porque el núcleo contiene datos estructurados y fuertemente relacionados:
-productos, variantes, precios, stock, clientes, pedidos e ítems. Las operaciones necesitan claves
-foráneas, restricciones, transacciones ACID e integridad inmediata. Los patrones principales combinan
-relaciones, filtros, agregaciones e historial temporal.
+productos, variantes, precios, stock, clientes, pedidos e ítems. Su estructura es estable, y la
+variabilidad que existe se concentra en atributos descriptivos que cambian según la categoría del
+producto; para esos casos el esquema usa columnas `jsonb` con índices GIN, de modo que admitir un
+atributo nuevo no exige migrar la tabla. Las operaciones necesitan claves foráneas, restricciones,
+transacciones ACID e integridad inmediata. Los patrones principales combinan relaciones, filtros,
+agregaciones e historial temporal.
 
 El volumen del caso académico no exige distribución y PostgreSQL reduce la complejidad operativa. Su
 madurez, roles, permisos, copias de seguridad e índices B-tree, parciales y GIN cubren seguridad y
@@ -502,9 +505,13 @@ fuera del repositorio, y heredar únicamente el rol necesario.
 `UPDATE` sobre esas columnas. Los triggers pueden mantenerlas porque
 `apply_inventory_movement` y `apply_order_total_delta` son `SECURITY DEFINER`, tienen un
 `search_path` fijo en esquemas confiables, con `pg_temp` al final, y pertenecen
-al administrador. Se revocó de `PUBLIC` el acceso al esquema, a tablas,
-secuencias y funciones; también se definieron privilegios predeterminados
-restrictivos para objetos futuros.
+al administrador. Se revocó de `PUBLIC` el acceso al esquema, a tablas, secuencias y funciones.
+Comprobado sobre la base: las ocho funciones del esquema quedan con el ACL `bdia_admin=X/bdia_admin`,
+de modo que ni `PUBLIC` ni los roles funcionales pueden ejecutarlas, incluidas las dos
+`SECURITY DEFINER`. El script declara además `ALTER DEFAULT PRIVILEGES` para objetos futuros, pero se
+verificó que en PostgreSQL 16 la variante que revoca `EXECUTE` de `PUBLIC` sobre funciones no deja
+registro en `pg_default_acl` y una función creada después vuelve a quedar ejecutable por `PUBLIC`. Por
+eso toda función que se agregue más adelante necesita su propio `REVOKE` explícito.
 
 Los movimientos de inventario son además inmutables: el rol operativo solo puede insertarlos y el
 DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifican tanto los accesos

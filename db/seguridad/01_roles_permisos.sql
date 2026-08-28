@@ -40,6 +40,13 @@ REVOKE ALL ON ALL TABLES IN SCHEMA bdia FROM bdia_app, bdia_analyst;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA bdia FROM bdia_app, bdia_analyst;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA bdia FROM bdia_app, bdia_analyst;
 
+-- Privilegios predeterminados para objetos futuros. Atencion: comprobado en
+-- PostgreSQL 16, estas tres sentencias se aceptan pero no dejan registro en
+-- pg_default_acl. Las dos primeras son inocuas, porque PUBLIC no recibe nada
+-- sobre tablas ni secuencias por omision. La tercera si importa: PUBLIC si
+-- recibe EXECUTE sobre funciones por omision, y una funcion creada despues de
+-- este script vuelve a quedar ejecutable por PUBLIC. Toda funcion nueva debe
+-- llevar su REVOKE explicito, como los de mas arriba.
 ALTER DEFAULT PRIVILEGES IN SCHEMA bdia REVOKE ALL ON TABLES FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES IN SCHEMA bdia REVOKE ALL ON SEQUENCES FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES IN SCHEMA bdia REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
