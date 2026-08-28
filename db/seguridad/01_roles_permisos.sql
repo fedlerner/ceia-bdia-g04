@@ -40,16 +40,17 @@ REVOKE ALL ON ALL TABLES IN SCHEMA bdia FROM bdia_app, bdia_analyst;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA bdia FROM bdia_app, bdia_analyst;
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA bdia FROM bdia_app, bdia_analyst;
 
--- Privilegios predeterminados para objetos futuros. Atencion: comprobado en
--- PostgreSQL 16, estas tres sentencias se aceptan pero no dejan registro en
--- pg_default_acl. Las dos primeras son inocuas, porque PUBLIC no recibe nada
--- sobre tablas ni secuencias por omision. La tercera si importa: PUBLIC si
--- recibe EXECUTE sobre funciones por omision, y una funcion creada despues de
--- este script vuelve a quedar ejecutable por PUBLIC. Toda funcion nueva debe
--- llevar su REVOKE explicito, como los de mas arriba.
+-- Privilegios predeterminados para objetos futuros.
+--
+-- El EXECUTE que PUBLIC recibe sobre las funciones es un valor predeterminado
+-- global, no del esquema, de modo que la variante `IN SCHEMA bdia` no lo quita:
+-- se acepta sin error pero no deja registro en pg_default_acl y cada funcion
+-- nueva vuelve a quedar ejecutable por PUBLIC. Por eso el REVOKE de funciones va
+-- sin `IN SCHEMA`. Comprobado en PostgreSQL 16: con esta forma, una funcion
+-- creada despues nace con el ACL del propietario y PUBLIC no puede ejecutarla.
 ALTER DEFAULT PRIVILEGES IN SCHEMA bdia REVOKE ALL ON TABLES FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES IN SCHEMA bdia REVOKE ALL ON SEQUENCES FROM PUBLIC;
-ALTER DEFAULT PRIVILEGES IN SCHEMA bdia REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA bdia TO bdia_app, bdia_analyst;
 

@@ -416,8 +416,10 @@ Conjuntos que se cargan efectivamente en cada motor:
 Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/consultas/):
 
 1. **Catálogo activo con disponibilidad.** ¿Qué productos activos están disponibles, indicando
-   marca, precio y stock? Consulta operativa central; podría implementarse como vista
-   `v_active_catalog`.
+   marca, precio y stock? Consulta operativa central. Se escribe con los `JOIN` explícitos para
+   mostrar el recorrido del modelo relacional; la vista `v_active_catalog` resuelve ese mismo acceso y
+   está creada en [`../db/indices_vistas/`](../db/indices_vistas/), otorgada a los dos roles
+   funcionales y consumida por la consulta 5 y por la validación.
 2. **Ventas e ingresos por categoría y período.** ¿Qué categorías generan más unidades vendidas e
    ingresos? La categoría principal evita contar dos veces una misma venta.
 3. **Frecuencia y valor de compra por cliente.** Señales transaccionales para segmentación y futuras
@@ -505,13 +507,13 @@ fuera del repositorio, y heredar únicamente el rol necesario.
 `UPDATE` sobre esas columnas. Los triggers pueden mantenerlas porque
 `apply_inventory_movement` y `apply_order_total_delta` son `SECURITY DEFINER`, tienen un
 `search_path` fijo en esquemas confiables, con `pg_temp` al final, y pertenecen
-al administrador. Se revocó de `PUBLIC` el acceso al esquema, a tablas, secuencias y funciones.
-Comprobado sobre la base: las ocho funciones del esquema quedan con el ACL `bdia_admin=X/bdia_admin`,
-de modo que ni `PUBLIC` ni los roles funcionales pueden ejecutarlas, incluidas las dos
-`SECURITY DEFINER`. El script declara además `ALTER DEFAULT PRIVILEGES` para objetos futuros, pero se
-verificó que en PostgreSQL 16 la variante que revoca `EXECUTE` de `PUBLIC` sobre funciones no deja
-registro en `pg_default_acl` y una función creada después vuelve a quedar ejecutable por `PUBLIC`. Por
-eso toda función que se agregue más adelante necesita su propio `REVOKE` explícito.
+al administrador, y **todas las funciones disparadoras que consultan tablas fijan también su
+`search_path`**, aunque no sean `SECURITY DEFINER`: sin eso, una sesión podía crear una tabla temporal
+que sombreara `order_item` y burlar la validación de ventas. Se revocó de `PUBLIC` el acceso al
+esquema, a tablas, secuencias y funciones, y se definieron privilegios predeterminados restrictivos
+para las funciones que se creen más adelante. Comprobado sobre la base: las ocho funciones del esquema
+quedan con el ACL `bdia_admin=X/bdia_admin`, ninguna es ejecutable por `PUBLIC`, y una función creada
+después del script nace con el mismo ACL restringido.
 
 Los movimientos de inventario son además inmutables: el rol operativo solo puede insertarlos y el
 DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifican tanto los accesos

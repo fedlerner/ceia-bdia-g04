@@ -7,8 +7,10 @@
 -- Relaciones, filtros y métricas: relaciona producto, marca, SKU e inventario; filtra estados
 --           activos y agrega precio y stock.
 -- Resultado esperado: lista de productos activos con disponibilidad, precio mínimo y stock total.
--- Justificación: es una consulta operativa central. Podría implementarse como una vista, por
---           ejemplo v_active_catalog, si se consultara con frecuencia.
+-- Justificación: es una consulta operativa central. La vista v_active_catalog, en
+--           indices_vistas/, resuelve este mismo acceso y ya está creada; acá se escriben
+--           los JOIN explícitos para mostrar el recorrido del modelo. La consulta 5 y la
+--           validación sí consumen la vista.
 
 SET search_path TO bdia, public;
 

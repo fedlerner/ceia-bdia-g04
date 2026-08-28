@@ -409,6 +409,9 @@ FOR EACH ROW EXECUTE FUNCTION apply_order_total_delta();
 CREATE OR REPLACE FUNCTION validate_sale_inventory_movement()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+-- search_path fijo, con pg_temp al final: la funcion resuelve las tablas
+-- del esquema y no las que el invocante pueda crear como temporales.
+SET search_path = pg_catalog, bdia, pg_temp
 AS $$
 DECLARE
     purchased_qty BIGINT;
@@ -462,6 +465,9 @@ FOR EACH ROW EXECUTE FUNCTION validate_sale_inventory_movement();
 CREATE OR REPLACE FUNCTION validate_compensating_inventory_movement()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+-- search_path fijo, con pg_temp al final: la funcion resuelve las tablas
+-- del esquema y no las que el invocante pueda crear como temporales.
+SET search_path = pg_catalog, bdia, pg_temp
 AS $$
 DECLARE
     sold_qty BIGINT;
@@ -519,6 +525,9 @@ FOR EACH ROW EXECUTE FUNCTION validate_compensating_inventory_movement();
 CREATE OR REPLACE FUNCTION protect_effective_order_with_sales()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+-- search_path fijo, con pg_temp al final: la funcion resuelve las tablas
+-- del esquema y no las que el invocante pueda crear como temporales.
+SET search_path = pg_catalog, bdia, pg_temp
 AS $$
 DECLARE
     has_uncompensated_sale BOOLEAN;
@@ -557,6 +566,9 @@ FOR EACH ROW EXECUTE FUNCTION protect_effective_order_with_sales();
 CREATE OR REPLACE FUNCTION protect_order_item_with_sales()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+-- search_path fijo, con pg_temp al final: la funcion resuelve las tablas
+-- del esquema y no las que el invocante pueda crear como temporales.
+SET search_path = pg_catalog, bdia, pg_temp
 AS $$
 DECLARE
     sold_qty INTEGER;
