@@ -62,7 +62,11 @@ services:
       # contenedor termina con ERR_INVALID_URL y codigo 1. Ver .env.example.
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
-      ME_CONFIG_BASICAUTH_ENABLED: "true"
+      # La variable es ME_CONFIG_BASICAUTH y no ME_CONFIG_BASICAUTH_ENABLED, que
+      # mongo-express 1.0.2 no lee. La imagen ya la trae en "true", de modo que la
+      # proteccion existe igual, pero se declara aca para no depender de un valor
+      # por defecto que una version futura podria cambiar sin aviso.
+      ME_CONFIG_BASICAUTH: "true"
       ME_CONFIG_BASICAUTH_USERNAME: ${ME_CONFIG_BASICAUTH_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
       ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
     ports:
