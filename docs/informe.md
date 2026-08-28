@@ -664,8 +664,11 @@ la operación dominante en esta colección.
 **Qué crece:** `sales_order`, `order_item` e `inventory_movement`, que acumulan una fila por operación
 y no se depuran.
 
-**Qué hay hoy:** 16 tablas, 48 índices, una vista y 16 triggers. El esquema no delega en el orden de
-llegada de las consultas: los accesos previstos tienen su índice declarado.
+**Qué hay hoy:** las 15 tablas del modelo más `deployment_validation`, que es la marca de
+inicialización que exige el healthcheck, una vista, 12 triggers y 48 índices. De esos índices, 16 se
+declaran explícitamente para los patrones de acceso y los 32 restantes respaldan claves primarias,
+restricciones únicas y la de exclusión. El esquema no delega en el orden de llegada de las consultas:
+los accesos previstos tienen su índice declarado.
 
 **Índices que responden a una consulta concreta:** `inventory_low_stock_idx` es parcial y sirve la
 consulta de reposición. Medido con `EXPLAIN (ANALYZE)`, esa consulta resuelve con `Bitmap Index Scan`
@@ -684,7 +687,7 @@ tablas cuyo crecimiento es proporcional a la operación y cuyas consultas casi s
 período. Las consultas analíticas de la sección 10 podrían servirse desde una réplica de sólo lectura,
 separando el camino analítico del transaccional sin duplicar el modelo.
 
-**Compromiso asumido:** los 48 índices y los 16 triggers encarecen cada escritura para abaratar la
+**Compromiso asumido:** los índices y los 12 triggers encarecen cada escritura para abaratar la
 lectura y para sostener las invariantes dentro del motor. Es el intercambio que corresponde a un
 catálogo que se lee mucho más de lo que se modifica, y traslada al motor una integridad que de otro
 modo habría que confiar a la aplicación.
