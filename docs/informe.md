@@ -317,11 +317,11 @@ aceptable; servir un precio o un stock desactualizado no lo es, y por eso esos d
 Redis.
 
 El problema que resuelve es de latencia. El demo lo ilustra con 258 ms por el camino del motor contra
-0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta el
-motor de recomendaciones, que queda fuera del alcance del trabajo, sino que lo sustituye por una
-espera fija de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y el
-costo real de resolver desde Redis, no un benchmark del camino completo. La magnitud de la mejora en
-un sistema real dependerá de cuánto tarde el motor que se construya sobre esta capa.
+0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta el motor
+de recomendaciones, que queda fuera del alcance del trabajo, sino que lo sustituye por una espera fija
+de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y el costo real de
+resolver desde Redis, que es lo que corresponde a esta capa. La magnitud de la mejora en un sistema
+real dependerá de cuánto tarde el motor que se construya sobre ella.
 
 **Alternativas evaluadas:**
 

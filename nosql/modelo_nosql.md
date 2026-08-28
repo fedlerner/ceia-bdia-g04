@@ -458,10 +458,10 @@ alcance es una simplificación deliberada y no una propiedad del diseño.
 | --- | --- | --- |
 | Leer la cache | `GET` | O(1) |
 | Escribir la cache con TTL | `SET ... EX` | O(1) |
-| Invalidar explícitamente | `DEL` | O(1) |
+| Invalidar la cache de un cliente | `DEL` variádico sobre los cuatro contextos | O(1) por clave |
 | Leer la sesión completa | `HGETALL` | O(n) sobre campos |
 | Leer o actualizar un campo | `HGET`, `HSET`, `HINCRBY` | O(1) |
-| Renovar la sesión | `MULTI` + `HINCRBY` + `HSET` + `EXPIRE` + `EXEC` | O(1) |
+| Renovar la sesión sin revivirla | Script Lua `renovar_sesion.lua` (`EXISTS` + `HINCRBY` + `HSET` + `EXPIRE`) | O(1) |
 | Top N del ranking | `ZREVRANGE ... WITHSCORES` | O(log n + m) |
 | Actualizar el ranking (incremental) | `ZINCRBY` | O(log n) |
 | Reconstruir el ranking | `MULTI` + `DEL` + `ZADD` + `EXPIRE` + `EXEC` | O(n log n) |
@@ -500,8 +500,8 @@ El TTL de la cache (10 minutos, dentro del rango de 5 a 15 previsto) es más cor
 (1 hora) porque una recomendación personalizada cambia mucho más rápido que una agregación sobre una
 ventana de siete días.
 
-Además del TTL, existe la **invalidación explícita** con `DEL` para eventos que no pueden esperar al
-vencimiento, como una compra que vuelve obsoleta la recomendación vigente.
+Además del TTL, el diseño define una **invalidación explícita** con `DEL` para el único evento que no
+puede esperar al vencimiento: la compra, que vuelve obsoleta la recomendación vigente del cliente.
 
 Redis no ejecuta un proceso que recorra todas las claves: el vencimiento es perezoso (al leer una
 clave vencida, la elimina y responde `nil`) y activo (un ciclo de fondo muestrea claves con TTL).
@@ -629,11 +629,27 @@ Redis.
   el slot únicamente sobre la porción entre llaves, de modo que ambas claves caen en el mismo slot
   (7350) y el `MGET` sigue siendo válido. Sin el hash tag caerían en los slots 176 y 5737.
 
-## 2.10 Pendientes de este componente
+## 2.10 Alcance y decisiones abiertas
 
-- [ ] Reemplazar la generación simulada del demo por la llamada real al motor cuando PostgreSQL y
-      MongoDB estén implementados.
-- [ ] Definir en el backend el límite numérico del rate limit (la implementación usa 30 por minuto
-      como valor de ejemplo).
-- [ ] Decidir si la compra dispara una invalidación explícita con `DEL` además del vencimiento por
-      TTL.
+El trabajo consiste en diseñar e implementar la capa de datos, no la aplicación que la consume. Dos
+elementos quedan por lo tanto **fuera del alcance de forma deliberada** y no constituyen trabajo
+pendiente:
+
+- **El motor de recomendaciones.** `redis/scripts/demo_cache_aside.py` lo sustituye por una espera
+  fija porque no forma parte del entregable. Lo que el demo mide es el costo de resolver desde Redis,
+  que sí pertenece a esta capa.
+- **La política del rate limit.** Redis aporta el contador atómico y la expiración de la ventana;
+  fijar el límite numérico y decidir qué hacer al superarlo es responsabilidad de la aplicación. El
+  valor de 30 por minuto aparece en `redis/comandos/04` únicamente como ejemplo, para poder observar
+  el escenario de cuota agotada.
+
+Las dos decisiones de modelado que quedaban abiertas ya fueron tomadas:
+
+- **La compra invalida la cache del cliente.** Un `DEL` variádico elimina los cuatro contextos en una
+  sola operación, de modo que la siguiente solicitud regenera la recomendación con la compra ya
+  incorporada. No se invalidan ni el ranking ni la cache de la sesión anónima. Ver
+  `redis/comandos/01`, comando 5.
+- **Una sesión vencida no se revive.** La renovación pasa por el script
+  `redis/scripts/renovar_sesion.lua`, que comprueba la existencia de la clave y escribe en la misma
+  operación atómica. Una transacción no alcanza, porque `MULTI` no puede ramificar según un resultado
+  intermedio. Ver `redis/comandos/02`, comando 4.

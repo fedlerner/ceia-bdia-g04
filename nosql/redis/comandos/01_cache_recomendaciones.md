@@ -105,14 +105,44 @@ GET reco:user:user-999:home
 **Resultado esperado:** `DEL` devuelve `1` y el `GET` posterior devuelve `nil`.
 
 **Justificación:** el TTL es la política por defecto y cubre el envejecimiento normal de la cache.
-`DEL` es la vía para los eventos que no pueden esperar al vencimiento, como una compra que vuelve
-obsoleta la recomendación vigente. Queda pendiente definir si la compra debe disparar esta
-invalidación; ver la sección 2.10 del modelo.
+`DEL` es la vía para los eventos que no pueden esperar al vencimiento.
 
-A diferencia de un `DELETE` relacional, acá no hay integridad referencial ni transacción que
-proteger: el dato es reconstruible desde las otras dos fuentes.
+A diferencia de un `DELETE` relacional, acá no hay integridad referencial ni transacción que proteger:
+el dato es descartable y se regenera con el motor.
 
-## Comando 5. Medir el comportamiento de la cache
+## Comando 5. Invalidar la cache de un cliente tras una compra
+
+**Pregunta de negocio:** ¿qué pasa con las recomendaciones de un cliente que acaba de comprar?
+
+**Objetivo:** descartar todas sus entradas de cache para que la siguiente solicitud las regenere con
+la compra ya incorporada.
+
+```redis
+DEL reco:user:user-123:home reco:user:user-123:product reco:user:user-123:cart reco:user:user-123:category
+```
+
+**Resultado esperado:** la cantidad de claves efectivamente eliminadas. Sobre el estado inicial
+devuelve `1`, porque solo existe la entrada de contexto `home`.
+
+**Justificación:** el modelo decide que **la compra invalida la cache del cliente**. Es el evento de
+mayor intención que registra el sistema y el único que vuelve la recomendación visiblemente
+incorrecta: seguir ofreciendo durante diez minutos un producto que la persona acaba de comprar se
+nota. El costo es despreciable, porque las compras son poco frecuentes frente a las visualizaciones.
+
+Se invalidan **los cuatro contextos**, no solo el que originó la compra: el pedido cambia el historial
+del cliente y con él la recomendación de la página principal, la de la ficha de producto, la del
+carrito, que además quedó vacío, y la del listado por categoría.
+
+Redis no admite borrado por comodín. Como el conjunto de contextos es cerrado y está definido en la
+sección 2.3 del modelo, un `DEL` variádico los elimina en una sola operación. La alternativa,
+`SCAN MATCH reco:user:user-123:*`, sería peor: recorrería todo el espacio de claves para eliminar
+cuatro. Es un caso donde tener el conjunto de contextos acotado paga.
+
+**Qué no se invalida.** El ranking no, porque es un agregado sobre muchos usuarios con su propio TTL
+de una hora y una compra aislada no lo justifica. La cache de la sesión anónima tampoco, porque el
+modelo no vincula sesión con cliente; esa vinculación está declarada fuera del alcance.
+
+## Comando 6. Medir el comportamiento de la cache
 
 **Pregunta de negocio:** ¿la cache está sirviendo efectivamente para lo que fue diseñada?
 

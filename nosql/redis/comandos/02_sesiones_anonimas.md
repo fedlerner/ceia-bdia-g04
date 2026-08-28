@@ -85,16 +85,49 @@ justo antes, ese comando la revive, y una caída de la aplicación antes del `EX
 sesión incompleta y sin TTL, es decir permanente. `MULTI` y `EXEC` garantizan que las tres
 escrituras se apliquen juntas.
 
-Queda una limitación que la transacción no cubre: si la sesión ya venció, `EXEC` la recrea igual, con
-los campos de estos comandos y sin los originales. Impedir esa resurrección requeriría comprobar la
-existencia de la clave y escribir en la misma operación, lo que en Redis se resuelve con un script
-Lua. Para el alcance de este trabajo alcanza con la transacción: el efecto es una sesión nueva con el
-contexto reciente, no una clave permanente.
+Queda una limitación que la transacción no cubre, y que el comando siguiente resuelve: si la sesión ya
+venció, `EXEC` la recrea igual, con los campos de estos comandos y sin los originales.
 
 Resolver esto en PostgreSQL requeriría una columna `last_seen_at` y un proceso programado que
 eliminara las sesiones inactivas.
 
-## Comando 4. Comprobar el vencimiento
+## Comando 4. Renovar sin revivir una sesión vencida
+
+**Pregunta de negocio:** si una sesión ya venció, ¿debe una actividad tardía resucitarla?
+
+**Objetivo:** renovar únicamente cuando la sesión sigue viva, y no crear una sesión incompleta cuando
+no lo está.
+
+```bash
+docker compose exec redis sh -c 'redis-cli --no-auth-warning -a "$REDIS_PASSWORD" \
+  --eval /scripts/renovar_sesion.lua session:session-456 , 2026-08-19T15:47:00Z product-004 1800'
+```
+
+La coma separa las claves de los argumentos en la sintaxis `--eval` de `redis-cli`. El script está en
+[`../scripts/renovar_sesion.lua`](../scripts/renovar_sesion.lua).
+
+**Resultado esperado:** `1` si renovó la sesión y `0` si ya no existía. Sobre el estado inicial
+devuelve `1`, `events_count` pasa de 7 a 8, el TTL vuelve a 1800 y la sesión conserva sus 5 campos.
+Tras un `DEL session:session-456` devuelve `0` y la clave sigue sin existir.
+
+**Justificación:** el modelo decide que **una sesión vencida no se revive**. Treinta minutos de
+inactividad marcan el fin de la sesión, y una actividad posterior corresponde a una sesión nueva, con
+su propio identificador. Sin esta comprobación, `HINCRBY` sobre una clave inexistente la crea, y el
+resultado es una sesión de tres campos que no registra cuándo empezó ni qué categoría prefiere: un
+dato que ensucia cualquier análisis de duración o de comportamiento.
+
+**Por qué un script y no una transacción.** `MULTI` garantiza que las escrituras se apliquen juntas,
+pero **no puede ramificar según un resultado intermedio**: no hay forma de decir "si la clave no
+existe, no hagas nada". Esa es exactamente la carencia. Redis ejecuta cada script de forma atómica, de
+modo que entre el `EXISTS` y las escrituras no puede intercalarse ninguna otra operación.
+
+**Por qué no `WATCH`.** La alternativa sin scripting es vigilar la clave con `WATCH` y dejar que
+`EXEC` aborte si venció, algo que se comprobó que funciona en Redis 8.2. Se descartó por dos motivos:
+`WATCH` es control de concurrencia optimista, de modo que **la aplicación debe implementar el
+reintento**, y este trabajo cubre la capa de datos y no la aplicación; y requiere al menos tres viajes
+de red frente a uno solo del script.
+
+## Comando 5. Comprobar el vencimiento
 
 **Pregunta de negocio:** ¿qué ocurre efectivamente cuando una sesión queda inactiva?
 

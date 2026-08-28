@@ -78,7 +78,11 @@ const docs = crudos.map(function (d, i) {
 // Time Series Collections no imponen unicidad sobre _id, a diferencia de una
 // coleccion comun, de modo que MongoDB aceptaria los duplicados sin error y el
 // conteo final seguiria coincidiendo con el del archivo.
-const vistos = {};
+//
+// El diccionario se crea sin prototipo: con un objeto literal, un _id llamado
+// __proto__ activa el setter heredado, no llega a quedar como propiedad propia
+// y el duplicado pasaria sin detectarse.
+const vistos = Object.create(null);
 crudos.forEach(function (d, i) {
   if (d._id === undefined) return;
   if (Object.prototype.hasOwnProperty.call(vistos, d._id)) {
@@ -93,9 +97,15 @@ if (errores.length > 0) {
   print("El seed tiene " + errores.length + " problema(s); no se carga nada:");
   errores.forEach(function (e) { print("  " + e); });
   print("");
-  print("Si el motivo es la retencion, las fechas del seed envejecieron: hay que");
-  print("actualizarlas, y con ellas los resultados esperados de consultas/, o ampliar");
-  print("RETENCION_DIAS. La base NO fue modificada.");
+  // La explicacion de la retencion solo aparece cuando es el motivo: en
+  // cualquier otro fallo seria ruido que desvia de la causa real.
+  const porRetencion = errores.some(function (e) { return e.indexOf("supera la retencion") !== -1; });
+  if (porRetencion) {
+    print("Las fechas del seed envejecieron: hay que actualizarlas, y con ellas los");
+    print("resultados esperados de consultas/, o ampliar RETENCION_DIAS.");
+    print("");
+  }
+  print("La base NO fue modificada.");
   quit(1);
 }
 
