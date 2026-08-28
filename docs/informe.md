@@ -232,10 +232,10 @@ MongoDB aporta información sobre el **comportamiento observado del usuario**, q
 frecuencia, es inmutable y presenta metadatos variables según el tipo de evento. Redis guarda
 únicamente datos temporales, descartables y sensibles a la latencia: recomendaciones ya calculadas,
 estado de sesiones anónimas, rankings precalculados y contadores de rate limit. Redis no es fuente de
-verdad de ningún dato del modelo. Las recomendaciones, las sesiones y los rankings son **reconstruibles**: se derivan de PostgreSQL,
-MongoDB y el motor. Los contadores operativos y la cuota de rate limit en curso **no lo son**, porque
-son acumulados propios de Redis. Lo que comparten las cuatro estructuras es que su contenido es
-**descartable**: perderlo es aceptable.
+verdad de ningún dato del modelo. Las recomendaciones, las sesiones y los rankings son
+**reconstruibles**: se derivan de PostgreSQL, MongoDB y el motor. Los contadores operativos y la
+cuota de rate limit en curso **no lo son**, porque son acumulados propios de Redis. Lo que comparten
+las cuatro estructuras es que su contenido es **descartable**: perderlo es aceptable.
 
 Esta separación evita duplicar innecesariamente los datos transaccionales en MongoDB y permite que
 cada tecnología se utilice para el tipo de información para el que resulta más adecuada.
@@ -338,8 +338,9 @@ parte del despliegue: RedisInsight, que es el visor web, y `demo`, que solo ejec
 medición.
 
 **Limitaciones asumidas:** los datos viven en memoria y se pierden al reiniciar; con
-`allkeys-lru` cualquier clave puede ser descartada bajo presión de memoria; y Redis no ofrece control
-de acceso por clave comparable al Row Level Security de PostgreSQL. Las tres son aceptables porque
+`allkeys-lru` cualquier clave puede ser descartada bajo presión de memoria; y el control de acceso
+se delega en el backend, porque el ACL de Redis filtra por nombre de clave y no por contenido, de modo
+que no equivale al Row Level Security de PostgreSQL (ver sección 13.1). Las tres son aceptables porque
 ningún dato de esta capa es fuente de verdad.
 
 ---
@@ -490,10 +491,16 @@ Se verificó forzando el límite de memoria con un contador en 30 de 30: la clav
 protegerlos exigiría una instancia o base independiente. Se acepta dentro de este alcance porque la
 función del límite es acotar el uso normal y no resistir un abuso deliberado.
 
-**Limitación reconocida:** Redis no ofrece roles ni permisos por clave comparables al Row Level
-Security de PostgreSQL. El control de acceso real vive en el backend, que debe ser el único
-componente que hable con Redis. Exponer Redis directamente a un cliente permitiría leer las claves de
-cualquier otro usuario, ya que basta conocer el identificador para construir la clave.
+**Limitación reconocida:** el control de acceso real vive en el backend, que debe ser el único
+componente que hable con Redis. Conviene precisar el alcance de esa limitación. Redis 8.2 sí dispone
+de ACL, con usuarios y permisos por patrón de clave y por comando: se comprobó que un usuario acotado
+a `~reco:user:user-123:*` con `+get` lee esa entrada, y recibe `NOPERM` tanto al pedir la clave de
+otro sujeto como al intentar escribir. Lo que ese mecanismo no da es un filtrado por contenido
+equivalente al Row Level Security de PostgreSQL, que decide fila por fila según el resultado de la
+consulta: el ACL alcanza al nombre de la clave, no a lo que hay dentro del valor. En este alcance no
+se definen usuarios ACL porque el único cliente es el backend. Exponer Redis directamente a un cliente
+sin ACL le permitiría leer las claves de cualquier otro usuario, ya que basta conocer el identificador
+para construir la clave.
 
 ---
 

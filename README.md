@@ -86,6 +86,7 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 │   ├── informe.md                  # Informe técnico (15 puntos de la consigna)
 │   ├── modelo_conceptual.md        # Entidades, atributos, relaciones y reglas de negocio
 │   ├── arquitectura.md             # Arquitectura de datos y flujo de recomendación
+│   ├── ESTADO.md                   # Estado por punto de la consigna y reparto de trabajo
 │   └── (diagramas .png a exportar)
 ├── data/
 │   └── ejemplos/                   # Documentos y registros de ejemplo
@@ -96,7 +97,15 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 │   └── indices_vistas/             # Índices y vistas
 ├── nosql/
 │   ├── modelo_nosql.md             # Modelo MongoDB (eventos) y Redis (clave-valor)
+│   ├── mongodb/                    # Implementación de la capa documental
+│   │   ├── README.md               #   puesta en marcha del componente
+│   │   ├── docker-compose.yml      #   MongoDB 8.0 + mongo-express
+│   │   ├── Makefile                #   make generar-datos y make shell
+│   │   ├── generar_datos.js        #   crea user_events, valida el seed y carga
+│   │   ├── seed_data.json          #   22 eventos de ejemplo
+│   │   └── consultas/              #   8 consultas representativas
 │   └── redis/                      # Implementación de la capa clave-valor
+│       ├── README.md               #   puesta en marcha del componente
 │       ├── docker-compose.yml      #   Redis 8.2 + RedisInsight + demo
 │       ├── comandos/               #   5 archivos de comandos representativos
 │       ├── scripts/                #   carga, reinicio y demos con medición

@@ -12,10 +12,10 @@
 # componente y conviene mantenerlo: deja escrito de donde salen las variables
 # y produce un error que nombra el archivo faltante.
 #
-# No es, sin embargo, la unica proteccion. El compose de Redis interpola sus
-# variables con la sintaxis ${VAR:?mensaje}, de modo que un archivo ausente,
-# incompleto o con un valor vacio aborta Compose en lugar de arrancar el
-# servicio mal configurado. Conviene que los demas componentes hagan lo mismo:
+# No es, sin embargo, la unica proteccion. Los composes de Redis y de MongoDB
+# interpolan sus variables con la sintaxis ${VAR:?mensaje}, de modo que un
+# archivo ausente, incompleto o con un valor vacio aborta Compose en lugar de
+# arrancar el servicio mal configurado. Conviene que PostgreSQL haga lo mismo:
 # el env_file cubre el archivo que falta y ${VAR:?} cubre la variable que
 # falta dentro de un archivo que si existe.
 #

@@ -15,6 +15,9 @@ Los datos transaccionales y de catálogo permanecen en **PostgreSQL** (ver [`../
 
 # 1. Eventos de usuario en MongoDB
 
+> Implementación en [`mongodb/`](mongodb/). Las ocho consultas representativas, con su resultado
+> esperado contra el estado inicial, están en [`mongodb/consultas/`](mongodb/consultas/).
+
 Para el almacenamiento de eventos se selecciona **MongoDB como base de datos documental**.
 
 Los eventos de navegación presentan características diferentes a los datos transaccionales:
@@ -106,6 +109,25 @@ Los atributos principales son:
 El atributo `metadata` permite mantener cierta flexibilidad documental sin crear estructuras
 diferentes para cada evento. Esta flexibilidad permite incorporar nuevos metadatos y tipos de eventos
 durante la evolución del sistema sin modificar la estructura de los eventos existentes.
+
+Los nombres son los de la colección y no los del modelo conceptual, que es independiente de la
+tecnología. La correspondencia es la siguiente:
+
+| Modelo conceptual ([`../docs/modelo_conceptual.md`](../docs/modelo_conceptual.md), sección 4) | Documento de `user_events` |
+| --- | --- |
+| `event_id` | `_id` |
+| `occurred_at` | `timestamp` |
+| `customer_id` | `user_id` |
+| `anonymous_session_id` | `session_id` |
+| `event_type` | `event_type` |
+| `product_id` | `product_id` |
+| `query_text` | `metadata.query`, sólo en los eventos `search` |
+| `context` | `metadata` |
+
+El atributo conceptual `sku_id` no se traslada: los eventos de navegación se registran sobre el
+producto y no sobre la variante vendible, que interviene recién en el pedido. La entidad conceptual
+"evento de interacción" se materializa únicamente acá, de modo que esta tabla es la única traducción
+que hay que seguir para ir del modelo conceptual al físico.
 
 Sobre `_id` corresponde una aclaración. En una colección común MongoDB crea el índice `_id_` y
 rechaza un identificador repetido; una Time Series Collection no lo hace, y sus únicos índices son
@@ -576,7 +598,9 @@ Sobrevivieron las claves del estado inicial?
 Los números cierran: 6 claves iniciales + 6000 insertadas − 4768 descartadas = 1238, que es el
 `DBSIZE` final. `evicted_keys` es un acumulado del servidor desde su arranque; el valor relevante es
 el delta de la corrida, que el script informa entre paréntesis. El script recarga el estado inicial
-antes de medir, de modo que la línea base es siempre 6 y el resultado es reproducible.
+antes de medir, de modo que la línea base es siempre 6. Las cifras exactas dependen de cuánta
+memoria ocupa cada clave en el entorno donde se ejecute, así que una corrida propia puede cerrar en
+otro `DBSIZE`; lo que se repite es la relación entre los tres números.
 
 Las dos últimas filas son las que sostienen que los contadores son best-effort: no tienen TTL y aun
 así `allkeys-lru` los descarta. El resultado varía entre corridas, porque el descarte depende de la

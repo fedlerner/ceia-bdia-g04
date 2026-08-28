@@ -58,10 +58,24 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
   PostgreSQL ya trata esa coherencia como una propiedad: comprueba que una recomendación no sea
   posterior al cierre de su sesión.
 
-  Conviene resolverlo **al integrar los dos componentes en `main`**, con ambos a la vista, y no antes:
-  ajustar las fechas del seed de MongoDB mueve los resultados esperados de sus consultas, y hacerlo
-  dos veces sería trabajo perdido. Al hacerlo hay que actualizar esos resultados esperados en
-  `nosql/mongodb/consultas/`.
+  MongoDB ya está en `main`; falta PostgreSQL. Conviene resolverlo **cuando PostgreSQL se integre**,
+  con los dos seeds a la vista, y no antes: ajustar las fechas del seed de MongoDB mueve los
+  resultados esperados de sus consultas, y hacerlo dos veces sería trabajo perdido. Al hacerlo hay
+  que actualizar esos resultados esperados en `nosql/mongodb/consultas/`.
+
+- [ ] **Resolver la consulta SQL 3, que asume los eventos en PostgreSQL.**
+  [`../db/consultas/03_productos_vistos_no_comprados.sql`](../db/consultas/03_productos_vistos_no_comprados.sql)
+  consulta una tabla `interaction_event` en PostgreSQL, mientras que el modelo asigna los eventos a
+  MongoDB y el esquema relacional no define esa tabla. El propio archivo declara el supuesto en un
+  comentario, pero el informe y el README la listan entre las cinco consultas representativas sin esa
+  salvedad. La rama de PostgreSQL ya tomó una decisión al respecto: reemplazó esa consulta por
+  `03_clientes_frecuencia_valor.sql`, sobre datos transaccionales, y ajustó su propio
+  `db/consultas/README.md`. Queda para resolver en esa rama antes de integrar. Cuando se defina, hay
+  que dejar alineadas las listas que enumeran las consultas en [`informe.md` §10](informe.md) y en
+  [`../README.md`](../README.md), y de paso hacer que
+  [`../db/consultas/README.md`](../db/consultas/README.md) apunte a
+  [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/), que hoy sigue enviando a
+  `modelo_nosql.md` y hablando de cuatro consultas en lugar de ocho.
 
 - [ ] **Definir si `session-502` y `session-901` deben existir en PostgreSQL.** El seed de MongoDB las
   usa y `customer_session` solo define de la `session-456` a la `session-460`. Cumplen el formato que

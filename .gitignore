@@ -2,3 +2,6 @@
 
 # Cada componente define su propio .env a partir de su .env.example.
 .env
+
+# Cache de Python, que genera demo_cache_aside.py al ejecutarse fuera del contenedor.
+__pycache__/
