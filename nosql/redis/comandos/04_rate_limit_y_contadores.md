@@ -109,7 +109,7 @@ Comprobado: con un contador en 30 de 30 y `maxmemory` forzado al límite, la cla
 `INCR` siguiente devolvió 1.
 
 Redis no permite asignar prioridad de desalojo por clave, de modo que dentro de una única instancia
-no hay forma de proteger estos contadores. Se acepta en este alcance porque la función del rate limit
+no hay forma de proteger estos contadores. Lo aceptamos en este alcance porque la función del rate limit
 aquí es acotar el uso normal y evitar invocaciones repetidas al motor, no resistir un abuso
 deliberado. Una implementación en producción aislaría los contadores en una instancia o base
 independiente cuya política no los desaloje, o los complementaría con un mecanismo que falle cerrado

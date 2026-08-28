@@ -7,12 +7,7 @@ Carrera de Especialización en Inteligencia Artificial, FIUBA
 Bases de Datos para Inteligencia Artificial
 Año 2026, Grupo 04
 
-> Este informe sigue el índice de 15 puntos exigido por la consigna. Las secciones 1, 2, 3, 8, 9 y
-> parte de la 12 provienen de la bajada general del grupo; las secciones 5, 7 y 12 incorporan la
-> primera bajada de modelado (MongoDB y Redis). Las secciones 8, 10, 13 y 14 recogen la
-> implementación de los tres motores, con la evidencia medida sobre cada uno.
->
-> El entregable final debe exportarse como `docs/informe.pdf`.
+> Este informe sigue el índice de 15 puntos exigido por la consigna.
 
 ---
 
@@ -255,7 +250,7 @@ inventario, pedido e ítem se separan según sus dependencias. La relación N:M 
 categorías utiliza `product_category`. Esto evita repetir marcas y categorías, mezclar variantes con
 productos y sobrescribir precios históricos.
 
-Se aceptan dos redundancias controladas: `unit_price_applied` preserva el precio de cada compra y
+Aceptamos dos redundancias controladas: `unit_price_applied` preserva el precio de cada compra y
 `sales_order.total_amount` se mantiene por trigger mediante deltas atómicos desde los ítems. JSONB
 queda limitado a atributos variables no estructurales; precio, stock y relaciones no se guardan como
 documentos.
@@ -287,7 +282,7 @@ recomendación servida desde cache, según lo exige la regla de negocio 9.
 
 ### 7.1 PostgreSQL: datos transaccionales
 
-PostgreSQL se selecciona porque el núcleo contiene datos estructurados y fuertemente relacionados:
+Seleccionamos PostgreSQL porque el núcleo contiene datos estructurados y fuertemente relacionados:
 productos, variantes, precios, stock, clientes, pedidos e ítems. Su estructura es estable, y la
 variabilidad que existe se concentra en atributos descriptivos que cambian según la categoría del
 producto; para esos casos el esquema usa columnas `jsonb` con índices GIN, de modo que admitir un
@@ -341,7 +336,7 @@ real dependerá de cuánto tarde el motor que se construya sobre ella.
 
 **Alternativas evaluadas:**
 
-| Alternativa | Por qué se descartó |
+| Alternativa | Por qué la descartamos |
 | --- | --- |
 | Cache en memoria del proceso backend | No se comparte entre instancias: cada réplica ejecutaría el motor por su cuenta y la tasa de aciertos caería al escalar horizontalmente. Tampoco sobrevive a un reinicio del proceso. |
 | Vista materializada en PostgreSQL | Sirve para el ranking agregado, pero no para recomendaciones personalizadas por cliente y contexto. Además cargaría de escrituras la base transaccional y no ofrece expiración automática. |
@@ -466,17 +461,37 @@ uno con la pregunta que responde y su comparación con el equivalente SQL:
 
 ## 11. Propuesta para datos semiestructurados, no estructurados o vectoriales
 
-Desarrollado en [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md). En síntesis:
-los datos semiestructurados se resuelven mediante el campo `metadata` de los documentos de
-`user_events` (con JSONB en PostgreSQL previsto como alternativa del lado relacional), y **la
-búsqueda vectorial queda fuera del alcance de esta versión**, registrada como extensión opcional.
+Desarrollado en [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md), que recorre
+los once tipos de dato que enumera la consigna y dice cuáles aparecen en el caso y cuáles no. En
+síntesis, cada tipo va a la tecnología que resuelve su patrón de acceso: los atributos variables del
+catálogo viven en columnas `jsonb` de PostgreSQL con índices GIN, porque se consultan junto al precio
+y al stock en la misma transacción; los eventos, con su `metadata` variable por tipo, en la colección
+documental de MongoDB; las descripciones y las reseñas, como texto en el modelo relacional. El caso no
+presenta relaciones altamente conectadas, de modo que no se justifica una base de grafos.
+
+**La búsqueda vectorial queda fuera del alcance de esta versión**, con su diseño documentado: qué
+datos se vectorizarían, qué necesidades resolvería, qué consultas permitiría, qué metadatos debe
+llevar cada vector y qué riesgos aparecen al recuperar información incorrecta, desactualizada o no
+autorizada. Justificamos la decisión: las consultas que hoy alimentan al motor se resuelven por
+identificador y por rango temporal, donde un vector no aporta; la similitud haría falta para
+"productos parecidos a este", para la búsqueda en lenguaje natural que ya registran los eventos
+`search`, y para el arranque en frío de un cliente sin historial.
 
 ---
 
 ## 12. Propuesta de arquitectura de datos
 
 Desarrollado en [`arquitectura.md`](arquitectura.md): componentes, integración entre PostgreSQL,
-MongoDB y Redis, y flujo completo de recomendación con resolución de cache HIT / MISS.
+MongoDB y Redis, y flujo completo de recomendación con resolución de cache HIT o MISS. El documento
+recorre además la circulación del dato desde su generación hasta su uso por el motor, con los diez
+elementos que enumera la consigna, y justifica la elección de una **arquitectura simple multi-motor**
+frente a un Data Warehouse, un Data Lake, un Lakehouse o una arquitectura por capas.
+
+La razón de fondo es que la fuente es una sola tienda, el horizonte útil son los 90 días de retención
+de `user_events` y las consultas analíticas se responden con agregaciones sobre los motores
+operacionales. Una capa analítica separada es el camino de evolución previsto, con dos señales
+concretas para construirla: necesitar un horizonte más largo que la retención, o que las agregaciones
+empiecen a competir con la operación.
 
 ---
 
@@ -519,6 +534,21 @@ Los movimientos de inventario son además inmutables: el rol operativo solo pued
 DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifican tanto los accesos
 denegados como los caminos autorizados que actualizan stock y total mediante los triggers.
 
+**Aislamiento entre clientes, y por qué no se usa Row Level Security.** El caso es una única tienda,
+así que no hay múltiples empresas ni espacios de trabajo que aislar entre sí. Lo que sí hay es la
+pregunta de que un cliente no vea los pedidos ni las reseñas de otro. Hoy esa separación la aplica la
+aplicación: `bdia_app` tiene `SELECT` sobre `customer` y `sales_order` a nivel tabla, y es el backend
+el que acota cada consulta al cliente de la sesión. Es una frontera única, y por eso conviene decir
+qué la reforzaría.
+
+PostgreSQL permite una segunda capa con Row Level Security: una política por tabla que filtre las
+filas según el cliente de la sesión, para que una consulta mal construida en la aplicación no
+alcance para ver de más. Verificado sobre la base: hoy **ninguna tabla tiene RLS habilitado y no hay
+políticas definidas**, pero el terreno está preparado, porque los cuatro roles se crean `NOBYPASSRLS`
+y la validación comprueba esa propiedad como un control más. Queda fuera de esta entrega porque no
+existe la aplicación que establecería el cliente de la sesión, que es lo que una política necesita
+para decidir; lo documentamos como el primer refuerzo a incorporar cuando esa aplicación exista.
+
 **Riesgo de exposición mediante una futura aplicación de IA.** El modelo o agente no debe recibir
 credenciales de base ni generar SQL con privilegios administrativos. El backend debe usar consultas
 parametrizadas, limitar cada solicitud a los campos necesarios, preferir códigos seudónimos en lugar
@@ -540,14 +570,14 @@ aplicación ni un modelo de IA.
 **Limitación reconocida del rate limit.** Los contadores `ratelimit:*` están sujetos a la política de
 descarte igual que el resto de las claves. Bajo presión de memoria, `allkeys-lru` puede desalojarlos y
 el siguiente `INCR` los recrea en 1, con lo que el límite **falla abierto durante una sobrecarga**.
-Se verificó forzando el límite de memoria con un contador en 30 de 30: la clave fue descartada y el
-`INCR` siguiente devolvió 1. Redis no permite asignar prioridad de desalojo por clave, de modo que
-protegerlos exigiría una instancia o base independiente. Se acepta dentro de este alcance porque la
+Lo verificamos forzando el límite de memoria con un contador en 30 de 30: la clave fue descartada y el
+`INCR` siguiente devolvió 1. Redis no permite asignar prioridad de desalojo por clave, y
+protegerlos exigiría una instancia o base independiente. Lo aceptamos dentro de este alcance porque la
 función del límite es acotar el uso normal y no resistir un abuso deliberado.
 
 **Limitación reconocida:** el control de acceso real vive en el backend, que debe ser el único
 componente que hable con Redis. Conviene precisar el alcance de esa limitación. Redis 8.2 sí dispone
-de ACL, con usuarios y permisos por patrón de clave y por comando: se comprobó que un usuario acotado
+de ACL, con usuarios y permisos por patrón de clave y por comando: comprobamos que un usuario acotado
 a `~reco:user:user-123:*` con `+get` lee esa entrada, y recibe `NOPERM` tanto al pedir la clave de
 otro sujeto como al intentar escribir. Lo que ese mecanismo no da es un filtrado por contenido
 equivalente al Row Level Security de PostgreSQL, que decide fila por fila según el resultado de la
@@ -573,7 +603,7 @@ comprobó creando un usuario con rol `read` sobre la base del componente: lee lo
 cualquier escritura devuelve `Unauthorized`. En este alcance sólo se define el usuario administrador,
 porque el único cliente es el script de carga del propio componente. Un despliegue real separaría al
 menos dos roles: uno de sólo lectura para el motor de recomendaciones y uno de escritura para la
-ingesta de eventos, de modo que el motor no pueda alterar el historial que consume.
+ingesta de eventos, para que el motor no pueda alterar el historial que consume.
 
 **Limitación reconocida.** Las credenciales sólo se aplican al inicializar `/data/db`. Comprobado:
 tras cambiar la contraseña en `.env` y recrear el contenedor, la contraseña nueva falla, la anterior
@@ -582,7 +612,7 @@ volumen, con la pérdida de los eventos cargados que eso implica. El procedimien
 [`../nosql/mongodb/README.md`](../nosql/mongodb/README.md).
 
 Una restricción operativa se deriva del visor: `mongo-express` concatena usuario y contraseña dentro
-de la URI de conexión sin aplicar percent-encoding, de modo que la contraseña debe ser URL-safe.
+de la URI de conexión sin aplicar percent-encoding, así que la contraseña debe ser URL-safe.
 Comprobado con `pa@ss:word`: el contenedor termina con `ERR_INVALID_URL` y código 1. La restricción
 queda escrita en `nosql/mongodb/.env.example`, junto a las variables que afecta.
 
@@ -637,7 +667,7 @@ resultado verificado del camino completo.
 agregan de forma continua y no se modifican.
 
 **Qué lo acota:** la retención de 90 días declarada con `expireAfterSeconds`. MongoDB elimina los
-buckets vencidos por su cuenta, de modo que el volumen se estabiliza en la ventana útil en lugar de
+buckets vencidos por su cuenta, y el volumen se estabiliza en la ventana útil en lugar de
 crecer sin límite. Es la misma idea que el TTL de Redis, aplicada a un horizonte mucho más largo.
 
 **Cómo agrupa:** con `metaField: user_id`, la Time Series Collection agrupa los eventos de un mismo
@@ -650,7 +680,7 @@ abrirlos. Medido con `explain("executionStats")` sobre la consulta que alimenta 
 poda es la razón de fondo por la que las consultas de la sección 10 acotan siempre la ventana.
 
 **Si el volumen creciera:** sharding por `user_id`, que es el `metaField`. Las consultas que alimentan
-al motor parten siempre del cliente, de modo que se dirigirían a un solo shard en lugar de consultar a
+al motor parten siempre del cliente, así que se dirigirían a un solo shard en lugar de consultar a
 todos. El criterio de partición coincide con el de agrupamiento, así que la localidad de los buckets
 se conserva.
 
@@ -731,7 +761,7 @@ cubiertas y la propuesta multi-motor queda demostrada de punta a punta.
 
 ### Extensiones opcionales
 
-Una vez validado el alcance mínimo, el grupo podrá evaluar la incorporación de algunos elementos
+Una vez validado el alcance mínimo, podremos evaluar la incorporación de algunos elementos
 opcionales. Estas alternativas no son necesarias para que la primera versión responda a la consigna.
 
 | Extensión | Posible uso |

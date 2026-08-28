@@ -1,7 +1,6 @@
 # Modelo conceptual
 
-> Fuente: documento de bajada general del grupo (punto 3). Independiente de la tecnología de
-> implementación.
+> Corresponde al punto 3 de la consigna. Es independiente de la tecnología de implementación.
 
 ## 1. Producto, SKU y precio
 
@@ -76,7 +75,8 @@ El precio vigente se asocia al SKU. Además, el precio efectivamente aplicado de
 9. Una recomendación debe registrar su fecha, método y, si corresponde, versión del modelo.
 10. El acceso a los datos personales debe restringirse según el rol.
 11. Los eventos pertenecen a MongoDB y no se duplican como tabla transaccional en PostgreSQL.
-12. MongoDB y Redis referencian `product_code`, `customer_code`, `session_code`, `order_code` y `sku_code`, no las claves internas.
+12. MongoDB y Redis referencian `product_code`, `customer_code`, `session_code`, `order_code` y
+    `sku_code`, no las claves internas.
 
 ## 6. Representación conceptual resumida
 

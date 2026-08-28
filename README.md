@@ -87,8 +87,7 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 │   ├── modelo_conceptual.md        # Entidades, atributos, relaciones, reglas y diagrama ER
 │   ├── modelo_logico_relacional.md # Tablas, claves, normalización, integración y diagrama UML
 │   ├── modelo_fisico.md            # Diagrama físico PostgreSQL, índices, triggers y notas NoSQL
-│   ├── arquitectura.md             # Arquitectura de datos y flujo de recomendación
-│   └── ESTADO.md                   # Estado por punto de la consigna y reparto de trabajo
+│   └── arquitectura.md             # Arquitectura de datos y flujo de recomendación
 ├── data/
 │   └── ejemplos/                   # Documentos y registros de ejemplo
 ├── db/                             # PostgreSQL
@@ -99,7 +98,8 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 │   ├── consultas/                  # Consultas representativas (punto 8)
 │   ├── indices_vistas/             # Índices y vistas
 │   ├── seguridad/                  # Roles y privilegios mínimos
-│   └── validacion/                 # Controles automáticos
+│   ├── validacion/                 # Controles automáticos
+│   └── scripts/                    # Validación reproducible con Docker
 ├── nosql/
 │   ├── modelo_nosql.md             # Modelo MongoDB (eventos) y Redis (clave-valor)
 │   ├── mongodb/                    # Implementación de la capa documental
@@ -118,8 +118,25 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ├── vectorial/
 │   └── modelo_vectorial.md         # Análisis de la necesidad de búsqueda por similitud
 └── anexos/
-    └── material_complementario.md  # Fuentes, consigna y material de trabajo del grupo
+    └── material_complementario.md  # Fuentes, consigna y nuestro material de trabajo
 ```
+
+## Dónde está cada punto de la consigna
+
+| # | Punto | Dónde |
+| --- | --- | --- |
+| 1 | Análisis del caso de uso | [`docs/informe.md`](docs/informe.md) §1 |
+| 2 | Relevamiento de datos necesarios | [`docs/informe.md`](docs/informe.md) §2 y §3 |
+| 3 | Modelo conceptual | [`docs/modelo_conceptual.md`](docs/modelo_conceptual.md), con diagrama ER |
+| 4 | Modelo lógico o equivalente | [`docs/modelo_logico_relacional.md`](docs/modelo_logico_relacional.md), [`db/estructura/`](db/estructura/), [`nosql/modelo_nosql.md`](nosql/modelo_nosql.md) |
+| 5 | Normalización y decisiones de diseño | [`docs/informe.md`](docs/informe.md) §6 |
+| 6 | Selección tecnológica | [`docs/informe.md`](docs/informe.md) §7 |
+| 7 | Modelo físico e implementación mínima | [`docs/modelo_fisico.md`](docs/modelo_fisico.md), [`db/`](db/), [`nosql/mongodb/`](nosql/mongodb/), [`nosql/redis/`](nosql/redis/) |
+| 8 | Consultas representativas | [`db/consultas/`](db/consultas/), [`nosql/mongodb/consultas/`](nosql/mongodb/consultas/), [`nosql/redis/comandos/`](nosql/redis/comandos/) |
+| 9 | Semiestructurados, no estructurados y vectorial | [`vectorial/modelo_vectorial.md`](vectorial/modelo_vectorial.md), [`docs/informe.md`](docs/informe.md) §11 |
+| 10 | Arquitectura de datos | [`docs/arquitectura.md`](docs/arquitectura.md), [`docs/informe.md`](docs/informe.md) §12 |
+| 11 | Seguridad, permisos y aislamiento | [`docs/informe.md`](docs/informe.md) §13, [`db/seguridad/`](db/seguridad/) |
+| 12 | Escalabilidad y rendimiento | [`docs/informe.md`](docs/informe.md) §14 |
 
 ## Cómo ejecutar o revisar la implementación mínima
 
@@ -130,7 +147,7 @@ mediante `include:`, de modo que un solo comando levanta los que estén incorpor
 conserva su propio archivo y su propio `.env`.
 
 **Levanta los tres componentes**: PostgreSQL, Redis y MongoDB, cada uno incorporado desde el compose
-de su propio directorio. El estado de cada uno está en [docs/ESTADO.md](docs/ESTADO.md).
+de su propio directorio.
 
 > `include:` requiere **Docker Compose 2.20 o posterior**. Con una versión anterior, el comando falla
 > antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
@@ -152,6 +169,19 @@ Si falta algún `.env`, Compose corta e indica cuál.
 
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
+
+Para que las dos formas de arranque funcionen sin retoques, los tres componentes siguen las mismas
+convenciones:
+
+- compose propio, con los puertos tomados de un `.env` local y publicados sólo en `127.0.0.1`;
+- todas las variables interpoladas con `${VAR:?mensaje}`, para que un `.env` ausente o incompleto
+  aborte Compose en lugar de levantar el motor mal configurado;
+- `container_name` con el prefijo `bdia_g04_`, para que no colisionen;
+- la red `bdia_g04_network`, la misma en los tres;
+- volúmenes con `name:` explícito, para que levantar desde el directorio del componente y levantar
+  desde la raíz compartan los datos en lugar de crear uno por proyecto;
+- `.env.example` versionado y `.env` ignorado por git;
+- una carga que verifique lo que dejó y devuelva error si algo no cuadra.
 
 ### Redis (implementado)
 

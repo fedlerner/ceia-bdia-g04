@@ -5,14 +5,14 @@
 - `Consignas TP Integrador BDIA_A23_2026.pdf`: consigna del Trabajo Práctico Integrador de la
   materia Bases de Datos para Inteligencia Artificial (CEIA – FIUBA, 2026, docente Martín Lacheski).
 
-## Documentos de trabajo del grupo
+## Nuestros documentos de trabajo
 
 | Documento | Contenido | Volcado en |
 | --- | --- | --- |
 | Bajada general (puntos 1, 2, 3 y 8) | Alcance y análisis del caso de uso, relevamiento de datos, modelo conceptual, consultas representativas, decisiones de implementación y extensiones futuras | [`../docs/informe.md`](../docs/informe.md), [`../docs/modelo_conceptual.md`](../docs/modelo_conceptual.md), [`../db/consultas/`](../db/consultas/) |
 | Primera bajada de modelado | Modelado de eventos en MongoDB, cache en Redis, integración con PostgreSQL y flujo completo de recomendación | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md), [`../docs/arquitectura.md`](../docs/arquitectura.md) |
 
-Los enlaces a los documentos de Google Docs los mantiene el grupo fuera del repositorio.
+Los enlaces a los documentos de Google Docs los mantenemos fuera del repositorio.
 
 ## Criterios de evaluación de la cátedra
 

@@ -124,7 +124,7 @@ existe, no hagas nada". Esa es exactamente la carencia. Redis ejecuta cada scrip
 modo que entre el `EXISTS` y las escrituras no puede intercalarse ninguna otra operación.
 
 **Por qué no `WATCH`.** La alternativa sin scripting es vigilar la clave con `WATCH` y dejar que
-`EXEC` aborte si venció, algo que se comprobó que funciona en Redis 8.2. Se descartó por dos motivos:
+`EXEC` aborte si venció, algo que comprobamos que funciona en Redis 8.2. Lo descartamos por dos motivos:
 `WATCH` es control de concurrencia optimista, de modo que **la aplicación debe implementar el
 reintento**, y este trabajo cubre la capa de datos y no la aplicación; y requiere al menos tres viajes
 de red frente a uno solo del script.

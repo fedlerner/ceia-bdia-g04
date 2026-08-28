@@ -24,3 +24,32 @@ neutral y cálido de `product-006` son atributos de sus SKU, no del producto.
 
 Los ocho productos constituyen datos mínimos de demostración y no un límite del
 modelo.
+
+## Sesiones y pedidos compartidos
+
+PostgreSQL es también el dueño de las sesiones y de los pedidos, y MongoDB los referencia. Para que
+esa referencia sea verificable, cada evento debe caer dentro de la ventana que `customer_session`
+declara para su sesión y corresponder a su mismo cliente.
+
+| `session_code` | Cliente | Ventana (UTC) | Eventos en `user_events` |
+| --- | --- | --- | --- |
+| `session-461` | `user-123` | 08-18 15:55 a 16:10 | 4 |
+| `session-456` | `user-123` | 08-19 15:28 a 15:45 | 6, cierra con la compra de `order-321` |
+| `session-457` | `user-124` | 08-23 15:00 a 15:25 | 6, cierra con la compra de `order-322` |
+| `session-458` | `user-125` | 08-24 21:00 a 21:40 | 3 |
+| `session-459` | `user-127` | 08-25 11:00, abierta | ninguno |
+| `session-460` | anónima | 08-24 23:00 a 23:30 | 3 |
+
+Dos decisiones sobre estos datos merecen quedar escritas, porque no son evidentes al leer el seed.
+
+`session-461` existe porque `user-123` navega en dos momentos distintos. El cliente que vuelve es el
+caso que motiva la recomendación personalizada, así que preferimos completar PostgreSQL con esa
+segunda sesión antes que recortar el historial que registra MongoDB.
+
+`order-322` se registra dentro de la ventana de `session-457`, igual que `order-321` dentro de la de
+`session-456`. Las dos compras que modela MongoDB ocurren en el instante exacto de su pedido. Los
+otros tres pedidos del seed quedan fuera de toda sesión a propósito: no toda compra nace de una
+sesión de navegación registrada, y el esquema no impone esa relación.
+
+`session-459` no registra eventos, que también es válido: no toda sesión genera interacciones
+seguidas.

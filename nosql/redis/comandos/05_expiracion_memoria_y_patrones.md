@@ -99,7 +99,7 @@ TTL contador:{reco}:generadas
 
 **Resultado esperado:** valores positivos en las tres primeras y `-1` en la última.
 
-**Justificación:** la política de expiración no es global sino que se decide por estructura. La cache
+**Justificación:** la política de expiración no es global sino que la decidimos por estructura. La cache
 usa un TTL fijo que no se renueva al leerla, porque debe envejecer para regenerarse con los eventos
 nuevos. La sesión usa un TTL deslizante que se renueva con cada actividad, porque debe sobrevivir
 mientras el visitante navegue. Los contadores no expiran por tiempo, aunque eso no los vuelve
@@ -149,7 +149,7 @@ de memoria: descarta páginas de su cache y accede a disco. Redis no tiene disco
 
 | Política | Comportamiento | Motivo del descarte |
 | --- | --- | --- |
-| `allkeys-lru` | Descarta las claves menos usadas recientemente entre todas. | **Elegida.** Todo el contenido de la capa es descartable: la cache, las sesiones y los rankings se reconstruyen, y la pérdida de los contadores y de la cuota en curso se acepta. |
+| `allkeys-lru` | Descarta las claves menos usadas recientemente entre todas. | **Elegida.** Todo el contenido de la capa es descartable: la cache, las sesiones y los rankings se reconstruyen, y aceptamos la pérdida de los contadores y de la cuota en curso. |
 | `noeviction` | Rechaza las escrituras al alcanzar el límite. | Convertiría un problema de memoria en errores de escritura del backend. |
 | `volatile-lru` | Descarta solo entre las claves que tienen TTL. | Las claves sin TTL quedan fuera del conjunto desalojable. Al agotarse los candidatos con TTL, Redis rechaza las escrituras con `OOM command not allowed`: el mismo fallo que `noeviction`, pero más tarde y menos predecible. |
 | `allkeys-lfu` | Descarta por frecuencia de uso en lugar de por recencia. | Favorece claves populares históricas frente a recomendaciones recientes, que es lo contrario de lo que necesita la personalización. |

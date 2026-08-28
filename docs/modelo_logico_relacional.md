@@ -231,7 +231,8 @@ se almacenan dentro de JSONB.
 - Cada SKU tiene como máximo un precio vigente y no admite períodos superpuestos.
 - Precios, cantidades y stock no pueden ser negativos.
 - Cada tipo de movimiento exige un signo coherente: las ventas descuentan y los ingresos reponen.
-- Una venta de inventario exige un pedido completado y pagado, el mismo SKU y una cantidad que no supere lo comprado.
+- Una venta de inventario exige un pedido completado y pagado, el mismo SKU y una cantidad que no
+  supere lo comprado.
 - Los movimientos de inventario son inmutables y actualizan el stock mediante trigger.
 - Una reseña por cliente y producto, con calificación de 1 a 5.
 - Una recomendación debe pertenecer a un cliente, a una sesión o a ambos de manera coherente.

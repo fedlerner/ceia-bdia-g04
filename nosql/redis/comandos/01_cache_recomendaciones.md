@@ -62,7 +62,7 @@ cada ejecución posterior.
 modo que no existe la posibilidad de que una entrada quede sin TTL por un error de la aplicación. El
 valor de 600 segundos se ubica dentro del rango de 5 a 15 minutos definido en el modelo.
 
-La expiración automática es una de las razones por las que se eligió Redis para esta capa. En un
+La expiración automática es una de las razones por las que elegimos Redis para esta capa. En un
 motor relacional habría que agregar una columna de vencimiento y un proceso programado que eliminara
 las filas vencidas; acá el vencimiento es una propiedad de la clave.
 

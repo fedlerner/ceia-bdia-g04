@@ -1,7 +1,5 @@
 # Modelo NoSQL
 
-> Fuente: documento de primera bajada de modelado del grupo, ampliado con la implementación.
-
 La solución combina tres motores. Este documento cubre los dos componentes NoSQL:
 
 - **MongoDB**: eventos de interacción del usuario (base documental / series de tiempo).
@@ -18,7 +16,7 @@ Los datos transaccionales y de catálogo permanecen en **PostgreSQL** (ver [`../
 > Implementación en [`mongodb/`](mongodb/). Las ocho consultas representativas, con su resultado
 > esperado contra el estado inicial, están en [`mongodb/consultas/`](mongodb/consultas/).
 
-Para el almacenamiento de eventos se selecciona **MongoDB como base de datos documental**.
+Para el almacenamiento de eventos seleccionamos **MongoDB como base de datos documental**.
 
 Los eventos de navegación presentan características diferentes a los datos transaccionales:
 
@@ -50,7 +48,7 @@ el volumen esperado y mayor flexibilidad para este sistema.
 
 ## 1.1 Colecciones
 
-Se propone mantener un modelo sencillo, utilizando una única colección de series de tiempo:
+Proponemos mantener un modelo sencillo, con una única colección de series de tiempo:
 
 ```text
 MongoDB
@@ -196,7 +194,7 @@ de acceso habitual por sí solo.
 
 **Eventos anónimos.** Al no tener `user_id`, su metadato queda nulo y no se agrupan con los de ningún
 cliente. Eso no impide consultarlos: las consultas por sesión de la sección 1.4 acotan siempre una
-ventana temporal, y esa ventana permite descartar buckets por el índice aun sin `user_id`. Se verificó
+ventana temporal, y esa ventana permite descartar buckets por el índice aun sin `user_id`. Verificamos
 con `explain` que la consulta por sesión resuelve con `IXSCAN` tanto para un cliente identificado como
 para un visitante anónimo. Lo que sí sería un recorrido completo es filtrar por `session_id` sin
 ventana temporal, algo que ninguna de las consultas del modelo hace.
@@ -551,7 +549,7 @@ Configuración declarada en [`redis/docker-compose.yml`](redis/docker-compose.ym
 | Parámetro | Valor | Justificación |
 | --- | --- | --- |
 | `maxmemory` | `256mb` | Sin límite explícito, Redis crece hasta agotar la memoria del host. El límite convierte un problema de infraestructura en una política de cache. |
-| `maxmemory-policy` | `allkeys-lru` | Todo el contenido es descartable, de modo que descartar por recencia entre todas las claves es aceptable. No todo es reconstruible: los contadores y la cuota en curso se pierden, y esa pérdida se acepta. |
+| `maxmemory-policy` | `allkeys-lru` | Todo el contenido es descartable, de modo que descartar por recencia entre todas las claves es aceptable. No todo es reconstruible: los contadores y la cuota en curso se pierden, y aceptamos esa pérdida. |
 | `save` / `appendonly` | deshabilitados | Redis es una cache: persistir agregaría costo de disco sin aportar garantías que el diseño necesite. |
 | `requirepass` | activo | Autenticación mínima; el puerto además se publica solo en `127.0.0.1`. |
 
@@ -646,7 +644,7 @@ Redis.
   modelo de IA, que son los recursos más caros de la arquitectura. **Falla abierto bajo presión de
   memoria**: `allkeys-lru` puede descartar las claves `ratelimit:*` y el siguiente `INCR` recrea el
   contador en 1, devolviéndole la cuota completa al cliente. Redis no admite prioridad de desalojo
-  por clave, de modo que protegerlos exigiría una instancia o base separada. Se acepta porque la
+  por clave, de modo que protegerlos exigiría una instancia o base separada. Lo aceptamos porque la
   función del límite en este alcance es acotar el uso normal, no resistir un abuso deliberado.
 
 ## 2.9 Escalabilidad de esta capa
