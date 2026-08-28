@@ -170,7 +170,8 @@ las dos a la vez**, porque los nombres de contenedor son los mismos y entran en 
   actúa sobre el proyecto del directorio desde el que se lo invoca: si la pila se levantó desde la
   raíz y el comando se ejecuta acá, no detiene nada y el borrado del volumen falla con
   `volume is in use`. Por su nombre funciona con cualquiera de los dos modos de arranque, igual que
-  el `Makefile` y `scripts/reiniciar_datos.sh`.
+  el `Makefile` de este directorio y
+  [`../redis/scripts/reiniciar_datos.sh`](../redis/scripts/reiniciar_datos.sh).
 
   Después se vuelve a levantar la pila como de costumbre, con `docker compose up -d --wait`, y se
   ejecuta `make generar-datos`.
