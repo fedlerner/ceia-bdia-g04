@@ -115,10 +115,10 @@ El [`docker-compose.yml`](docker-compose.yml) de la raíz incorpora el compose d
 mediante `include:`, de modo que un solo comando levanta los que estén incorporados. Cada componente
 conserva su propio archivo y su propio `.env`.
 
-**Hoy sólo levanta Redis**, que es el único componente implementado: los bloques de PostgreSQL y
-MongoDB están escritos y comentados en el compose de la raíz, a la espera de que existan sus archivos.
-A medida que se incorporen, descomentar su bloque los suma sin tocar nada más. El estado de cada
-componente está en [docs/ESTADO.md](docs/ESTADO.md).
+**Hoy levanta Redis y MongoDB**, que son los componentes implementados. El bloque de PostgreSQL está
+escrito y comentado en el compose de la raíz, a la espera de que exista su archivo: cuando se
+incorpore, descomentarlo lo suma sin tocar nada más. El estado de cada componente está en
+[docs/ESTADO.md](docs/ESTADO.md).
 
 > `include:` requiere **Docker Compose 2.20 o posterior**. Con una versión anterior, el comando falla
 > antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
@@ -128,14 +128,15 @@ Antes de levantar la pila, cada componente necesita su `.env` creado a partir de
 
 ```bash
 cp nosql/redis/.env.example nosql/redis/.env
+cp nosql/mongodb/.env.example nosql/mongodb/.env
 ```
 
 ```bash
 docker compose up -d --wait
 ```
 
-Si falta algún `.env`, Compose corta e indica cuál. A medida que PostgreSQL y MongoDB estén listos,
-se descomenta su bloque en el compose de la raíz y se agrega el `cp` correspondiente.
+Si falta algún `.env`, Compose corta e indica cuál. Cuando PostgreSQL esté listo, se descomenta su
+bloque en el compose de la raíz y se agrega el `cp` correspondiente.
 
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
@@ -151,9 +152,21 @@ docker compose exec redis sh /scripts/00_cargar_datos.sh
 Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
 de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
 
-### PostgreSQL y MongoDB (pendientes)
+### MongoDB (implementado)
 
-> Los scripts de `db/` y la colección `user_events` todavía no están implementados.
+Creación de la colección `user_events` y carga de los eventos de ejemplo:
+
+```bash
+make -C nosql/mongodb generar-datos
+```
+
+El script verifica lo que cargó y devuelve error si algo no cuadra. Las consultas representativas
+están en [`nosql/mongodb/consultas/`](nosql/mongodb/consultas/) y el detalle de la puesta en marcha
+en [nosql/mongodb/README.md](nosql/mongodb/README.md).
+
+### PostgreSQL (pendiente)
+
+> Los scripts de `db/` todavía no están implementados.
 > Ver [docs/ESTADO.md](docs/ESTADO.md) para el detalle de lo que falta.
 
 Orden previsto de ejecución una vez implementado:
@@ -162,7 +175,6 @@ Orden previsto de ejecución una vez implementado:
 2. `db/datos/`: carga de datos de ejemplo (catálogo de 8 productos y datos sintéticos).
 3. `db/indices_vistas/`: creación de índices y vistas.
 4. `db/consultas/`: ejecución de las 5 consultas representativas.
-5. `nosql/mongodb/`: creación de la colección `user_events` y carga de eventos de ejemplo.
 
 ## Principales decisiones de diseño
 
@@ -189,18 +201,22 @@ Orden previsto de ejecución una vez implementado:
 | 3 | ¿Qué productos visitó recientemente un cliente y todavía no compró? | PostgreSQL |
 | 4 | ¿Qué productos y SKU tienen stock bajo? | PostgreSQL |
 | 5 | ¿Qué productos suelen comprarse junto con un producto determinado? | PostgreSQL |
-| 6 | Historial reciente de eventos de un usuario | MongoDB |
-| 7 | Productos más interactuados por un usuario | MongoDB |
-| 8 | Eventos de una sesión | MongoDB |
-| 9 | Productos más visualizados (analítica general) | MongoDB |
-| 10 | Servir e invalidar la cache de recomendaciones | Redis |
-| 11 | Sostener el estado de una sesión anónima | Redis |
-| 12 | Top de productos más vistos precalculado | Redis |
-| 13 | Acotar invocaciones al motor por cliente y ventana | Redis |
-| 14 | Patrones de búsqueda, memoria y descarte por límite | Redis |
+| 6 | ¿Qué hizo un usuario en los últimos siete días? | MongoDB |
+| 7 | ¿Qué productos concentran el interés reciente de un usuario? | MongoDB |
+| 8 | ¿Qué recorrido hizo el usuario dentro de una sesión? | MongoDB |
+| 9 | ¿Qué productos reciben más visualizaciones? | MongoDB |
+| 10 | ¿Qué categorías concentran la atención de los usuarios? | MongoDB |
+| 11 | ¿Cuántas búsquedas realiza cada usuario? | MongoDB |
+| 12 | ¿Qué productos se ven mucho pero se agregan poco al carrito? | MongoDB |
+| 13 | ¿Cuánta actividad concentra cada sesión y cuánto dura? | MongoDB |
+| 14 | Servir e invalidar la cache de recomendaciones | Redis |
+| 15 | Sostener el estado de una sesión anónima | Redis |
+| 16 | Top de productos más vistos precalculado | Redis |
+| 17 | Acotar invocaciones al motor por cliente y ventana | Redis |
+| 18 | Patrones de búsqueda, memoria y descarte por límite | Redis |
 
 Las consultas SQL están en [db/consultas/](db/consultas/), las de MongoDB en
-[nosql/modelo_nosql.md](nosql/modelo_nosql.md) y los comandos de Redis en
+[nosql/mongodb/consultas/](nosql/mongodb/consultas/) y los comandos de Redis en
 [nosql/redis/comandos/](nosql/redis/comandos/).
 
 ## Limitaciones y posibles mejoras

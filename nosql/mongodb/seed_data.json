@@ -1,0 +1,243 @@
+[
+  {
+    "_id": "evt-0001",
+    "timestamp": "2026-08-13T10:05:00Z",
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "event_type": "search",
+    "metadata": {
+      "query": "perfume floral",
+      "results_count": 18
+    }
+  },
+  {
+    "_id": "evt-0002",
+    "timestamp": "2026-08-13T10:06:00Z",
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "event_type": "product_view",
+    "product_id": "product-001",
+    "metadata": {
+      "category_id": "perfumes"
+    }
+  },
+  {
+    "_id": "evt-0003",
+    "timestamp": "2026-08-13T10:07:00Z",
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "event_type": "product_view",
+    "product_id": "product-002",
+    "metadata": {
+      "category_id": "perfumes"
+    }
+  },
+  {
+    "_id": "evt-0004",
+    "timestamp": "2026-08-13T10:08:00Z",
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "event_type": "product_view",
+    "product_id": "product-001",
+    "metadata": {
+      "category_id": "perfumes"
+    }
+  },
+  {
+    "_id": "evt-0005",
+    "timestamp": "2026-08-13T10:09:00Z",
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "event_type": "add_to_cart",
+    "product_id": "product-001",
+    "metadata": {
+      "quantity": 1
+    }
+  },
+  {
+    "_id": "evt-0006",
+    "timestamp": "2026-08-13T10:12:00Z",
+    "user_id": "user-123",
+    "session_id": "session-456",
+    "event_type": "purchase",
+    "metadata": {
+      "order_id": "order-1001"
+    }
+  },
+  {
+    "_id": "evt-0007",
+    "timestamp": "2026-08-18T16:00:00Z",
+    "user_id": "user-123",
+    "session_id": "session-457",
+    "event_type": "search",
+    "metadata": {
+      "query": "crema hidratante",
+      "results_count": 9,
+      "filters": {
+        "category_id": "skincare"
+      }
+    }
+  },
+  {
+    "_id": "evt-0008",
+    "timestamp": "2026-08-18T16:01:00Z",
+    "user_id": "user-123",
+    "session_id": "session-457",
+    "event_type": "product_view",
+    "product_id": "product-003",
+    "metadata": {
+      "category_id": "skincare"
+    }
+  },
+  {
+    "_id": "evt-0009",
+    "timestamp": "2026-08-18T16:02:00Z",
+    "user_id": "user-123",
+    "session_id": "session-457",
+    "event_type": "product_view",
+    "product_id": "product-004",
+    "metadata": {
+      "category_id": "skincare"
+    }
+  },
+  {
+    "_id": "evt-0010",
+    "timestamp": "2026-08-18T16:05:00Z",
+    "user_id": "user-123",
+    "session_id": "session-457",
+    "event_type": "add_to_cart",
+    "product_id": "product-004",
+    "metadata": {
+      "quantity": 2
+    }
+  },
+  {
+    "_id": "evt-0011",
+    "timestamp": "2026-08-19T11:20:00Z",
+    "user_id": "user-124",
+    "session_id": "session-502",
+    "event_type": "product_view",
+    "product_id": "product-005",
+    "metadata": {
+      "category_id": "capilar"
+    }
+  },
+  {
+    "_id": "evt-0012",
+    "timestamp": "2026-08-19T11:21:00Z",
+    "user_id": "user-124",
+    "session_id": "session-502",
+    "event_type": "product_view",
+    "product_id": "product-006",
+    "metadata": {
+      "category_id": "maquillaje"
+    }
+  },
+  {
+    "_id": "evt-0013",
+    "timestamp": "2026-08-19T11:22:00Z",
+    "user_id": "user-124",
+    "session_id": "session-502",
+    "event_type": "search",
+    "metadata": {
+      "query": "base fluida",
+      "results_count": 4
+    }
+  },
+  {
+    "_id": "evt-0014",
+    "timestamp": "2026-08-19T11:23:00Z",
+    "user_id": "user-124",
+    "session_id": "session-502",
+    "event_type": "product_view",
+    "product_id": "product-007",
+    "metadata": {
+      "category_id": "maquillaje"
+    }
+  },
+  {
+    "_id": "evt-0015",
+    "timestamp": "2026-08-19T11:25:00Z",
+    "user_id": "user-124",
+    "session_id": "session-502",
+    "event_type": "add_to_cart",
+    "product_id": "product-007",
+    "metadata": {
+      "quantity": 1
+    }
+  },
+  {
+    "_id": "evt-0016",
+    "timestamp": "2026-08-19T11:30:00Z",
+    "user_id": "user-124",
+    "session_id": "session-502",
+    "event_type": "purchase",
+    "metadata": {
+      "order_id": "order-1002"
+    }
+  },
+  {
+    "_id": "evt-0017",
+    "timestamp": "2026-08-20T09:00:00Z",
+    "user_id": "user-125",
+    "session_id": "session-901",
+    "event_type": "product_view",
+    "product_id": "product-008",
+    "metadata": {
+      "category_id": "skincare"
+    }
+  },
+  {
+    "_id": "evt-0018",
+    "timestamp": "2026-08-20T09:02:00Z",
+    "user_id": "user-125",
+    "session_id": "session-901",
+    "event_type": "add_to_cart",
+    "product_id": "product-008",
+    "metadata": {
+      "quantity": 1
+    }
+  },
+  {
+    "_id": "evt-0019",
+    "timestamp": "2026-08-20T09:03:00Z",
+    "user_id": "user-125",
+    "session_id": "session-901",
+    "event_type": "search",
+    "metadata": {
+      "query": "agua micelar",
+      "results_count": 3
+    }
+  },
+  {
+    "_id": "evt-0020",
+    "timestamp": "2026-08-21T11:12:00Z",
+    "session_id": "session-460",
+    "event_type": "search",
+    "metadata": {
+      "query": "perfume floral",
+      "results_count": 6
+    }
+  },
+  {
+    "_id": "evt-0021",
+    "timestamp": "2026-08-21T11:13:30Z",
+    "session_id": "session-460",
+    "event_type": "product_view",
+    "product_id": "product-001",
+    "metadata": {
+      "category_id": "perfumes",
+      "source": "search"
+    }
+  },
+  {
+    "_id": "evt-0022",
+    "timestamp": "2026-08-21T11:15:00Z",
+    "session_id": "session-460",
+    "event_type": "add_to_cart",
+    "product_id": "product-001",
+    "metadata": {
+      "quantity": 1
+    }
+  }
+]

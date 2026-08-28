@@ -5,7 +5,7 @@
 La solución combina tres motores. Este documento cubre los dos componentes NoSQL:
 
 - **MongoDB**: eventos de interacción del usuario (base documental / series de tiempo).
-  Modelo definido; implementación pendiente.
+  Modelo e implementación completos en [`mongodb/`](mongodb/).
 - **Redis**, capa clave-valor: cache de recomendaciones, sesiones anónimas, rankings
   precalculados y rate limit. Modelo e implementación completos en [`redis/`](redis/).
 
@@ -84,8 +84,10 @@ Cada documento tendrá una estructura general similar a:
   "user_id": "user-123",
   "session_id": "session-456",
   "event_type": "product_view",
-  "product_id": "product-789",
-  "metadata": {}
+  "product_id": "product-001",
+  "metadata": {
+    "category_id": "perfumes"
+  }
 }
 ```
 
@@ -93,7 +95,7 @@ Los atributos principales son:
 
 | Atributo | Descripción |
 | --- | --- |
-| `_id` | Identificador único del evento |
+| `_id` | Identificador único del evento, con la salvedad que se indica más abajo |
 | `timestamp` | Momento en que ocurrió el evento |
 | `user_id` | Usuario que generó la interacción |
 | `session_id` | Sesión de navegación asociada |
@@ -105,31 +107,85 @@ El atributo `metadata` permite mantener cierta flexibilidad documental sin crear
 diferentes para cada evento. Esta flexibilidad permite incorporar nuevos metadatos y tipos de eventos
 durante la evolución del sistema sin modificar la estructura de los eventos existentes.
 
+Sobre `_id` corresponde una aclaración. En una colección común MongoDB crea el índice `_id_` y
+rechaza un identificador repetido; una Time Series Collection no lo hace, y sus únicos índices son
+el que genera el `metaField` y los que se declaran de forma explícita. La unicidad de `_id` es
+entonces una propiedad que sostiene la carga y no el motor: `generar_datos.js` la verifica sobre el
+archivo de datos antes de crear la colección y aborta si encuentra un duplicado.
+
 Los documentos de ejemplo (`product_view`, `search`, `add_to_cart`, `purchase`) están en
-[`../data/ejemplos/user_events.json`](../data/ejemplos/user_events.json).
+[`../data/ejemplos/user_events.json`](../data/ejemplos/user_events.json); los datos de carga
+completos, en [`mongodb/seed_data.json`](mongodb/seed_data.json).
+
+El sujeto de un evento puede ser un **cliente identificado** o un **visitante anónimo**. La regla es
+la misma que fija el relevamiento y que PostgreSQL implementa como restricción
+`recommendation_target_ck`: cada evento debe tener **al menos uno** de los dos identificadores. Un
+cliente registrado aporta `user_id` y, mientras navega, también `session_id`; un visitante anónimo
+aporta únicamente `session_id`.
+
+`user_id` es el criterio de acceso dominante, porque las consultas que alimentan al motor parten del
+cliente. En los eventos anónimos ese campo está ausente, con la consecuencia que se detalla en la
+sección 1.3.
 
 El evento `purchase` permite representar la secuencia de comportamiento del usuario, aunque la
 información comercial detallada de la orden continúa siendo responsabilidad de PostgreSQL.
 
 ## 1.3 Time Series Collection
 
-La colección `user_events` se implementaría como una **Time Series Collection**, utilizando
-`timestamp` como `timeField`.
+La colección `user_events` se implementa como una **Time Series Collection**, definida en
+[`mongodb/generar_datos.js`](mongodb/generar_datos.js) con:
 
-La ventaja principal para este caso es que los eventos poseen naturalmente una dimensión temporal y
-las consultas más frecuentes utilizan rangos como:
+| Parámetro | Valor | Justificación |
+| --- | --- | --- |
+| `timeField` | `timestamp` | Los eventos poseen naturalmente una dimensión temporal y las consultas más frecuentes usan rangos de fechas. |
+| `metaField` | `user_id` | El acceso dominante es por usuario, y agrupar los buckets por `user_id` sirve directamente las consultas de la sección 1.4. En los eventos anónimos el campo está ausente y el metadato queda nulo; ver más abajo. |
+| `granularity` | `seconds` | Coincide con la precisión con la que se registran los eventos. |
+| `expireAfterSeconds` | `7776000` (90 días) | Acota la colección al horizonte que necesitan las consultas y evita un proceso de limpieza propio; se detalla en la política de retención. |
+
+La ventaja principal para este caso es que los eventos se agregan continuamente y raramente son
+modificados, y que las consultas más frecuentes filtran por usuario y por rangos temporales como:
 
 - eventos del usuario durante los últimos 7 días;
 - eventos del último mes;
 - productos vistos durante la sesión actual.
 
-Esto resulta especialmente adecuado para un sistema donde los eventos se agregan continuamente y
-raramente son modificados.
+Con `user_id` como `metaField`, MongoDB genera automáticamente el índice compuesto
+`{ user_id: 1, timestamp: 1 }`, que resuelve el acceso por usuario y rango temporal sin necesidad de
+un índice adicional. Se declara además un índice secundario `{ event_type: 1 }` para las consultas
+analíticas que filtran por tipo de evento (sección 1.5). `session_id` se conserva como campo medido,
+útil para reconstruir el recorrido de una sesión, pero no lleva índice propio porque no es un criterio
+de acceso habitual por sí solo.
+
+**Eventos anónimos.** Al no tener `user_id`, su metadato queda nulo y no se agrupan con los de ningún
+cliente. Eso no impide consultarlos: las consultas por sesión de la sección 1.4 acotan siempre una
+ventana temporal, y esa ventana permite descartar buckets por el índice aun sin `user_id`. Se verificó
+con `explain` que la consulta por sesión resuelve con `IXSCAN` tanto para un cliente identificado como
+para un visitante anónimo. Lo que sí sería un recorrido completo es filtrar por `session_id` sin
+ventana temporal, algo que ninguna de las consultas del modelo hace.
+
+### Política de retención
+
+La colección se crea con `expireAfterSeconds` de 90 días. MongoDB elimina de forma automática los
+buckets cuyos eventos superan esa antigüedad, sin necesidad de un proceso de limpieza propio.
+
+El valor surge de los patrones de consulta: el motor de recomendaciones trabaja con ventanas de 7 a
+30 días y las consultas analíticas del apartado 1.5 no exceden ese horizonte, de modo que 90 días
+dejan margen suficiente sin que el volumen crezca de forma indefinida. Es la respuesta al problema
+que plantea el propio caso, donde los eventos se generan continuamente y solo se agregan.
+
+Un análisis de horizonte más largo, por ejemplo estacional entre años, no corresponde a esta
+colección operacional. Requeriría un almacenamiento analítico separado, cuya definición sigue abierta
+en [`../docs/arquitectura.md`](../docs/arquitectura.md).
 
 ## 1.4 Consultas principales para el sistema de recomendaciones
 
 Las consultas deben proporcionar un **contexto de comportamiento reciente y relevante** al motor.
 MongoDB proporcionará al motor el historial de comportamiento reciente y relevante del usuario.
+
+Como la colección es una Time Series Collection, estas consultas acotan explícitamente la ventana
+temporal sobre `timestamp` (el `timeField`): así el `$match` recorre solo los buckets del rango pedido
+y el índice automático `{ user_id: 1, timestamp: 1 }` resuelve el acceso por usuario y rango sin
+recorrer toda la colección.
 
 ### Historial reciente de un usuario
 
@@ -137,7 +193,8 @@ MongoDB proporcionará al motor el historial de comportamiento reciente y releva
 db.user_events.find({
   user_id: "user-123",
   timestamp: {
-    $gte: ISODate("2026-08-12T00:00:00Z")
+    $gte: ISODate("2026-08-13T00:00:00Z"),
+    $lt: ISODate("2026-08-20T00:00:00Z")
   }
 }).sort({
   timestamp: -1
@@ -159,6 +216,10 @@ db.user_events.aggregate([
       user_id: "user-123",
       event_type: {
         $in: ["product_view", "add_to_cart"]
+      },
+      timestamp: {
+        $gte: ISODate("2026-08-13T00:00:00Z"),
+        $lt: ISODate("2026-08-20T00:00:00Z")
       }
     }
   },
@@ -183,7 +244,10 @@ El resultado puede utilizarse como parte de las características entregadas al m
 ```javascript
 db.user_events.find({
   user_id: "user-123",
-  session_id: "session-456"
+  session_id: "session-456",
+  timestamp: {
+    $gte: ISODate("2026-08-13T00:00:00Z")
+  }
 }).sort({
   timestamp: 1
 })
@@ -268,13 +332,6 @@ Datos del comportamiento:
 - productos agregados al carrito
 - comportamiento de la sesión actual
 ```
-
-## 1.7 Pendientes de este componente
-
-- Definir los índices propuestos sobre `user_events` (por ejemplo `user_id + timestamp`,
-  `session_id`, `event_type`).
-- Definir la política de retención / expiración de eventos.
-- Definir el catálogo cerrado de valores de `event_type`.
 
 ---
 

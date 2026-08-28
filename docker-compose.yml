@@ -35,5 +35,5 @@ include:
   #   env_file: db/.env
 
   # MongoDB - eventos de interaccion del usuario.
-  # - path: nosql/mongodb/docker-compose.yml
-  #   env_file: nosql/mongodb/.env
+  - path: nosql/mongodb/docker-compose.yml
+    env_file: nosql/mongodb/.env

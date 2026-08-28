@@ -1,0 +1,91 @@
+# ------------------------------------------------------------
+# Eventos de interaccion del usuario (TP Integrador - Grupo 04).
+# Requiere copiar .env.example a .env antes de levantar la pila.
+#
+# Las variables se declaran con la sintaxis ${VAR:?mensaje}, que exige que
+# esten definidas. Sin ella un .env incompleto no produce ningun error: las
+# credenciales quedan vacias y la imagen de MongoDB arranca SIN autenticacion,
+# de modo que cualquiera que alcance el puerto puede listar y escribir bases.
+# Es la misma convencion que usa nosql/redis/docker-compose.yml.
+# ------------------------------------------------------------
+
+name: bdia_g04_mongodb
+
+services:
+  mongodb:
+    image: mongo:8.0.12
+    container_name: bdia_g04_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      MONGO_DATABASE: ${MONGO_DATABASE:?no definida. Copiar .env.example a .env en nosql/mongodb}
+    ports:
+      - "127.0.0.1:${MONGO_LISTEN_PORT:?no definida. Copiar .env.example a .env en nosql/mongodb}:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./seed_data.json:/scripts/seed_data.json:ro
+      - ./generar_datos.js:/scripts/generar_datos.js:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --host localhost --port 27017
+          --username "$${MONGO_INITDB_ROOT_USERNAME}"
+          --password "$${MONGO_INITDB_ROOT_PASSWORD}"
+          --authenticationDatabase admin
+          --eval "quit(db.adminCommand({ ping: 1 }).ok ? 0 : 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - bdia_g04_network
+
+  mongo-express:
+    image: mongo-express:1.0.2-20
+    container_name: bdia_g04_mongo_express
+    restart: unless-stopped
+    environment:
+      # URL sin credenciales. Solo la usa el entrypoint de la imagen para saber
+      # a que host esperar: sin ella recurre a su valor por defecto,
+      # mongodb://mongo:27017, y pierde diez segundos reintentando contra un
+      # host que no existe.
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: "27017"
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      # Las credenciales van en variables propias porque es la forma que documenta
+      # la imagen, no porque eviten el percent-encoding: config.default.js las
+      # concatena igual dentro de mongodb://usuario:contrasena@... sin codificarlas.
+      # Por eso la contrasena debe ser URL-safe. Comprobado con pa@ss:word: el
+      # contenedor termina con ERR_INVALID_URL y codigo 1. Ver .env.example.
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      # La variable es ME_CONFIG_BASICAUTH y no ME_CONFIG_BASICAUTH_ENABLED, que
+      # mongo-express 1.0.2 no lee. La imagen ya la trae en "true", de modo que la
+      # proteccion existe igual, pero se declara aca para no depender de un valor
+      # por defecto que una version futura podria cambiar sin aviso.
+      ME_CONFIG_BASICAUTH: "true"
+      ME_CONFIG_BASICAUTH_USERNAME: ${ME_CONFIG_BASICAUTH_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
+    ports:
+      - "127.0.0.1:${MONGO_EXPRESS_LISTEN_PORT:?no definida. Copiar .env.example a .env en nosql/mongodb}:8081"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - bdia_g04_network
+
+volumes:
+  # El nombre se fija de forma explicita. Sin `name`, Compose lo prefija con el
+  # del proyecto, de modo que levantar desde este directorio y levantar desde la
+  # raiz del repositorio crean dos volumenes distintos y los datos cargados en
+  # uno no aparecen en el otro. Es la misma razon por la que se fijan los
+  # container_name y el nombre de la red.
+  mongodb_data:
+    name: bdia_g04_mongodb_data
+
+networks:
+  bdia_g04_network:
+    driver: bridge
