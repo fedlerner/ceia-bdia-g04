@@ -12,8 +12,9 @@ docker compose logs postgres
 ```
 
 La primera inicialización ejecuta DDL, índices y vista, datos sintéticos, cinco
-consultas y veinte controles de estado. Todos los controles deben devolver
-`OK`.
+consultas, roles con privilegios mínimos y veintitrés controles de estado. Todos
+los controles deben devolver `OK`; solo entonces se crea la marca que exige el
+healthcheck.
 
 La validación limpia completa puede ejecutarse desde Git Bash:
 
@@ -21,17 +22,18 @@ La validación limpia completa puede ejecutarse desde Git Bash:
 ./scripts/validar_postgresql.sh --reset
 ```
 
-Además de reconstruir la base, el script ejecuta dos controles de comportamiento,
-diez pruebas negativas de integridad y una prueba con dos inserciones concurrentes
-sobre el mismo pedido.
+Además de reconstruir la base, el script ejecuta cuatro controles de
+comportamiento, quince pruebas de integridad y una prueba con dos inserciones
+concurrentes sobre el mismo pedido.
 
 La opción `--reset` elimina solamente el contenedor y el volumen administrados
 por `db/docker-compose.yml`. No afecta Redis, MongoDB ni otros proyectos.
 
-Para repetir solamente los veinte controles de estado:
+Para repetir solamente los veintitrés controles de estado:
 
 ```bash
-docker compose exec -T postgres psql -U bdia_admin -d bdia_store \
+docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
+  -U bdia_admin -d bdia_store \
   < validacion/01_validation.sql
 ```
 
@@ -45,6 +47,19 @@ docker compose up -d --wait
 
 El archivo `.env` no se versiona. Los valores de `.env.example` son únicamente
 locales y didácticos.
+
+## Seguridad
+
+La matriz ejecutable de permisos está en
+[`seguridad/01_roles_permisos.sql`](seguridad/01_roles_permisos.sql). El usuario
+administrador local se reserva para migraciones y validación; `bdia_app` limita
+las escrituras del backend y `bdia_analyst` permite lectura comercial sin acceso
+directo a los datos identificatorios. Ambos son roles `NOLOGIN`, por lo que el
+repositorio no distribuye credenciales de aplicación.
+
+En particular, `bdia_app` no puede escribir `inventory.available_qty` ni
+`sales_order.total_amount`: esos valores solo cambian mediante movimientos e
+ítems, respectivamente.
 
 ## Fuente de verdad
 

@@ -366,13 +366,14 @@ implementación.
 | Carga de datos de ejemplo | Implementada y validada, en [`../db/datos/`](../db/datos/) |
 | Índices y vistas | Implementados y validados, en [`../db/indices_vistas/`](../db/indices_vistas/) |
 | Consultas SQL representativas | Cinco consultas implementadas y ejecutables, en [`../db/consultas/`](../db/consultas/) |
+| Roles y permisos PostgreSQL | Implementados y validados con Docker, en [`../db/seguridad/`](../db/seguridad/) |
 | Colección `user_events` en MongoDB | Modelo definido; creación y carga pendientes |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
-La capa relacional PostgreSQL se validó nuevamente con Docker Compose después de la revisión de la
-PR: el contenedor alcanzó estado saludable y devolvieron `OK` veinte controles de estado, dos
-controles de comportamiento, diez pruebas negativas de integridad y una prueba concurrente. El
-procedimiento y la evidencia se encuentran en
+La validación actualizada de la capa relacional se ejecutó correctamente el 28/08/2026 con Docker
+Compose. El contenedor quedó `Up (healthy)` y pasaron veintitrés controles de estado, cuatro
+controles de comportamiento, quince pruebas de integridad y una prueba concurrente. El procedimiento
+y la evidencia se encuentran en
 [`../db/validacion/README.md`](../db/validacion/README.md).
 
 La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
@@ -458,22 +459,47 @@ MongoDB y Redis, y flujo completo de recomendación con resolución de cache HIT
 
 ## 13. Estrategia de seguridad, permisos y aislamiento
 
-**Pendiente de desarrollar.** Elementos ya definidos en el relevamiento que deben servir de base:
+La estrategia aplica privilegio mínimo, separación entre administración y operación, minimización de
+datos personales y ausencia de acceso directo desde clientes finales. No se almacenan datos completos
+de tarjetas ni credenciales de clientes en el modelo. Las credenciales locales de demostración se
+toman de un `.env` ignorado por Git y los puertos de PostgreSQL y Redis se publican únicamente en
+`127.0.0.1`.
 
-- El acceso a los datos personales debe restringirse según el rol (regla de negocio 10).
-- Tipos de usuario identificados: clientes, administradores, operadores y analistas.
-- Datos sensibles identificados: correo, teléfono, historial de compras, navegación, preferencias y
-  credenciales.
-- No se almacenan datos completos de tarjetas ni credenciales en texto plano (supuesto 8).
-- Las sesiones anónimas permiten analizar comportamiento previo al registro sin exigir el
-  almacenamiento de datos personales.
-- Auditoría prevista sobre cambios de precio/stock, estados del pedido, moderación de reseñas y
-  generación de recomendaciones.
+### 13.1 Seguridad de PostgreSQL (implementado)
 
-Falta desarrollar: matriz de roles y permisos, restricciones de acceso concretas por motor, y el
-riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de IA.
+La matriz se implementa en
+[`../db/seguridad/01_roles_permisos.sql`](../db/seguridad/01_roles_permisos.sql).
+Los roles funcionales son `NOLOGIN`: una aplicación real debe usar una credencial propia, almacenada
+fuera del repositorio, y heredar únicamente el rol necesario.
 
-### 13.1 Seguridad de la capa clave-valor (implementado)
+| Actor o rol | Permisos | Restricciones principales |
+| --- | --- | --- |
+| Administrador (`POSTGRES_USER`) | Propiedad de objetos, migraciones, carga y validación. | No debe utilizarse como identidad normal del backend ni compartirse con clientes o analistas. |
+| Backend u operador (`bdia_app`) | Lectura operativa y escritura explícita por tabla y columna; inserta pedidos, ítems y movimientos. | No escribe directamente stock ni total, no modifica ni borra movimientos y no altera identificadores externos mediante permisos normales. |
+| Analista (`bdia_analyst`) | Solo lectura sobre catálogo y datos comerciales agregables. | Sin acceso directo a `customer`, `customer_session` ni `review`, que contienen datos identificatorios o texto libre. |
+| Cliente o visitante | Ningún rol ni conexión directa a PostgreSQL. | Accede únicamente a través de una futura aplicación que aplique autorización y consultas parametrizadas. |
+
+`inventory.available_qty` se deriva de `inventory_movement` y
+`sales_order.total_amount` se deriva de `order_item`. `bdia_app` carece de permisos `INSERT` y
+`UPDATE` sobre esas columnas. Los triggers pueden mantenerlas porque
+`apply_inventory_movement` y `apply_order_total_delta` son `SECURITY DEFINER`, tienen un
+`search_path` fijo en esquemas confiables —con `pg_temp` al final— y pertenecen
+al administrador. Se revocó de `PUBLIC` el acceso al esquema, a tablas,
+secuencias y funciones; también se definieron privilegios predeterminados
+restrictivos para objetos futuros.
+
+Los movimientos de inventario son además inmutables: el rol operativo solo puede insertarlos y el
+DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifican tanto los accesos
+denegados como los caminos autorizados que actualizan stock y total mediante los triggers.
+
+**Riesgo de exposición mediante una futura aplicación de IA.** El modelo o agente no debe recibir
+credenciales de base ni generar SQL con privilegios administrativos. El backend debe usar consultas
+parametrizadas, limitar cada solicitud a los campos necesarios, preferir códigos seudónimos en lugar
+de nombre, correo o teléfono y evitar registrar datos personales en prompts o logs. Estas son reglas
+de integración documentadas; su ejecución queda fuera de esta entrega porque no se desarrolla una
+aplicación ni un modelo de IA.
+
+### 13.2 Seguridad de la capa clave-valor (implementado)
 
 | Aspecto | Decisión |
 | --- | --- |
@@ -567,10 +593,10 @@ base mínima para una solución robusta. El modelado documental de los eventos e
 Redis completan la propuesta multi-motor, asignando cada tipo de información a la tecnología más
 adecuada.
 
-La implementación mínima de PostgreSQL quedó validada con datos sintéticos, cinco consultas
-representativas, veinte controles de estado, dos controles de comportamiento, diez pruebas
-negativas y una prueba de concurrencia. MongoDB continúa como componente pendiente de
-implementación; por eso la solución
+La implementación mínima de PostgreSQL dispone de datos sintéticos, cinco consultas representativas
+y una validación Docker exitosa del 28/08/2026, con veintitrés controles de estado, cuatro controles
+de comportamiento, quince pruebas de integridad y una prueba de concurrencia. MongoDB continúa
+pendiente de implementación; por eso la solución
 multi-motor todavía no debe considerarse cerrada.
 
 ---

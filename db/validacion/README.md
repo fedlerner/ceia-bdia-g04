@@ -6,13 +6,14 @@ La implementación mínima de PostgreSQL fue ejecutada inicialmente el **25/08/2
 Compose y PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y los
 14 controles originales devolvieron `OK`.
 
-Después de la revisión de la PR, el procedimiento se amplió a 20 controles de estado, 2 controles
-de comportamiento, 10 pruebas negativas de integridad y 1 prueba de concurrencia. La ejecución
-limpia se repitió correctamente el **27/08/2026** y finalizó con:
+La ejecución actualizada se realizó correctamente el **28/08/2026** mediante Docker Compose y
+PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y pasaron las
+cinco consultas, 23 controles de estado, 4 controles de comportamiento, 15 pruebas de integridad y
+1 prueba de concurrencia. La salida final fue:
 
 ```text
-VALIDACIÓN COMPLETA: 5 consultas, 20 controles de estado,
-2 controles de comportamiento, 10 controles de integridad
+VALIDACIÓN COMPLETA: 5 consultas, 23 controles de estado,
+4 controles de comportamiento, 15 controles de integridad
 y 1 control de concurrencia OK.
 ```
 
@@ -66,7 +67,12 @@ códigos externos canónicos y atributos de las variantes. La ampliación agrega
 - consistencia entre cliente y sesión de una recomendación;
 - recomendación generada dentro del período de su sesión;
 - línea temporal canónica de `session-456`;
-- rechazo de cuatro operaciones inválidas;
+- roles `NOLOGIN` sin privilegios administrativos;
+- rechazo de escrituras directas sobre stock, total y movimientos auditables;
+- aceptación de los caminos controlados que actualizan stock y total mediante triggers;
+- separación entre lectura analítica y datos identificatorios;
+- salida no nula de `psql` cuando falla una invariante;
+- dependencia del healthcheck respecto de la validación completa;
 - conservación del total ante dos inserciones concurrentes.
 
 Los datos sintéticos esperados son 8 productos, 10 SKU, 5 clientes, 5 sesiones, 5 pedidos, 10 ítems,

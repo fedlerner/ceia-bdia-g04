@@ -4,6 +4,9 @@ SET search_path TO bdia, public;
 
 \echo 'VALIDACIÓN AUTOMÁTICA - Todos los controles deben devolver OK'
 
+BEGIN;
+
+CREATE TEMP TABLE validation_results ON COMMIT DROP AS
 WITH validations AS (
     SELECT 1 AS sort_order,
            'Ocho productos de prueba' AS control,
@@ -212,13 +215,85 @@ WITH validations AS (
     FROM sales_order so
     JOIN customer c ON c.customer_id = so.customer_id
     WHERE so.order_code = 'order-321'
+
+    UNION ALL
+
+    SELECT 21,
+           'Los roles operativos existen sin login ni privilegios administrativos',
+           COUNT(*) = 2
+           AND BOOL_AND(NOT rolcanlogin)
+           AND BOOL_AND(NOT rolsuper)
+           AND BOOL_AND(NOT rolcreatedb)
+           AND BOOL_AND(NOT rolcreaterole)
+           AND BOOL_AND(NOT rolreplication)
+           AND BOOL_AND(NOT rolbypassrls)
+    FROM pg_roles
+    WHERE rolname IN ('bdia_app', 'bdia_analyst')
+
+    UNION ALL
+
+    SELECT 22,
+           'El rol de aplicación no puede escribir el stock derivado',
+           NOT has_column_privilege(
+               'bdia_app', 'bdia.inventory', 'available_qty', 'INSERT'
+           )
+           AND NOT has_column_privilege(
+               'bdia_app', 'bdia.inventory', 'available_qty', 'UPDATE'
+           )
+           AND has_column_privilege(
+               'bdia_app', 'bdia.inventory', 'low_stock_threshold', 'UPDATE'
+           )
+           AND has_column_privilege(
+               'bdia_app', 'bdia.inventory_movement', 'quantity_change', 'INSERT'
+           )
+           AND NOT has_table_privilege(
+               'bdia_app', 'bdia.inventory_movement', 'UPDATE'
+           )
+           AND NOT has_table_privilege(
+               'bdia_app', 'bdia.inventory_movement', 'DELETE'
+           )
+
+    UNION ALL
+
+    SELECT 23,
+           'Total derivado y datos personales respetan los privilegios mínimos',
+           NOT has_column_privilege(
+               'bdia_app', 'bdia.sales_order', 'total_amount', 'INSERT'
+           )
+           AND NOT has_column_privilege(
+               'bdia_app', 'bdia.sales_order', 'total_amount', 'UPDATE'
+           )
+           AND has_column_privilege(
+               'bdia_app', 'bdia.order_item', 'unit_price_applied', 'INSERT'
+           )
+           AND NOT has_table_privilege('bdia_analyst', 'bdia.customer', 'SELECT')
+           AND NOT has_table_privilege('bdia_analyst', 'bdia.customer_session', 'SELECT')
+           AND NOT has_table_privilege('bdia_analyst', 'bdia.review', 'SELECT')
+           AND has_table_privilege('bdia_analyst', 'bdia.v_active_catalog', 'SELECT')
 )
 SELECT
     sort_order,
     control,
-    CASE WHEN passed THEN 'OK' ELSE 'ERROR' END AS result
+    passed
 FROM validations
 ORDER BY sort_order;
+
+SELECT
+    sort_order,
+    control,
+    CASE WHEN passed THEN 'OK' ELSE 'ERROR' END AS result
+FROM validation_results
+ORDER BY sort_order;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM validation_results WHERE passed IS NOT TRUE) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'Falló al menos un control de estado de PostgreSQL';
+    END IF;
+END;
+$$;
 
 \echo 'RESUMEN DE REGISTROS'
 SELECT 'brand' AS entity, COUNT(*) AS records FROM brand
@@ -233,3 +308,25 @@ UNION ALL SELECT 'review', COUNT(*) FROM review
 UNION ALL SELECT 'recommendation', COUNT(*) FROM recommendation
 UNION ALL SELECT 'recommendation_item', COUNT(*) FROM recommendation_item
 ORDER BY entity;
+
+-- El healthcheck exige esta marca. Solo se crea o renueva después de que todos
+-- los controles anteriores hayan sido verdaderos; una inicialización parcial
+-- nunca puede declarar saludable al contenedor.
+CREATE TABLE IF NOT EXISTS deployment_validation (
+    validation_name    TEXT PRIMARY KEY,
+    validated_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT deployment_validation_name_ck
+        CHECK (validation_name = 'initialization')
+);
+
+INSERT INTO deployment_validation (validation_name, validated_at)
+VALUES ('initialization', CURRENT_TIMESTAMP)
+ON CONFLICT (validation_name)
+DO UPDATE SET validated_at = EXCLUDED.validated_at;
+
+REVOKE ALL ON deployment_validation FROM PUBLIC, bdia_app, bdia_analyst;
+
+COMMENT ON TABLE deployment_validation IS
+    'Marca interna creada únicamente después de superar todos los controles de inicialización';
+
+COMMIT;

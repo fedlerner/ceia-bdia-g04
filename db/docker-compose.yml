@@ -23,9 +23,15 @@ services:
       - ./consultas/03_clientes_frecuencia_valor.sql:/docker-entrypoint-initdb.d/04_03_clientes.sql:ro
       - ./consultas/04_stock_bajo.sql:/docker-entrypoint-initdb.d/04_04_stock.sql:ro
       - ./consultas/05_productos_comprados_conjuntamente.sql:/docker-entrypoint-initdb.d/04_05_compra_conjunta.sql:ro
-      - ./validacion/01_validation.sql:/docker-entrypoint-initdb.d/05_validation.sql:ro
+      - ./seguridad/01_roles_permisos.sql:/docker-entrypoint-initdb.d/05_roles_permisos.sql:ro
+      - ./validacion/01_validation.sql:/docker-entrypoint-initdb.d/06_validation.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test:
+        - CMD-SHELL
+        - >-
+          pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB >/dev/null &&
+          test "$$(psql -X -qAt -U $$POSTGRES_USER -d $$POSTGRES_DB
+          -c "SELECT COUNT(*) FROM bdia.deployment_validation WHERE validation_name = 'initialization'" 2>/dev/null)" = "1"
       interval: 5s
       timeout: 5s
       retries: 12

@@ -97,6 +97,7 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 │   ├── datos/                      # Carga de datos de ejemplo
 │   ├── consultas/                  # Consultas representativas (punto 8)
 │   ├── indices_vistas/             # Índices y vistas
+│   ├── seguridad/                  # Roles y privilegios mínimos
 │   └── validacion/                 # Controles automáticos
 ├── nosql/
 │   ├── modelo_nosql.md             # Modelo MongoDB (eventos) y Redis (clave-valor)
@@ -173,13 +174,13 @@ El contenedor ejecuta en orden:
 2. `db/indices_vistas/`: creación de índices y vistas.
 3. `db/datos/`: carga del catálogo y datos sintéticos.
 4. `db/consultas/`: ejecución de las 5 consultas representativas.
-5. `db/validacion/`: controles automáticos.
+5. `db/seguridad/`: creación de roles y privilegios mínimos.
+6. `db/validacion/`: controles automáticos y marca de inicialización correcta.
 
-La validación empírica se repitió el 27/08/2026 con PostgreSQL 16 mediante Docker Compose después de
-la revisión de la PR. El contenedor quedó `Up (healthy)` y finalizaron correctamente veinte
-controles de estado, dos controles de comportamiento, diez pruebas negativas y una prueba de
-concurrencia; su procedimiento
-reproducible está documentado en
+La validación empírica actualizada se ejecutó correctamente el 28/08/2026 mediante Docker Compose
+con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las cinco
+consultas, veintitrés controles de estado, cuatro controles de comportamiento, quince pruebas de
+integridad y una prueba de concurrencia. El procedimiento reproducible está documentado en
 [`db/validacion/README.md`](db/validacion/README.md).
 
 ### MongoDB (pendiente)

@@ -326,3 +326,195 @@ BEGIN
 END;
 $$;
 \echo '10 | Modificación del precio histórico de un ítem vendido rechazada | OK'
+
+BEGIN;
+SET LOCAL ROLE bdia_app;
+
+DO $$
+DECLARE
+    test_sku_id BIGINT;
+BEGIN
+    SELECT sku_id INTO STRICT test_sku_id
+    FROM sku
+    WHERE sku_code = 'AUR-LUM-050';
+
+    BEGIN
+        UPDATE inventory
+           SET available_qty = available_qty + 1
+         WHERE sku_id = test_sku_id;
+
+        RAISE EXCEPTION 'ERROR: el rol de aplicación modificó directamente el stock';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            NULL;
+    END;
+
+    BEGIN
+        INSERT INTO inventory (sku_id, available_qty, low_stock_threshold)
+        VALUES (-1, 1, 0);
+
+        RAISE EXCEPTION 'ERROR: el rol de aplicación insertó stock inicial manual';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            NULL;
+    END;
+
+    BEGIN
+        UPDATE inventory_movement
+           SET reason = 'Prueba inválida'
+         WHERE sku_id = test_sku_id;
+
+        RAISE EXCEPTION 'ERROR: el rol de aplicación modificó un movimiento auditable';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            NULL;
+    END;
+
+    BEGIN
+        DELETE FROM inventory_movement
+         WHERE sku_id = test_sku_id;
+
+        RAISE EXCEPTION 'ERROR: el rol de aplicación borró un movimiento auditable';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            NULL;
+    END;
+END;
+$$;
+
+ROLLBACK;
+\echo '11 | Escrituras directas de stock y movimientos rechazadas para bdia_app | OK'
+
+BEGIN;
+SET LOCAL ROLE bdia_app;
+
+DO $$
+DECLARE
+    test_sku_id BIGINT;
+    stock_before INTEGER;
+    stock_after INTEGER;
+BEGIN
+    SELECT sku_id, available_qty
+      INTO STRICT test_sku_id, stock_before
+      FROM inventory
+      JOIN sku USING (sku_id)
+     WHERE sku_code = 'AUR-LUM-050';
+
+    INSERT INTO inventory_movement
+        (sku_id, movement_type, quantity_change, reason)
+    VALUES
+        (test_sku_id, 'adjustment', 1, 'Prueba de permisos');
+
+    SELECT available_qty
+      INTO STRICT stock_after
+      FROM inventory
+     WHERE sku_id = test_sku_id;
+
+    IF stock_after <> stock_before + 1 THEN
+        RAISE EXCEPTION 'ERROR: el movimiento autorizado no actualizó el stock';
+    END IF;
+END;
+$$;
+
+ROLLBACK;
+\echo '12 | Movimiento autorizado actualiza el stock mediante la función interna | OK'
+
+BEGIN;
+SET LOCAL ROLE bdia_app;
+
+DO $$
+DECLARE
+    test_order_id BIGINT;
+BEGIN
+    SELECT order_id INTO STRICT test_order_id
+    FROM sales_order
+    WHERE order_code = 'order-321';
+
+    BEGIN
+        UPDATE sales_order
+           SET total_amount = total_amount + 1
+         WHERE order_id = test_order_id;
+
+        RAISE EXCEPTION 'ERROR: el rol de aplicación modificó directamente el total';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            NULL;
+    END;
+
+    BEGIN
+        INSERT INTO sales_order
+            (order_code, customer_id, total_amount)
+        SELECT 'order-998', customer_id, 1
+        FROM customer
+        WHERE customer_code = 'user-123';
+
+        RAISE EXCEPTION 'ERROR: el rol de aplicación insertó un total manual';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            NULL;
+    END;
+END;
+$$;
+
+ROLLBACK;
+\echo '13 | Escritura directa del total rechazada para bdia_app | OK'
+
+BEGIN;
+SET LOCAL ROLE bdia_app;
+
+DO $$
+DECLARE
+    test_customer_id BIGINT;
+    test_sku_id BIGINT;
+    test_order_id BIGINT;
+    derived_total NUMERIC(14,2);
+BEGIN
+    SELECT customer_id INTO STRICT test_customer_id
+    FROM customer
+    WHERE customer_code = 'user-123';
+
+    SELECT sku_id INTO STRICT test_sku_id
+    FROM sku
+    WHERE sku_code = 'AUR-LUM-050';
+
+    INSERT INTO sales_order (order_code, customer_id)
+    VALUES ('order-998', test_customer_id)
+    RETURNING order_id INTO test_order_id;
+
+    INSERT INTO order_item (order_id, sku_id, quantity, unit_price_applied)
+    VALUES (test_order_id, test_sku_id, 2, 95000);
+
+    SELECT total_amount INTO STRICT derived_total
+    FROM sales_order
+    WHERE order_id = test_order_id;
+
+    IF derived_total <> 190000 THEN
+        RAISE EXCEPTION 'ERROR: el ítem autorizado no actualizó el total derivado';
+    END IF;
+END;
+$$;
+
+ROLLBACK;
+\echo '14 | Ítem autorizado actualiza el total mediante la función interna | OK'
+
+BEGIN;
+SET LOCAL ROLE bdia_analyst;
+
+DO $$
+BEGIN
+    BEGIN
+        PERFORM 1 FROM customer LIMIT 1;
+        RAISE EXCEPTION 'ERROR: el rol analítico accedió a datos identificatorios';
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            NULL;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM v_active_catalog) THEN
+        RAISE EXCEPTION 'ERROR: el rol analítico no pudo consultar el catálogo permitido';
+    END IF;
+END;
+$$;
+
+ROLLBACK;
+\echo '15 | Rol analítico lee catálogo sin acceder a datos identificatorios | OK'

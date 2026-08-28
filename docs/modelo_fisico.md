@@ -235,6 +235,22 @@ Fuente: [`../db/estructura/01_schema.sql`](../db/estructura/01_schema.sql).
 | `apply_inventory_movement` | `inventory_movement` → `inventory` | Aplica cada movimiento al stock vigente; la restricción de `inventory` impide que quede negativo. |
 | `prevent_inventory_movement_change` | `inventory_movement` | Los movimientos son inmutables: no se editan ni se borran, solo se compensan. |
 
+### 4.1 Roles y protección de campos derivados
+
+Fuente: [`../db/seguridad/01_roles_permisos.sql`](../db/seguridad/01_roles_permisos.sql).
+
+| Rol | Acceso físico |
+| --- | --- |
+| Propietario (`POSTGRES_USER`) | DDL, carga y validación; no se usa como identidad normal de la aplicación. |
+| `bdia_app` (`NOLOGIN`) | Lectura operativa y escritura por tabla/columna. Puede insertar movimientos e ítems, pero no escribir `inventory.available_qty` ni `sales_order.total_amount`, ni modificar o borrar movimientos. |
+| `bdia_analyst` (`NOLOGIN`) | Lectura del catálogo y de datos comerciales agregables, sin acceso directo a `customer`, `customer_session` ni `review`. |
+
+`apply_inventory_movement` y `apply_order_total_delta` son las únicas funciones
+que necesitan modificar los dos campos derivados. Se ejecutan como
+`SECURITY DEFINER` y fijan `search_path` en los esquemas confiables, dejando
+`pg_temp` en último lugar, para no resolver objetos controlados por el invocante.
+Los permisos de ejecución de las funciones del esquema se revocan de `PUBLIC`.
+
 ## 5. Modelo físico complementario (NoSQL)
 
 PostgreSQL es el único motor con esquema relacional; Redis y MongoDB se modelan distinto porque no

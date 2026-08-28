@@ -14,3 +14,7 @@ MongoDB. Redis conserva únicamente estado temporal y caché.
 
 `product_code`, `customer_code`, `session_code`, `order_code` y `sku_code` son identificadores
 externos estables. Las claves numéricas y UUID son internas de PostgreSQL.
+
+Los permisos de acceso no se definen en este archivo: se aplican después de crear
+todos los objetos mediante
+[`../seguridad/01_roles_permisos.sql`](../seguridad/01_roles_permisos.sql).

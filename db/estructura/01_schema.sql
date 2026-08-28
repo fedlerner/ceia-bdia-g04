@@ -368,6 +368,8 @@ FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE OR REPLACE FUNCTION apply_order_total_delta()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, bdia, pg_temp
 AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
@@ -605,6 +607,8 @@ FOR EACH ROW EXECUTE FUNCTION protect_order_item_with_sales();
 CREATE OR REPLACE FUNCTION apply_inventory_movement()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, bdia, pg_temp
 AS $$
 BEGIN
     UPDATE inventory
@@ -623,6 +627,10 @@ $$;
 CREATE TRIGGER inventory_movement_apply_trg
 AFTER INSERT ON inventory_movement
 FOR EACH ROW EXECUTE FUNCTION apply_inventory_movement();
+
+-- Las funciones elevadas solo se invocan desde sus triggers.
+REVOKE EXECUTE ON FUNCTION apply_order_total_delta() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION apply_inventory_movement() FROM PUBLIC;
 
 -- Los movimientos son registros de auditoría: se compensan, no se modifican.
 CREATE OR REPLACE FUNCTION prevent_inventory_movement_change()
@@ -653,6 +661,12 @@ COMMENT ON COLUMN customer_session.session_code IS
 
 COMMENT ON COLUMN sales_order.order_code IS
     'Identificador externo estable del pedido compartido con MongoDB';
+
+COMMENT ON COLUMN sales_order.total_amount IS
+    'Valor derivado de order_item; los roles operativos no pueden escribirlo directamente';
+
+COMMENT ON COLUMN inventory.available_qty IS
+    'Valor derivado de inventory_movement; los roles operativos no pueden escribirlo directamente';
 
 COMMENT ON COLUMN product.attributes IS
     'Atributos variables comunes al producto; no reemplaza relaciones normalizadas';

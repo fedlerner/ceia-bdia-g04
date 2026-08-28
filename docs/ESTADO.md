@@ -19,7 +19,7 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | 8 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/) | Las cinco consultas PostgreSQL están implementadas y se ejecutan durante la inicialización; faltan las consultas ejecutables de MongoDB |
 | 9 | Semiestructurados, no estructurados y vectorial | Parcial | [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md) | Cerrar los cinco ítems que pide la consigna, en especial los riesgos |
 | 10 | Arquitectura de datos | Parcial | [`arquitectura.md`](arquitectura.md) | Ingesta, capa analítica, justificación del enfoque arquitectónico, `arquitectura.png` |
-| 11 | Seguridad, permisos y aislamiento | Parcial | [`informe.md` §13](informe.md) | La capa clave-valor está cubierta en §13.1. Falta la matriz de roles y permisos, las restricciones en PostgreSQL y el riesgo de exposición vía IA |
+| 11 | Seguridad, permisos y aislamiento | Parcial | [`informe.md` §13](informe.md), [`../db/seguridad/`](../db/seguridad/) | PostgreSQL y Redis están cubiertos. Falta implementar MongoDB; las medidas para una futura aplicación conectada a IA quedan documentadas porque esa aplicación está fuera del alcance |
 | 12 | Escalabilidad y rendimiento | Parcial | [`informe.md` §14](informe.md) | La capa clave-valor está cubierta en §14.1, con mediciones. Falta el análisis de PostgreSQL y MongoDB: particionamiento, separación de componentes, compromisos |
 
 ## Entregables mínimos exigidos
@@ -55,7 +55,7 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | --- | --- | --- |
 | **Redis (capa clave-valor)** | Terminado y verificado | [`../nosql/redis/`](../nosql/redis/) |
 | MongoDB (eventos) | Modelo definido, implementación pendiente | `../nosql/mongodb/` (a crear) |
-| PostgreSQL (transaccional) | Implementado y validado: 20 controles de estado, 2 de comportamiento, 10 de integridad y 1 de concurrencia `OK` | [`../db/`](../db/) |
+| PostgreSQL (transaccional) | Implementado y validado con Docker (23 controles de estado, 4 de comportamiento, 15 de integridad y 1 de concurrencia) | [`../db/`](../db/) |
 
 El [`docker-compose.yml`](../docker-compose.yml) de la raíz incorpora Redis y PostgreSQL mediante
 `include:`. MongoDB continúa comentado hasta que exista su implementación.
@@ -65,6 +65,7 @@ convenciones que [`../nosql/redis/`](../nosql/redis/):
 
 - compose propio con los puertos tomados de un `.env` local, nunca fijos;
 - `container_name` con el prefijo `bdia_g04_`, para que no colisionen;
-- red `bdia_g04_network`, la misma en los tres, en lugar de un nombre propio;
+- sin declarar una red con la misma clave en los componentes incluidos; el compose raíz los integra
+  mediante su red predeterminada y evita conflictos entre recursos de `include`;
 - `.env.example` versionado y `.env` ignorado por git;
 - script de carga que verifique el estado y devuelva error si algo no cuadra.
