@@ -184,10 +184,11 @@ variables de productos y SKU. Quedan fuera de esta versión el procesamiento de 
 la generación de embeddings y la búsqueda vectorial (ver
 [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md)).
 
-### 3.2 Datos analíticos, sensibles y de auditoría
+### 3.2 Datos operacionales, analíticos, sensibles y de auditoría
 
 | Tipo | Ejemplos | Uso |
 | --- | --- | --- |
+| Operacionales | Catálogo, SKU, precios vigentes, stock, clientes, sesiones, pedidos e ítems, y los eventos de interacción. | Sostienen la operación diaria de la tienda y son la fuente de la que derivan los demás. Viven en PostgreSQL, salvo los eventos, que van a MongoDB. |
 | Analíticos o derivados | Unidades vendidas, ingresos, productos más vistos, conversión y compras conjuntas. | Indicadores y generación futura de recomendaciones. |
 | Sensibles | Correo, teléfono, historial de compras, navegación, preferencias y credenciales. | Protección, control de acceso y minimización. |
 | Auditoría | Cambios de precio/stock, estados del pedido, moderación y generación de recomendaciones. | Trazabilidad y control de operaciones. |
@@ -196,8 +197,27 @@ la generación de embeddings y la búsqueda vectorial (ver
 
 ## 4. Modelo conceptual
 
-Desarrollado en [`modelo_conceptual.md`](modelo_conceptual.md): entidades principales, atributos
-representativos, relaciones y cardinalidades, y las diez reglas de negocio del dominio.
+El dominio se organiza en once entidades: usuario y rol; marca, categoría, producto y SKU;
+inventario; pedido e ítem de pedido; evento de interacción; reseña; y recomendación con sus ítems. El
+detalle de atributos está en [`modelo_conceptual.md`](modelo_conceptual.md), junto con el diagrama.
+
+La distinción que ordena el resto es la de **producto y SKU**. El producto es el concepto comercial,
+"Perfume Floral"; el SKU es la presentación vendible, "Perfume Floral de 50 ml". El precio y el stock
+se controlan por SKU, no por producto, porque son dos variantes del mismo producto las que pueden
+tener precios y existencias distintos.
+
+Las cardinalidades que definen la forma del modelo son estas: una marca tiene muchos productos y un
+producto tiene muchos SKU, ambas 1:N; producto y categoría es N:M, porque un producto puede
+clasificarse en más de una, con una marcada como principal para no contar dos veces una misma venta;
+cada SKU tiene una fila de inventario, 1:1; y un cliente tiene muchos pedidos, muchos eventos, muchas
+reseñas y muchas recomendaciones.
+
+Cinco reglas del dominio condicionan el diseño más que las demás. El código de SKU es único. El precio
+aplicado se conserva en el ítem de pedido aunque después cambie el precio vigente, porque perderlo
+sería perder la historia comercial. Un producto inactivo o sin stock no se recomienda para compra
+inmediata. Los pedidos cancelados no cuentan como compras efectivas. Y todo evento conserva fecha y
+hora y se asocia a un cliente o a una sesión, que es lo que permite atender también al visitante
+anónimo. Las diez reglas completas están en el documento del modelo.
 
 Resumen de la lógica general:
 
@@ -403,6 +423,15 @@ Conjuntos que se cargan efectivamente en cada motor:
   identificados y un visitante anónimo, entre el 18 y el 24 de agosto de 2026.
 - [`../nosql/redis/datos/estado_inicial.redis`](../nosql/redis/datos/estado_inicial.redis): las seis
   claves del estado inicial de la capa clave-valor.
+
+El conjunto es deliberadamente pequeño, pero está construido para que cada decisión de diseño pueda
+comprobarse sobre él. Los ocho productos con diez SKU permiten verificar la separación entre producto
+y variante, y que el precio y el stock se controlan por SKU. Los cinco pedidos con diez ítems permiten
+comprobar que el precio aplicado se conserva, y uno de ellos está cancelado justamente para verificar
+que no cuenta como compra efectiva. Los 22 eventos, repartidos en cinco sesiones de tres clientes y un
+visitante anónimo, permiten ejecutar las consultas por ventana temporal y comprobar que el evento sin
+`user_id` sigue siendo consultable. Las seis claves de Redis cubren las cuatro estructuras del diseño
+con sus tres regímenes de expiración: TTL fijo, TTL deslizante y sin vencimiento.
 
 ---
 

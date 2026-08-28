@@ -224,7 +224,10 @@ Los atributos variables no estructurales usan JSONB en `product.attributes` y
 `sku.attributes`. Precio, stock, marca, categoría y relaciones comerciales no
 se almacenan dentro de JSONB.
 
-## Reglas principales
+## Restricciones de integridad
+
+El esquema declara **87 restricciones**: 16 claves primarias, 19 claves foráneas, 12 restricciones de
+unicidad, 39 `CHECK` y una de exclusión. Las reglas del dominio que expresan son estas.
 
 - Códigos externos y códigos de SKU únicos.
 - Un producto tiene como máximo una categoría principal.
@@ -237,3 +240,9 @@ se almacenan dentro de JSONB.
 - Una reseña por cliente y producto, con calificación de 1 a 5.
 - Una recomendación debe pertenecer a un cliente, a una sesión o a ambos de manera coherente.
 - Los pedidos cancelados o con pago no aprobado no cuentan como compras efectivas.
+
+Tres de ellas no se pueden expresar con un `CHECK` de columna y por eso llevan un mecanismo propio: el
+precio vigente único por SKU usa la restricción de exclusión `sku_price_no_overlapping_periods_excl`;
+la categoría principal única usa un índice único parcial; y la inmutabilidad de los movimientos de
+inventario usa un trigger, porque debe rechazar la operación y no sólo evaluar una fila. El detalle de
+cada una está en [`modelo_fisico.md`](modelo_fisico.md).
