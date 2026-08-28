@@ -55,9 +55,11 @@ services:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_PORT: "27017"
       ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
-      # Las credenciales van en variables propias y no interpoladas dentro de la
-      # URI de arriba: una contrasena con @, :, /, ? o # romperia el parseo de la
-      # URI y exigiria percent-encoding manual.
+      # Las credenciales van en variables propias porque es la forma que documenta
+      # la imagen, no porque eviten el percent-encoding: config.default.js las
+      # concatena igual dentro de mongodb://usuario:contrasena@... sin codificarlas.
+      # Por eso la contrasena debe ser URL-safe. Comprobado con pa@ss:word: el
+      # contenedor termina con ERR_INVALID_URL y codigo 1. Ver .env.example.
       ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME:?no definida. Copiar .env.example a .env en nosql/mongodb}
       ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?no definida. Copiar .env.example a .env en nosql/mongodb}
       ME_CONFIG_BASICAUTH_ENABLED: "true"

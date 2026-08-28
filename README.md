@@ -201,18 +201,22 @@ Orden previsto de ejecución una vez implementado:
 | 3 | ¿Qué productos visitó recientemente un cliente y todavía no compró? | PostgreSQL |
 | 4 | ¿Qué productos y SKU tienen stock bajo? | PostgreSQL |
 | 5 | ¿Qué productos suelen comprarse junto con un producto determinado? | PostgreSQL |
-| 6 | Historial reciente de eventos de un usuario | MongoDB |
-| 7 | Productos más interactuados por un usuario | MongoDB |
-| 8 | Eventos de una sesión | MongoDB |
-| 9 | Productos más visualizados (analítica general) | MongoDB |
-| 10 | Servir e invalidar la cache de recomendaciones | Redis |
-| 11 | Sostener el estado de una sesión anónima | Redis |
-| 12 | Top de productos más vistos precalculado | Redis |
-| 13 | Acotar invocaciones al motor por cliente y ventana | Redis |
-| 14 | Patrones de búsqueda, memoria y descarte por límite | Redis |
+| 6 | ¿Qué hizo un usuario en los últimos siete días? | MongoDB |
+| 7 | ¿Qué productos concentran el interés reciente de un usuario? | MongoDB |
+| 8 | ¿Qué recorrido hizo el usuario dentro de una sesión? | MongoDB |
+| 9 | ¿Qué productos reciben más visualizaciones? | MongoDB |
+| 10 | ¿Qué categorías concentran la atención de los usuarios? | MongoDB |
+| 11 | ¿Cuántas búsquedas realiza cada usuario? | MongoDB |
+| 12 | ¿Qué productos se ven mucho pero se agregan poco al carrito? | MongoDB |
+| 13 | ¿Cuánta actividad concentra cada sesión y cuánto dura? | MongoDB |
+| 14 | Servir e invalidar la cache de recomendaciones | Redis |
+| 15 | Sostener el estado de una sesión anónima | Redis |
+| 16 | Top de productos más vistos precalculado | Redis |
+| 17 | Acotar invocaciones al motor por cliente y ventana | Redis |
+| 18 | Patrones de búsqueda, memoria y descarte por límite | Redis |
 
 Las consultas SQL están en [db/consultas/](db/consultas/), las de MongoDB en
-[nosql/modelo_nosql.md](nosql/modelo_nosql.md) y los comandos de Redis en
+[nosql/mongodb/consultas/](nosql/mongodb/consultas/) y los comandos de Redis en
 [nosql/redis/comandos/](nosql/redis/comandos/).
 
 ## Limitaciones y posibles mejoras
