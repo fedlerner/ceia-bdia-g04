@@ -42,26 +42,37 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
   los ejemplos de MongoDB y Redis. PostgreSQL conserva claves internas separadas. También los códigos
   de pedido: los eventos `purchase` usaban `order-1001` y `order-1002`, que no existían en
   `sales_order`; ahora usan `order-321` y `order-322`, que son los pedidos completados de `user-123` y
-  `user-124` en PostgreSQL.
+  `user-124` en PostgreSQL, en su mismo instante.
 
-- [ ] **Terminar de alinear las ventanas de sesión entre PostgreSQL y MongoDB.** PostgreSQL es el
-  dueño de las sesiones y MongoDB las referencia, según la sección 1.6 del modelo, de modo que los
-  eventos deberían caer dentro de la ventana de su sesión y con su mismo cliente. Estado actual:
+  También las categorías. Tres productos estaban clasificados de otra forma en el seed de MongoDB que
+  en [`../db/datos/CATALOGO_CANONICO.md`](../db/datos/CATALOGO_CANONICO.md): `product-005` figuraba
+  como capilar en lugar de maquillaje, `product-007` como maquillaje en lugar de capilar y
+  `product-008` como skincare en lugar de capilar. La correspondencia entre el vocabulario de
+  `metadata.category_id` y las categorías principales de PostgreSQL quedó documentada en la sección
+  1.2 del modelo, para que no vuelva a desviarse al agregar eventos.
 
-  | Sesión | `customer_session` (UTC) | Eventos en `user_events` | |
-  | --- | --- | --- | --- |
-  | `session-456` | `user-123`, 08-19 15:28 a 15:45 | `user-123`, 08-19 15:35 a 15:42 | alineada |
-  | `session-457` | `user-124`, 08-23 15:00 a 15:25 | `user-123`, 08-18 16:00 a 16:05 | difieren el cliente y la fecha |
-  | `session-460` | anónima, 08-24 23:00 a 23:30 | anónima, 08-21 11:12 a 11:15 | difiere la fecha |
+- [x] **Alineadas las sesiones entre PostgreSQL y MongoDB.** PostgreSQL es el dueño de las sesiones y
+  MongoDB las referencia, según la sección 1.6 del modelo, de modo que los eventos deben caer dentro de
+  la ventana de su sesión y corresponder a su mismo cliente. Estado verificado sobre la pila levantada:
 
-  `session-456` quedó alineada al mover sus eventos a la ventana que declara PostgreSQL, cerrando con
-  la compra a las 15:42, que es el instante de `order-321`. Lo mismo con `session-502`, que no existe
-  en `customer_session` pero cuya compra ahora coincide con `order-322`.
+  | Sesión | `customer_session` (UTC) | Eventos en `user_events` |
+  | --- | --- | --- |
+  | `session-461` | `user-123`, 08-18 15:55 a 16:10 | `user-123`, 08-18 16:00 a 16:05 |
+  | `session-456` | `user-123`, 08-19 15:28 a 15:45 | `user-123`, 08-19 15:35 a 15:42 |
+  | `session-457` | `user-124`, 08-23 15:00 a 15:25 | `user-124`, 08-23 15:00 a 15:10 |
+  | `session-458` | `user-125`, 08-24 21:00 a 21:40 | `user-125`, 08-24 21:00 a 21:03 |
+  | `session-460` | anónima, 08-24 23:00 a 23:30 | anónima, 08-24 23:00 a 23:03 |
 
-  Faltan las otras dos. `session-457` es el caso más delicado: en PostgreSQL pertenece a `user-124` y
-  en MongoDB registra eventos de `user-123`, así que no alcanza con mover fechas, hay que decidir a
-  quién pertenece. Al tocar fechas hay que revisar los resultados esperados de
-  `nosql/mongodb/consultas/`.
+  El desajuste de fondo era que PostgreSQL definía una sola sesión por cliente y MongoDB registraba dos
+  para `user-123`, que es justamente el caso del cliente que vuelve y el que motiva la recomendación
+  personalizada. Se resolvió completando PostgreSQL con `session-461` en lugar de recortar el
+  historial documental. Los códigos inventados `session-502` y `session-901` desaparecieron: pasaron a
+  ser `session-457` y `session-458`, que sí existen.
+
+  Las dos compras quedaron dentro de la sesión que las origina y en el instante de su pedido:
+  `order-321` a las 08-19 15:42 en `session-456` y `order-322` a las 08-23 15:10 en `session-457`. Para
+  esto último se movió `order-322`, que estaba fuera de toda sesión de su cliente. `session-459` no
+  registra eventos, que es válido: no toda sesión genera interacciones seguidas.
 
 - [x] Resuelta la consulta SQL 3, que antes asumía los eventos en PostgreSQL. Consultaba una tabla
   `interaction_event` que el modelo asigna a MongoDB y que el esquema relacional no define. Quedó
@@ -75,9 +86,9 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
   pila levantada desde la raíz: los seis contenedores quedan en `bdia_g04_tp_bdia_g04_network` y
   `redis` resuelve `postgres` y `mongodb`.
 
-- [ ] **Definir si `session-502` y `session-901` deben existir en PostgreSQL.** El seed de MongoDB las
-  usa y `customer_session` solo define de la `session-456` a la `session-460`. Cumplen el formato que
-  exige el esquema, pero hoy apuntan a sesiones inexistentes en el motor que las posee.
+- [x] Resuelto el caso de `session-502` y `session-901`, los dos códigos que MongoDB usaba sin
+  respaldo en `customer_session`. Quedaron reemplazados por `session-457` y `session-458` al alinear
+  las sesiones, de modo que hoy todos los `session_code` del seed documental existen en PostgreSQL.
 
 ## Otros pendientes de entrega
 

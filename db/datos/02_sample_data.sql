@@ -244,6 +244,17 @@ SELECT '00000000-0000-0000-0000-000000000104'::UUID,
        TIMESTAMPTZ '2026-08-25 08:00:00-03'
 FROM customer WHERE email = 'elena.soto@example.test';
 
+-- Segunda sesion de Ana Torres. El caso del cliente que vuelve es el que motiva
+-- la recomendacion personalizada, y es el que registra MongoDB en
+-- nosql/mongodb/seed_data.json.
+INSERT INTO customer_session (session_id, session_code, customer_id, started_at, ended_at)
+SELECT '00000000-0000-0000-0000-000000000105'::UUID,
+       'session-461',
+       customer_id,
+       TIMESTAMPTZ '2026-08-18 12:55:00-03',
+       TIMESTAMPTZ '2026-08-18 13:10:00-03'
+FROM customer WHERE email = 'ana.torres@example.test';
+
 INSERT INTO customer_session (session_id, session_code, customer_id, started_at, ended_at) VALUES
     ('00000000-0000-0000-0000-000000000199', 'session-460', NULL,
      TIMESTAMPTZ '2026-08-24 20:00:00-03',
@@ -261,7 +272,7 @@ FROM customer WHERE email = 'ana.torres@example.test';
 
 INSERT INTO sales_order
     (order_code, customer_id, ordered_at, order_status, payment_status, shipping_status, currency)
-SELECT 'order-322', customer_id, TIMESTAMPTZ '2026-08-12 14:30:00-03',
+SELECT 'order-322', customer_id, TIMESTAMPTZ '2026-08-23 12:10:00-03',
        'completed', 'approved', 'delivered', 'ARS'
 FROM customer WHERE email = 'bruno.diaz@example.test';
 

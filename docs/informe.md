@@ -9,8 +9,8 @@ Año 2026, Grupo 04
 
 > Este informe sigue el índice de 15 puntos exigido por la consigna. Las secciones 1, 2, 3, 8, 9 y
 > parte de la 12 provienen de la bajada general del grupo; las secciones 5, 7 y 12 incorporan la
-> primera bajada de modelado (MongoDB y Redis). Las secciones marcadas como **pendiente** todavía no
-> fueron desarrolladas por el grupo.
+> primera bajada de modelado (MongoDB y Redis). Las secciones 8, 10, 13 y 14 recogen la
+> implementación de los tres motores, con la evidencia medida sobre cada uno.
 >
 > El entregable final debe exportarse como `docs/informe.pdf`.
 
@@ -402,7 +402,7 @@ Conjuntos que se cargan efectivamente en cada motor:
 - [`../db/datos/`](../db/datos/): los ocho productos del catálogo, clientes, pedidos, ítems y reseñas
   sintéticos, utilizados en la validación de PostgreSQL.
 - [`../nosql/mongodb/seed_data.json`](../nosql/mongodb/seed_data.json): 22 eventos de tres clientes
-  identificados y un visitante anónimo, entre el 12 y el 21 de agosto de 2026.
+  identificados y un visitante anónimo, entre el 18 y el 24 de agosto de 2026.
 - [`../nosql/redis/datos/estado_inicial.redis`](../nosql/redis/datos/estado_inicial.redis): las seis
   claves del estado inicial de la capa clave-valor.
 

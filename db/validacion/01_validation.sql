@@ -140,7 +140,7 @@ WITH validations AS (
            COUNT(*) = 5
            AND COUNT(*) FILTER (WHERE customer_code ~ '^user-[0-9]+$') = 5
            AND (SELECT COUNT(*) FROM customer_session
-                WHERE session_code ~ '^session-[0-9]+$') = 5
+                WHERE session_code ~ '^session-[0-9]+$') = 6
     FROM customer
 
     UNION ALL

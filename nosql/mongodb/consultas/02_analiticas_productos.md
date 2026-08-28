@@ -68,7 +68,9 @@ db.user_events.aggregate([
 ])
 ```
 
-**Resultado esperado:** `perfumes` con 4, `skincare` con 3, `maquillaje` con 2 y `capilar` con 1.
+**Resultado esperado:** `perfumes` con 4, y `skincare`, `maquillaje` y `capilar` con 2 cada una.
+El orden entre esas tres no está determinado, porque empatan en la cantidad por la que ordena el
+`$sort`.
 
 **Justificación:** `metadata.category_id` permite responder esta pregunta sin unir con el catálogo
 de PostgreSQL; el evento lleva la categoría relevante en el momento de la interacción. El modelo

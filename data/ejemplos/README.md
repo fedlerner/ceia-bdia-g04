@@ -12,7 +12,9 @@
 - Reseñas y recomendaciones persistentes de ejemplo.
 
 Los identificadores de producto de `redis_recommendations.json` y de `user_events.json` siguen el
-catálogo ficticio de ocho productos definido en
+catálogo ficticio de ocho productos que define
+[`../../db/datos/CATALOGO_CANONICO.md`](../../db/datos/CATALOGO_CANONICO.md), cuya fuente de verdad es
+PostgreSQL. Los mismos códigos aparecen en el estado inicial de Redis,
 [`../../nosql/redis/datos/estado_inicial.redis`](../../nosql/redis/datos/estado_inicial.redis).
 
 `user_events.json` usa `product-001`, el identificador canónico de Perfume Floral Lumière. Los

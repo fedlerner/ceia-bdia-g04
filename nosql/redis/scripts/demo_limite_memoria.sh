@@ -133,7 +133,7 @@ insertar_tanda() {
 
 # Devuelve 0 si alguna clave sin TTL que existia antes ya no esta.
 descarto_clave_sin_ttl() {
-    for c in contador:{reco}:generadas contador:{reco}:cache_hit; do
+    for c in 'contador:{reco}:generadas' 'contador:{reco}:cache_hit'; do
         case " $presentes_antes " in
             *" $c "*) ;;
             *) continue ;;

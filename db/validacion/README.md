@@ -75,6 +75,6 @@ códigos externos canónicos y atributos de las variantes. La ampliación agrega
 - dependencia del healthcheck respecto de la validación completa;
 - conservación del total ante dos inserciones concurrentes.
 
-Los datos sintéticos esperados son 8 productos, 10 SKU, 5 clientes, 5 sesiones, 5 pedidos, 10 ítems,
+Los datos sintéticos esperados son 8 productos, 10 SKU, 5 clientes, 6 sesiones, 5 pedidos, 10 ítems,
 2 recomendaciones y 4 ítems de recomendación. La prueba concurrente crea un pedido temporal y lo
 elimina al finalizar.

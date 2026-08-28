@@ -129,6 +129,22 @@ producto y no sobre la variante vendible, que interviene recién en el pedido. L
 "evento de interacción" se materializa únicamente acá, de modo que esta tabla es la única traducción
 que hay que seguir para ir del modelo conceptual al físico.
 
+`metadata.category_id` merece una aclaración aparte. La categoría no forma parte de los códigos
+compartidos entre motores, porque PostgreSQL la identifica por su clave interna y por su nombre, sin
+código externo. MongoDB usa entonces un vocabulario propio de cuatro valores, que debe corresponderse
+con la categoría principal que declara
+[`../db/datos/CATALOGO_CANONICO.md`](../db/datos/CATALOGO_CANONICO.md):
+
+| `metadata.category_id` | Categoría principal en PostgreSQL | Productos |
+| --- | --- | --- |
+| `perfumes` | Perfumes | `product-001`, `product-002` |
+| `skincare` | Cuidado facial | `product-003`, `product-004` |
+| `maquillaje` | Maquillaje | `product-005`, `product-006` |
+| `capilar` | Cuidado capilar | `product-007`, `product-008` |
+
+Al agregar productos o eventos hay que respetar esa correspondencia: es un dato desnormalizado dentro
+del evento y nada en el motor documental impide que se desvíe del catálogo.
+
 Sobre `_id` corresponde una aclaración. En una colección común MongoDB crea el índice `_id_` y
 rechaza un identificador repetido; una Time Series Collection no lo hace, y sus únicos índices son
 el que genera el `metaField` y los que se declaran de forma explícita. La unicidad de `_id` es

@@ -7,8 +7,8 @@ Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`.
 
 Cada bloque se puede copiar y pegar tal cual. Las fechas son literales para que el resultado sea
 reproducible contra el estado inicial de [`../seed_data.json`](../seed_data.json), cuyos eventos van
-del 2026-08-12 al 2026-08-21. Las ventanas de siete días de esta página abarcan del 13 al 19 inclusive,
-de modo que dejan fuera la sesión del 12 y los eventos del 20 y del 21.
+del 2026-08-18 al 2026-08-24. Las ventanas de siete días de esta página abarcan del 13 al 19
+inclusive, de modo que alcanzan las dos sesiones de `user-123` y dejan fuera las del 23 y del 24.
 
 ## Consulta 1. Historial reciente de un usuario
 
