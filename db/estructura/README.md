@@ -1,20 +1,20 @@
-# Estructura: scripts DDL de PostgreSQL
+# Estructura PostgreSQL
 
-**Pendiente de implementar.** La consigna (punto 7) pide, para una base relacional:
+[`01_schema.sql`](01_schema.sql) implementa el modelo relacional principal:
 
-- [ ] scripts de creación de tablas;
-- [ ] tipos de datos;
-- [ ] claves primarias y foráneas;
-- [ ] restricciones relevantes.
+- catálogo, marcas, categorías, productos y SKU;
+- precios con vigencia e historial;
+- inventario y movimientos auditables;
+- clientes y registro mínimo de sesiones;
+- pedidos e ítems;
+- reseñas y recomendaciones persistentes.
 
-Entidades a implementar según [`../../docs/modelo_conceptual.md`](../../docs/modelo_conceptual.md):
-`user`, `role`, `brand`, `category`, `product`, `product_category`, `sku`, `inventory`,
-`sales_order`, `order_item`, `review`, `recommendation`, `recommendation_item`.
+Los eventos de navegación no se duplican en PostgreSQL: su fuente canónica es
+MongoDB. Redis conserva únicamente estado temporal y caché.
 
-Restricciones derivadas de las reglas de negocio a contemplar en el DDL:
+`product_code`, `customer_code`, `session_code`, `order_code` y `sku_code` son identificadores
+externos estables. Las claves numéricas y UUID son internas de PostgreSQL.
 
-- `sku_code` único;
-- precio y stock no negativos;
-- cantidad de ítem de pedido mayor que cero;
-- calificación de reseña dentro del rango 1 a 5;
-- todo evento con fecha y hora y con cliente **o** sesión.
+Los permisos de acceso no se definen en este archivo: se aplican después de crear
+todos los objetos mediante
+[`../seguridad/01_roles_permisos.sql`](../seguridad/01_roles_permisos.sql).

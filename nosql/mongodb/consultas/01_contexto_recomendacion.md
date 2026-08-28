@@ -7,8 +7,8 @@ Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`.
 
 Cada bloque se puede copiar y pegar tal cual. Las fechas son literales para que el resultado sea
 reproducible contra el estado inicial de [`../seed_data.json`](../seed_data.json), cuyos eventos van
-del 2026-08-13 al 2026-08-21. Las ventanas de siete días de esta página abarcan del 13 al 19 inclusive,
-de modo que no alcanzan los eventos del 20 y del 21.
+del 2026-08-18 al 2026-08-24. Las ventanas de siete días de esta página abarcan del 13 al 19
+inclusive, de modo que alcanzan las dos sesiones de `user-123` y dejan fuera las del 23 y del 24.
 
 ## Consulta 1. Historial reciente de un usuario
 
@@ -28,8 +28,9 @@ db.user_events.find({
 })
 ```
 
-**Resultado esperado:** los 10 eventos de `user-123`, encabezados por los del 18 de agosto
-(`evt-0010`, `evt-0009`, `evt-0008`, `evt-0007`) y luego los del 13 de agosto.
+**Resultado esperado:** los 10 eventos de `user-123`, encabezados por los de la sesión del 19 de
+agosto (`evt-0006` a `evt-0001`, del más nuevo al más viejo) y seguidos por los cuatro del 18 de
+agosto (`evt-0010` a `evt-0007`).
 
 **Justificación:** el filtro por rango sobre `timestamp` aprovecha la Time Series Collection: el
 `$match` recorre únicamente los buckets dentro de la ventana pedida, y el índice automático

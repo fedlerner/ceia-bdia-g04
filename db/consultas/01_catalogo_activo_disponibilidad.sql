@@ -7,21 +7,32 @@
 -- Relaciones, filtros y métricas: relaciona producto, marca, SKU e inventario; filtra estados
 --           activos y agrega precio y stock.
 -- Resultado esperado: lista de productos activos con disponibilidad, precio mínimo y stock total.
--- Justificación: es una consulta operativa central. Podría implementarse como una vista, por
---           ejemplo v_active_catalog, si se consultara con frecuencia.
+-- Justificación: es una consulta operativa central. La vista v_active_catalog, en
+--           indices_vistas/, resuelve este mismo acceso y ya está creada; acá se escriben
+--           los JOIN explícitos para mostrar el recorrido del modelo. La consulta 5 y la
+--           validación sí consumen la vista.
+
+SET search_path TO bdia, public;
 
 SELECT
   p.product_id,
+  p.product_code,
   p.name AS producto,
   b.name AS marca,
-  MIN(s.unit_price) AS precio_desde,
+  sp.currency,
+  MIN(sp.amount) AS precio_desde,
   SUM(i.available_qty) AS stock_total
 FROM product p
 JOIN brand b ON b.brand_id = p.brand_id
 JOIN sku s ON s.product_id = p.product_id
+JOIN sku_price sp
+  ON sp.sku_id = s.sku_id
+ AND sp.valid_from <= CURRENT_TIMESTAMP
+ AND (sp.valid_to IS NULL OR sp.valid_to > CURRENT_TIMESTAMP)
 JOIN inventory i ON i.sku_id = s.sku_id
 WHERE p.active = TRUE
+  AND b.active = TRUE
   AND s.active = TRUE
-GROUP BY p.product_id, p.name, b.name
+GROUP BY p.product_id, p.product_code, p.name, b.name, sp.currency
 HAVING SUM(i.available_qty) > 0
 ORDER BY p.name;

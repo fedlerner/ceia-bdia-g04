@@ -1,16 +1,12 @@
-# Datos de ejemplo (PostgreSQL)
+# Datos de ejemplo PostgreSQL
 
-**Pendiente de implementar.** Scripts de carga de datos de ejemplo.
+[`02_sample_data.sql`](02_sample_data.sql) carga datos completamente ficticios:
 
-Según el relevamiento del grupo, los ocho productos iniciales funcionarán como muestra del catálogo.
-Para validar las consultas será necesario generar también datos sintéticos de:
+- 4 marcas, 5 categorías, 8 productos y 10 SKU;
+- precios, existencias y movimientos de inventario;
+- 5 clientes y 6 sesiones, dos de ellas del mismo cliente;
+- 5 pedidos, sus ítems y cuatro compras efectivas;
+- reseñas y recomendaciones sintéticas.
 
-- [ ] varios clientes;
-- [ ] pedidos en distintas fechas;
-- [ ] visualizaciones y búsquedas;
-- [ ] reseñas;
-- [ ] productos vistos y no comprados;
-- [ ] diferentes niveles de stock;
-- [ ] situaciones de compra conjunta.
-
-El número de registros podrá crecer sin modificar la estructura del modelo.
+El catálogo compartido con MongoDB y Redis está documentado en
+[`CATALOGO_CANONICO.md`](CATALOGO_CANONICO.md).

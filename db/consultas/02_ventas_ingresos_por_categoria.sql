@@ -10,9 +10,12 @@
 -- Justificación: la categoría principal evita contar dos veces una misma venta cuando un producto
 --           pertenece a varias categorías.
 
+SET search_path TO bdia, public;
+
 SELECT
   c.category_id,
   c.name AS categoria,
+  o.currency,
   SUM(oi.quantity) AS unidades_vendidas,
   SUM(oi.quantity * oi.unit_price_applied) AS ingresos
 FROM sales_order o
@@ -23,7 +26,8 @@ JOIN product_category pc
  AND pc.is_primary = TRUE
 JOIN category c ON c.category_id = pc.category_id
 WHERE o.order_status = 'completed'
-  AND o.ordered_at >= :from_date
-  AND o.ordered_at < :to_date
-GROUP BY c.category_id, c.name
+  AND o.payment_status = 'approved'
+  AND o.ordered_at >= TIMESTAMPTZ '2026-08-01 00:00:00-03'
+  AND o.ordered_at <  TIMESTAMPTZ '2026-09-01 00:00:00-03'
+GROUP BY c.category_id, c.name, o.currency
 ORDER BY ingresos DESC;

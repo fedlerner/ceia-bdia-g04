@@ -9,8 +9,8 @@ Año 2026, Grupo 04
 
 > Este informe sigue el índice de 15 puntos exigido por la consigna. Las secciones 1, 2, 3, 8, 9 y
 > parte de la 12 provienen de la bajada general del grupo; las secciones 5, 7 y 12 incorporan la
-> primera bajada de modelado (MongoDB y Redis). Las secciones marcadas como **pendiente** todavía no
-> fueron desarrolladas por el grupo.
+> primera bajada de modelado (MongoDB y Redis). Las secciones 8, 10, 13 y 14 recogen la
+> implementación de los tres motores, con la evidencia medida sobre cada uno.
 >
 > El entregable final debe exportarse como `docs/informe.pdf`.
 
@@ -159,8 +159,9 @@ permiten personalizar la experiencia durante la sesión, analizar el comportamie
 y abordar el problema de los usuarios nuevos sin exigir el almacenamiento de datos personales.
 
 En el alcance mínimo, el identificador de cliente será opcional cuando exista una sesión anónima, y
-cada evento deberá tener al menos uno de los dos identificadores. La vinculación posterior entre una
-sesión anónima y un cliente registrado queda como ampliación opcional.
+cada evento deberá tener al menos uno de los dos identificadores. El modelo admite asociar una sesión
+con un cliente cuando la identidad ya es conocida; automatizar esa vinculación después del registro
+queda como ampliación opcional.
 
 ### 2.4 Datos de prueba
 
@@ -183,8 +184,8 @@ reseñas, imágenes o documentos de ingredientes.
 
 En esta primera versión, además del modelo relacional para los datos estructurados, se incorpora el
 tratamiento de datos semiestructurados mediante una base documental (MongoDB) para los eventos de
-interacción y su `metadata` variable. JSONB en PostgreSQL queda previsto como alternativa para
-atributos variables del lado relacional. Quedan fuera de esta versión el procesamiento de imágenes,
+interacción y su `metadata` variable. JSONB en PostgreSQL se utiliza de manera acotada para atributos
+variables de productos y SKU. Quedan fuera de esta versión el procesamiento de imágenes,
 la generación de embeddings y la búsqueda vectorial (ver
 [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md)).
 
@@ -210,7 +211,9 @@ CATÁLOGO            →  PRODUCTO / SKU  →  PRECIO / STOCK  →  PEDIDOS
 CLIENTES / SESIONES →  EVENTOS         →  RECOMENDACIONES
 ```
 
-**Pendiente:** exportar el diagrama entidad-relación como `docs/modelo_conceptual.png`.
+El diagrama entidad-relación está incorporado como Mermaid en
+[`modelo_conceptual.md`](modelo_conceptual.md), sección 7, de modo que se versiona como texto y
+se renderiza en el repositorio sin depender de una imagen exportada.
 
 ---
 
@@ -220,7 +223,7 @@ La solución combina tres motores:
 
 | Componente | Modelo | Documentación |
 | --- | --- | --- |
-| PostgreSQL | Modelo lógico relacional (tablas, columnas, claves primarias y foráneas, restricciones de integridad, relaciones 1:1, 1:N y N:M) | **Pendiente**, en [`../db/estructura/`](../db/estructura/) |
+| PostgreSQL | Modelo lógico relacional (15 tablas, claves, restricciones y relaciones 1:1, 1:N y N:M) | [`modelo_logico_relacional.md`](modelo_logico_relacional.md) e implementación en [`../db/`](../db/) |
 | MongoDB | Modelo documental: colección `user_events` como Time Series Collection | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) |
 | Redis | Modelo clave-valor: cuatro estructuras (String, Hash, Sorted Set y contadores) con tres políticas de expiración | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) §2, implementación en [`../nosql/redis/`](../nosql/redis/) |
 
@@ -240,21 +243,25 @@ las cuatro estructuras es que su contenido es **descartable**: perderlo es acept
 Esta separación evita duplicar innecesariamente los datos transaccionales en MongoDB y permite que
 cada tecnología se utilice para el tipo de información para el que resulta más adecuada.
 
-**Pendiente:** desarrollar el modelo lógico relacional completo (punto 4 de la consigna).
+Los códigos externos `product_code`, `customer_code`, `session_code`, `order_code` y `sku_code`
+conectan los motores sin exponer las claves internas de PostgreSQL.
 
 ---
 
 ## 6. Decisiones de normalización, embebido, referencia o desnormalización
 
-**Pendiente de desarrollar.** Deben justificarse:
+El modelo relacional se mantiene en tercera forma normal: marca, categoría, producto, SKU, precio,
+inventario, pedido e ítem se separan según sus dependencias. La relación N:M entre productos y
+categorías utiliza `product_category`. Esto evita repetir marcas y categorías, mezclar variantes con
+productos y sobrescribir precios históricos.
 
-- Del lado relacional: las decisiones de normalización y qué problemas buscan evitarse (redundancias,
-  inconsistencias, anomalías de inserción, actualización y eliminación). Un caso a documentar es la
-  desnormalización deliberada del `unit_price_applied` en el ítem de pedido, que duplica el precio
-  para preservar la historia comercial.
-- Del lado documental: la decisión de mantener una única colección `user_events` con `event_type` y
-  `metadata` en lugar de una colección por tipo de evento, y la de no embeber datos transaccionales
-  en los eventos (sólo se referencian `user_id`, `product_id` y `order_id`).
+Se aceptan dos redundancias controladas: `unit_price_applied` preserva el precio de cada compra y
+`sales_order.total_amount` se mantiene por trigger mediante deltas atómicos desde los ítems. JSONB
+queda limitado a atributos variables no estructurales; precio, stock y relaciones no se guardan como
+documentos.
+
+MongoDB mantiene una única colección `user_events` con `event_type` y `metadata`, en lugar de una
+colección por evento. Los documentos referencian códigos externos y no embeben datos transaccionales.
 
 ### 6.1 Duplicación deliberada en la capa clave-valor
 
@@ -280,10 +287,19 @@ recomendación servida desde cache, según lo exige la regla de negocio 9.
 
 ### 7.1 PostgreSQL: datos transaccionales
 
-**Pendiente de desarrollar** siguiendo los criterios que pide la consigna (tipo de datos, estructura
-y variabilidad, volumen esperado, patrones de consulta, relaciones entre entidades, consistencia
-requerida, seguridad y control de acceso, escalabilidad, complejidad operativa, ventajas y
-limitaciones frente a otras alternativas).
+PostgreSQL se selecciona porque el núcleo contiene datos estructurados y fuertemente relacionados:
+productos, variantes, precios, stock, clientes, pedidos e ítems. Su estructura es estable, y la
+variabilidad que existe se concentra en atributos descriptivos que cambian según la categoría del
+producto; para esos casos el esquema usa columnas `jsonb` con índices GIN, de modo que admitir un
+atributo nuevo no exige migrar la tabla. Las operaciones necesitan claves foráneas, restricciones,
+transacciones ACID e integridad inmediata. Los patrones principales combinan relaciones, filtros,
+agregaciones e historial temporal.
+
+El volumen del caso académico no exige distribución y PostgreSQL reduce la complejidad operativa. Su
+madurez, roles, permisos, copias de seguridad e índices B-tree, parciales y GIN cubren seguridad y
+rendimiento. Frente a MongoDB evita trasladar a la aplicación la consistencia de pedidos, precios y
+stock. Como limitación, una única instancia no escala escrituras indefinidamente, pero admite
+réplicas de lectura y particionamiento futuro sin cambiar el modelo inicial.
 
 ### 7.2 MongoDB: eventos de interacción
 
@@ -347,16 +363,23 @@ ningún dato de esta capa es fuente de verdad.
 
 ## 8. Implementación mínima realizada
 
-**Parcial.** Estado actual:
+Los tres motores tienen su implementación mínima ejecutada y verificada.
 
 | Componente | Estado |
 | --- | --- |
-| DDL PostgreSQL | Pendiente, en [`../db/estructura/`](../db/estructura/) |
-| Carga de datos de ejemplo | Pendiente, en [`../db/datos/`](../db/datos/) |
-| Índices y vistas | Pendiente, en [`../db/indices_vistas/`](../db/indices_vistas/) |
-| Consultas SQL representativas | Escritas como propuesta lógica, sin ejecutar, en [`../db/consultas/`](../db/consultas/) |
+| DDL PostgreSQL | Implementado y validado, en [`../db/estructura/`](../db/estructura/) |
+| Carga de datos de ejemplo | Implementada y validada, en [`../db/datos/`](../db/datos/) |
+| Índices y vistas | Implementados y validados, en [`../db/indices_vistas/`](../db/indices_vistas/) |
+| Consultas SQL representativas | Cinco consultas implementadas y ejecutables, en [`../db/consultas/`](../db/consultas/) |
+| Roles y permisos PostgreSQL | Implementados y validados con Docker, en [`../db/seguridad/`](../db/seguridad/) |
 | **MongoDB** (`user_events`) | **Implementada y verificada**, en [`../nosql/mongodb/`](../nosql/mongodb/) |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
+
+La validación actualizada de la capa relacional se ejecutó correctamente el 28/08/2026 con Docker
+Compose. El contenedor quedó `Up (healthy)` y pasaron veintitrés controles de estado, cuatro
+controles de comportamiento, quince pruebas de integridad y una prueba concurrente. El procedimiento
+y la evidencia se encuentran en
+[`../db/validacion/README.md`](../db/validacion/README.md).
 
 La capa clave-valor está implementada por completo: `docker-compose.yml` con Redis 8.2 y
 RedisInsight, script de carga con autovalidación, cinco archivos de comandos representativos y dos
@@ -365,7 +388,7 @@ demostraciones con evidencia medida (cache-aside y descarte por límite de memor
 La capa documental también: `docker-compose.yml` con MongoDB 8.0 y mongo-express, creación de
 `user_events` como Time Series Collection con retención de 90 días, carga de 22 eventos con
 validación previa del archivo de datos y siete comprobaciones sobre lo cargado, y ocho consultas
-representativas ejecutadas contra la base. La implementación pendiente es la de PostgreSQL.
+representativas ejecutadas contra la base.
 
 ---
 
@@ -379,12 +402,12 @@ Documentos de muestra en [`../data/ejemplos/`](../data/ejemplos/):
 
 Conjuntos que se cargan efectivamente en cada motor:
 
+- [`../db/datos/`](../db/datos/): los ocho productos del catálogo, clientes, pedidos, ítems y reseñas
+  sintéticos, utilizados en la validación de PostgreSQL.
 - [`../nosql/mongodb/seed_data.json`](../nosql/mongodb/seed_data.json): 22 eventos de tres clientes
-  identificados y un visitante anónimo, entre el 13 y el 21 de agosto de 2026.
+  identificados y un visitante anónimo, entre el 18 y el 24 de agosto de 2026.
 - [`../nosql/redis/datos/estado_inicial.redis`](../nosql/redis/datos/estado_inicial.redis): las seis
   claves del estado inicial de la capa clave-valor.
-
-**Pendiente:** los ocho productos del catálogo, clientes, pedidos, ítems y reseñas sintéticos.
 
 ---
 
@@ -393,12 +416,14 @@ Conjuntos que se cargan efectivamente en cada motor:
 Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/consultas/):
 
 1. **Catálogo activo con disponibilidad.** ¿Qué productos activos están disponibles, indicando
-   marca, precio y stock? Consulta operativa central; podría implementarse como vista
-   `v_active_catalog`.
+   marca, precio y stock? Consulta operativa central. Se escribe con los `JOIN` explícitos para
+   mostrar el recorrido del modelo relacional; la vista `v_active_catalog` resuelve ese mismo acceso y
+   está creada en [`../db/indices_vistas/`](../db/indices_vistas/), otorgada a los dos roles
+   funcionales y consumida por la consulta 5 y por la validación.
 2. **Ventas e ingresos por categoría y período.** ¿Qué categorías generan más unidades vendidas e
    ingresos? La categoría principal evita contar dos veces una misma venta.
-3. **Productos vistos pero todavía no comprados.** Candidatos para recomendaciones personalizadas.
-   Justifica un índice sobre `(customer_id, event_type, occurred_at)`.
+3. **Frecuencia y valor de compra por cliente.** Señales transaccionales para segmentación y futuras
+   recomendaciones, sin duplicar en PostgreSQL los eventos que pertenecen a MongoDB.
 4. **Productos y SKU con stock bajo.** Reposición y exclusión de recomendaciones. Podría justificar
    un índice sobre `inventory(available_qty)`.
 5. **Productos comprados conjuntamente.** Venta cruzada basada en compras reales; usa CTE,
@@ -457,28 +482,57 @@ MongoDB y Redis, y flujo completo de recomendación con resolución de cache HIT
 
 ## 13. Estrategia de seguridad, permisos y aislamiento
 
-**Pendiente de desarrollar.** Elementos ya definidos en el relevamiento que deben servir de base:
+La estrategia aplica privilegio mínimo, separación entre administración y operación, minimización de
+datos personales y ausencia de acceso directo desde clientes finales. No se almacenan datos completos
+de tarjetas ni credenciales de clientes en el modelo. Las credenciales locales de demostración se
+toman de un `.env` ignorado por Git y los puertos de PostgreSQL y Redis se publican únicamente en
+`127.0.0.1`.
 
-- El acceso a los datos personales debe restringirse según el rol (regla de negocio 10).
-- Tipos de usuario identificados: clientes, administradores, operadores y analistas.
-- Datos sensibles identificados: correo, teléfono, historial de compras, navegación, preferencias y
-  credenciales.
-- No se almacenan datos completos de tarjetas ni credenciales en texto plano (supuesto 8).
-- Las sesiones anónimas permiten analizar comportamiento previo al registro sin exigir el
-  almacenamiento de datos personales.
-- Auditoría prevista sobre cambios de precio/stock, estados del pedido, moderación de reseñas y
-  generación de recomendaciones.
+### 13.1 Seguridad de PostgreSQL (implementado)
 
-Falta desarrollar: matriz de roles y permisos, restricciones de acceso concretas por motor, y el
-riesgo de exposición indebida de datos en aplicaciones conectadas a modelos de IA.
+La matriz se implementa en
+[`../db/seguridad/01_roles_permisos.sql`](../db/seguridad/01_roles_permisos.sql).
+Los roles funcionales son `NOLOGIN`: una aplicación real debe usar una credencial propia, almacenada
+fuera del repositorio, y heredar únicamente el rol necesario.
 
-### 13.1 Seguridad de la capa clave-valor (implementado)
+| Actor o rol | Permisos | Restricciones principales |
+| --- | --- | --- |
+| Administrador (`POSTGRES_USER`) | Propiedad de objetos, migraciones, carga y validación. | No debe utilizarse como identidad normal del backend ni compartirse con clientes o analistas. |
+| Backend u operador (`bdia_app`) | Lectura operativa y escritura explícita por tabla y columna; inserta pedidos, ítems y movimientos. | No escribe directamente stock ni total, no modifica ni borra movimientos y no altera identificadores externos mediante permisos normales. |
+| Analista (`bdia_analyst`) | Solo lectura sobre catálogo y datos comerciales agregables. | Sin acceso directo a `customer`, `customer_session` ni `review`, que contienen datos identificatorios o texto libre. |
+| Cliente o visitante | Ningún rol ni conexión directa a PostgreSQL. | Accede únicamente a través de una futura aplicación que aplique autorización y consultas parametrizadas. |
+
+`inventory.available_qty` se deriva de `inventory_movement` y
+`sales_order.total_amount` se deriva de `order_item`. `bdia_app` carece de permisos `INSERT` y
+`UPDATE` sobre esas columnas. Los triggers pueden mantenerlas porque
+`apply_inventory_movement` y `apply_order_total_delta` son `SECURITY DEFINER`, tienen un
+`search_path` fijo en esquemas confiables, con `pg_temp` al final, y pertenecen
+al administrador, y **todas las funciones disparadoras que consultan tablas fijan también su
+`search_path`**, aunque no sean `SECURITY DEFINER`: sin eso, una sesión podía crear una tabla temporal
+que sombreara `order_item` y burlar la validación de ventas. Se revocó de `PUBLIC` el acceso al
+esquema, a tablas, secuencias y funciones, y se definieron privilegios predeterminados restrictivos
+para las funciones que se creen más adelante. Comprobado sobre la base: las ocho funciones del esquema
+quedan con el ACL `bdia_admin=X/bdia_admin`, ninguna es ejecutable por `PUBLIC`, y una función creada
+después del script nace con el mismo ACL restringido.
+
+Los movimientos de inventario son además inmutables: el rol operativo solo puede insertarlos y el
+DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifican tanto los accesos
+denegados como los caminos autorizados que actualizan stock y total mediante los triggers.
+
+**Riesgo de exposición mediante una futura aplicación de IA.** El modelo o agente no debe recibir
+credenciales de base ni generar SQL con privilegios administrativos. El backend debe usar consultas
+parametrizadas, limitar cada solicitud a los campos necesarios, preferir códigos seudónimos en lugar
+de nombre, correo o teléfono y evitar registrar datos personales en prompts o logs. Estas son reglas
+de integración documentadas; su ejecución queda fuera de esta entrega porque no se desarrolla una
+aplicación ni un modelo de IA.
+
+### 13.2 Seguridad de la capa clave-valor (implementado)
 
 | Aspecto | Decisión |
 | --- | --- |
 | Minimización | La sesión anónima guarda comportamiento, no identidad: `started_at`, `last_seen_at`, `events_count`, `last_product_id` y `preferred_category`. **No** almacena dirección IP, user agent, correo ni teléfono. |
 | Retención | El TTL actúa como política de retención automática: la sesión desaparece sola a los 30 minutos de inactividad, sin proceso de purga. |
-| Qué se guarda del cliente | El valor está minimizado por atributos: sólo identificadores de producto y puntuaciones, sin nombre, correo ni teléfono. La clave sí incorpora un identificador seudónimo (`reco:user:{customer_id}:...`), acotado por el TTL como retención máxima y protegido por el control de acceso del backend. |
+| Qué se guarda del cliente | El valor está minimizado por atributos: sólo identificadores de producto y puntuaciones, sin nombre, correo ni teléfono. La clave sí incorpora el código externo seudónimo (`reco:user:{customer_code}:...`), acotado por el TTL como retención máxima y protegido por el control de acceso del backend. |
 | Aislamiento | El prefijo de la clave separa los espacios de nombres, y el discriminador `user` / `sess` evita que una sesión anónima resuelva contra la entrada de un cliente registrado. |
 | Acceso | `requirepass` activo y puerto publicado únicamente en `127.0.0.1`. |
 | Protección del motor de IA | El rate limit por cliente y ventana acota cuántas veces puede invocarse el motor de recomendaciones y el modelo, que son los recursos más costosos. |
@@ -504,22 +558,42 @@ para construir la clave.
 
 ---
 
+### 13.3 Seguridad de la capa documental (implementado)
+
+| Aspecto | Decisión |
+| --- | --- |
+| Autenticación | El usuario administrador se crea a partir de `MONGO_INITDB_ROOT_USERNAME` y `MONGO_INITDB_ROOT_PASSWORD`, tomados del `.env` del componente. Las siete variables del componente se interpolan con la sintaxis `${VAR:?mensaje}`, de modo que un `.env` ausente o incompleto aborta Compose en lugar de levantar el motor sin credenciales. |
+| Acceso | El puerto se publica únicamente en `127.0.0.1`, con el valor de `MONGO_LISTEN_PORT`. |
+| Visor web | `mongo-express` exige autenticación básica con credenciales propias, distintas de las del motor. Comprobado: sin credenciales responde `401`, con credenciales incorrectas también, y sólo con las correctas responde `200`. |
+| Minimización | El evento de un visitante anónimo se identifica sólo por `session_id`. La colección no almacena dirección IP, user agent, correo ni teléfono; los datos personales viven en PostgreSQL, protegidos por sus roles. |
+| Retención | `expireAfterSeconds` de 90 días actúa como política de borrado automático: MongoDB elimina los buckets vencidos sin necesidad de un proceso de purga. |
+
+**Sobre el control de acceso.** MongoDB 8.0 dispone de roles por base de datos y por colección. Se
+comprobó creando un usuario con rol `read` sobre la base del componente: lee los 22 documentos y
+cualquier escritura devuelve `Unauthorized`. En este alcance sólo se define el usuario administrador,
+porque el único cliente es el script de carga del propio componente. Un despliegue real separaría al
+menos dos roles: uno de sólo lectura para el motor de recomendaciones y uno de escritura para la
+ingesta de eventos, de modo que el motor no pueda alterar el historial que consume.
+
+**Limitación reconocida.** Las credenciales sólo se aplican al inicializar `/data/db`. Comprobado:
+tras cambiar la contraseña en `.env` y recrear el contenedor, la contraseña nueva falla, la anterior
+sigue siendo válida y el healthcheck deja el contenedor `unhealthy`. Rotarlas exige reinicializar el
+volumen, con la pérdida de los eventos cargados que eso implica. El procedimiento está documentado en
+[`../nosql/mongodb/README.md`](../nosql/mongodb/README.md).
+
+Una restricción operativa se deriva del visor: `mongo-express` concatena usuario y contraseña dentro
+de la URI de conexión sin aplicar percent-encoding, de modo que la contraseña debe ser URL-safe.
+Comprobado con `pa@ss:word`: el contenedor termina con `ERR_INVALID_URL` y código 1. La restricción
+queda escrita en `nosql/mongodb/.env.example`, junto a las variables que afecta.
+
+---
+
 ## 14. Consideraciones de escalabilidad y rendimiento
 
-**Pendiente de desarrollar.** Elementos ya definidos que deben servir de base:
-
-- Las estructuras que más crecerían son la colección `user_events` y las tablas de pedidos e ítems.
-- Los eventos se mantienen separados del modelo transaccional para no sobrecargarlo con un volumen que
-  crece continuamente y tiene propósito principalmente analítico.
-- La Time Series Collection organiza eficientemente datos que se agregan continuamente y se consultan
-  por rangos temporales.
-- Redis precalcula y reutiliza las recomendaciones ya generadas, con TTL de 5 a 15 minutos.
-- Índices candidatos: `(customer_id, event_type, occurred_at)` sobre eventos e
-  `inventory(available_qty)`.
-- Vista candidata: `v_active_catalog`.
-
-Falta desarrollar: qué datos podrían particionarse, qué componentes podrían separarse y qué
-compromisos existen entre simplicidad, rendimiento, consistencia y costo.
+Las estructuras que más crecen son la colección `user_events` y las tablas de pedidos e ítems. Los
+eventos se mantienen separados del modelo transaccional para no sobrecargarlo con un volumen que
+crece de forma continua y tiene propósito principalmente analítico. Cada capa se analiza por separado
+en las tres subsecciones siguientes, con la evidencia medida sobre la implementación.
 
 ### 14.1 Escalabilidad de la capa clave-valor (implementado)
 
@@ -557,6 +631,67 @@ corresponde a esta capa, porque depende del motor que queda fuera del alcance, y
 por una espera fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un
 resultado verificado del camino completo.
 
+### 14.2 Escalabilidad de la capa documental (implementado)
+
+**Qué crece:** `user_events` es la estructura de mayor crecimiento del diseño, porque los eventos se
+agregan de forma continua y no se modifican.
+
+**Qué lo acota:** la retención de 90 días declarada con `expireAfterSeconds`. MongoDB elimina los
+buckets vencidos por su cuenta, de modo que el volumen se estabiliza en la ventana útil en lugar de
+crecer sin límite. Es la misma idea que el TTL de Redis, aplicada a un horizonte mucho más largo.
+
+**Cómo agrupa:** con `metaField: user_id`, la Time Series Collection agrupa los eventos de un mismo
+usuario y período en un bucket. Medido sobre el estado inicial: 22 documentos ocupan **5 buckets**,
+5074 bytes de datos y 20480 de almacenamiento, con 40960 bytes de índices.
+
+**Qué gana la consulta:** el filtro por usuario y ventana temporal descarta buckets enteros sin
+abrirlos. Medido con `explain("executionStats")` sobre la consulta que alimenta al motor, la de
+`user-123` en los últimos siete días: resuelve con `IXSCAN` y examina **3 de los 5 buckets**. Esa
+poda es la razón de fondo por la que las consultas de la sección 10 acotan siempre la ventana.
+
+**Si el volumen creciera:** sharding por `user_id`, que es el `metaField`. Las consultas que alimentan
+al motor parten siempre del cliente, de modo que se dirigirían a un solo shard en lugar de consultar a
+todos. El criterio de partición coincide con el de agrupamiento, así que la localidad de los buckets
+se conserva.
+
+**Compromiso asumido:** `session_id` es un campo medido y no lleva índice propio. Reconstruir una
+sesión exige acotar además la ventana temporal, cosa que las consultas del modelo hacen siempre. Un
+índice adicional sobre `session_id` aceleraría ese acceso a cambio de encarecer cada escritura, que es
+la operación dominante en esta colección.
+
+### 14.3 Escalabilidad de la capa relacional (implementado)
+
+**Qué crece:** `sales_order`, `order_item` e `inventory_movement`, que acumulan una fila por operación
+y no se depuran.
+
+**Qué hay hoy:** las 15 tablas del modelo más `deployment_validation`, que es la marca de
+inicialización que exige el healthcheck, una vista, 12 triggers y 48 índices. De esos índices, 16 se
+declaran explícitamente para los patrones de acceso y los 32 restantes respaldan claves primarias,
+restricciones únicas y la de exclusión. El esquema no delega en el orden de llegada de las consultas:
+los accesos previstos tienen su índice declarado.
+
+**Índices que responden a una consulta concreta:** `inventory_low_stock_idx` es parcial y sirve la
+consulta de reposición. Medido con `EXPLAIN (ANALYZE)`, esa consulta resuelve con `Bitmap Index Scan`
+sobre ese índice en lugar de recorrer la tabla. Los índices GIN `product_attributes_gin_idx` y
+`sku_attributes_gin_idx` sostienen las búsquedas sobre los atributos flexibles en `jsonb`, que es
+donde el modelo relacional admite datos semiestructurados.
+
+**Consistencia bajo concurrencia:** los totales de pedido y el stock no se escriben directamente, sino
+a través de funciones internas, y las escrituras directas están revocadas para el rol de aplicación.
+La restricción de exclusión `sku_price_no_overlapping_periods_excl` impide que dos períodos de precio
+del mismo SKU se superpongan, algo que un `CHECK` no puede expresar. La validación incluye una prueba
+con dos inserciones concurrentes sobre el mismo pedido que comprueba que el total queda correcto.
+
+**Si el volumen creciera:** particionar por tiempo `sales_order` e `inventory_movement`, que son las
+tablas cuyo crecimiento es proporcional a la operación y cuyas consultas casi siempre acotan un
+período. Las consultas analíticas de la sección 10 podrían servirse desde una réplica de sólo lectura,
+separando el camino analítico del transaccional sin duplicar el modelo.
+
+**Compromiso asumido:** los índices y los 12 triggers encarecen cada escritura para abaratar la
+lectura y para sostener las invariantes dentro del motor. Es el intercambio que corresponde a un
+catálogo que se lee mucho más de lo que se modifica, y traslada al motor una integridad que de otro
+modo habría que confiar a la aplicación.
+
 ---
 
 ## 15. Conclusiones
@@ -572,7 +707,11 @@ base mínima para una solución robusta. El modelado documental de los eventos e
 Redis completan la propuesta multi-motor, asignando cada tipo de información a la tecnología más
 adecuada.
 
-**Pendiente:** cerrar las conclusiones una vez completada la implementación mínima.
+La implementación mínima de PostgreSQL dispone de datos sintéticos, cinco consultas representativas
+y una validación Docker exitosa del 28/08/2026, con veintitrés controles de estado, cuatro controles
+de comportamiento, quince pruebas de integridad y una prueba de concurrencia. MongoDB y Redis
+tienen también su implementación mínima verificada, de modo que las tres capas del diseño están
+cubiertas y la propuesta multi-motor queda demostrada de punta a punta.
 
 ---
 

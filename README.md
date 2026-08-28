@@ -66,7 +66,7 @@ sensible y de auditoría) está en [docs/informe.md](docs/informe.md).
 
 | Tecnología | Rol en la solución |
 | --- | --- |
-| **PostgreSQL** | Datos transaccionales y de catálogo: productos, SKU, inventario, pedidos, reseñas. Fuente de verdad del estado del negocio. |
+| **PostgreSQL** | Datos transaccionales y de catálogo: productos, SKU, precios, inventario, clientes, pedidos, reseñas y recomendaciones persistentes. **Implementado** en [`db/`](db/). |
 | **MongoDB** (Time Series Collection) | Eventos de comportamiento del usuario (`user_events`): alto volumen de escritura, esquema flexible, consulta por rangos temporales. |
 | **Redis** | Capa clave-valor: cache de recomendaciones, sesiones de visitantes anónimos, rankings precalculados y rate limit del motor. **Implementado** en [`nosql/redis/`](nosql/redis/). |
 
@@ -84,17 +84,22 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ├── docker-compose.yml              # Compose unificado (include de cada componente)
 ├── docs/
 │   ├── informe.md                  # Informe técnico (15 puntos de la consigna)
-│   ├── modelo_conceptual.md        # Entidades, atributos, relaciones y reglas de negocio
+│   ├── modelo_conceptual.md        # Entidades, atributos, relaciones, reglas y diagrama ER
+│   ├── modelo_logico_relacional.md # Tablas, claves, normalización, integración y diagrama UML
+│   ├── modelo_fisico.md            # Diagrama físico PostgreSQL, índices, triggers y notas NoSQL
 │   ├── arquitectura.md             # Arquitectura de datos y flujo de recomendación
-│   ├── ESTADO.md                   # Estado por punto de la consigna y reparto de trabajo
-│   └── (diagramas .png a exportar)
+│   └── ESTADO.md                   # Estado por punto de la consigna y reparto de trabajo
 ├── data/
 │   └── ejemplos/                   # Documentos y registros de ejemplo
 ├── db/                             # PostgreSQL
+│   ├── docker-compose.yml           #   PostgreSQL 16
+│   ├── .env.example                 #   configuración local sin secretos reales
 │   ├── estructura/                 # Scripts DDL
 │   ├── datos/                      # Carga de datos de ejemplo
 │   ├── consultas/                  # Consultas representativas (punto 8)
-│   └── indices_vistas/             # Índices y vistas
+│   ├── indices_vistas/             # Índices y vistas
+│   ├── seguridad/                  # Roles y privilegios mínimos
+│   └── validacion/                 # Controles automáticos
 ├── nosql/
 │   ├── modelo_nosql.md             # Modelo MongoDB (eventos) y Redis (clave-valor)
 │   ├── mongodb/                    # Implementación de la capa documental
@@ -124,10 +129,8 @@ El [`docker-compose.yml`](docker-compose.yml) de la raíz incorpora el compose d
 mediante `include:`, de modo que un solo comando levanta los que estén incorporados. Cada componente
 conserva su propio archivo y su propio `.env`.
 
-**Hoy levanta Redis y MongoDB**, que son los componentes implementados. El bloque de PostgreSQL está
-escrito y comentado en el compose de la raíz, a la espera de que exista su archivo: cuando se
-incorpore, descomentarlo lo suma sin tocar nada más. El estado de cada componente está en
-[docs/ESTADO.md](docs/ESTADO.md).
+**Levanta los tres componentes**: PostgreSQL, Redis y MongoDB, cada uno incorporado desde el compose
+de su propio directorio. El estado de cada uno está en [docs/ESTADO.md](docs/ESTADO.md).
 
 > `include:` requiere **Docker Compose 2.20 o posterior**. Con una versión anterior, el comando falla
 > antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
@@ -138,14 +141,14 @@ Antes de levantar la pila, cada componente necesita su `.env` creado a partir de
 ```bash
 cp nosql/redis/.env.example nosql/redis/.env
 cp nosql/mongodb/.env.example nosql/mongodb/.env
+cp db/.env.example db/.env
 ```
 
 ```bash
 docker compose up -d --wait
 ```
 
-Si falta algún `.env`, Compose corta e indica cuál. Cuando PostgreSQL esté listo, se descomenta su
-bloque en el compose de la raíz y se agrega el `cp` correspondiente.
+Si falta algún `.env`, Compose corta e indica cuál.
 
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
@@ -173,17 +176,31 @@ El script verifica lo que cargó y devuelve error si algo no cuadra. Las consult
 están en [`nosql/mongodb/consultas/`](nosql/mongodb/consultas/) y el detalle de la puesta en marcha
 en [nosql/mongodb/README.md](nosql/mongodb/README.md).
 
-### PostgreSQL (pendiente)
+### PostgreSQL (implementado y validado)
 
-> Los scripts de `db/` todavía no están implementados.
-> Ver [docs/ESTADO.md](docs/ESTADO.md) para el detalle de lo que falta.
+PostgreSQL puede levantarse junto con el resto desde la raíz o de manera aislada desde `db/`:
 
-Orden previsto de ejecución una vez implementado:
+```bash
+cd db
+cp .env.example .env
+docker compose up -d --wait
+docker compose logs postgres
+```
+
+El contenedor ejecuta en orden:
 
 1. `db/estructura/`: creación de tablas, claves y restricciones.
-2. `db/datos/`: carga de datos de ejemplo (catálogo de 8 productos y datos sintéticos).
-3. `db/indices_vistas/`: creación de índices y vistas.
+2. `db/indices_vistas/`: creación de índices y vistas.
+3. `db/datos/`: carga del catálogo y datos sintéticos.
 4. `db/consultas/`: ejecución de las 5 consultas representativas.
+5. `db/seguridad/`: creación de roles y privilegios mínimos.
+6. `db/validacion/`: controles automáticos y marca de inicialización correcta.
+
+La validación empírica actualizada se ejecutó correctamente el 28/08/2026 mediante Docker Compose
+con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las cinco
+consultas, veintitrés controles de estado, cuatro controles de comportamiento, quince pruebas de
+integridad y una prueba de concurrencia. El procedimiento reproducible está documentado en
+[`db/validacion/README.md`](db/validacion/README.md).
 
 ## Principales decisiones de diseño
 
@@ -207,7 +224,7 @@ Orden previsto de ejecución una vez implementado:
 | --- | --- | --- |
 | 1 | ¿Qué productos activos están disponibles, indicando marca, precio y stock? | PostgreSQL |
 | 2 | ¿Qué categorías generan más unidades vendidas e ingresos en un período? | PostgreSQL |
-| 3 | ¿Qué productos visitó recientemente un cliente y todavía no compró? | PostgreSQL |
+| 3 | ¿Qué clientes concentran mayor frecuencia y valor de compra? | PostgreSQL |
 | 4 | ¿Qué productos y SKU tienen stock bajo? | PostgreSQL |
 | 5 | ¿Qué productos suelen comprarse junto con un producto determinado? | PostgreSQL |
 | 6 | ¿Qué hizo un usuario en los últimos siete días? | MongoDB |
@@ -235,7 +252,7 @@ Limitaciones asumidas en esta versión:
 - Alcance de una única tienda online.
 - Pagos y envíos sólo como estados simples del pedido.
 - Sin procesamiento de imágenes, embeddings ni búsqueda vectorial.
-- Sin vinculación entre una sesión anónima y un cliente que se registra posteriormente.
+- Sin un flujo automático para vincular una sesión anónima con un cliente que se registra después.
 - Sin modelado de carritos ni promociones.
 
 Extensiones posibles:

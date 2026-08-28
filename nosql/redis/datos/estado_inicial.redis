@@ -5,20 +5,20 @@
 # ../modelo_nosql.md, seccion 2.
 #
 # Catalogo ficticio de referencia (los 8 productos del trabajo):
-#   product-001 Perfume Floral        product-005 Shampoo Nutritivo
-#   product-002 Perfume Amaderado     product-006 Labial Mate
-#   product-003 Crema Hidratante      product-007 Base Fluida
-#   product-004 Serum Vitamina C      product-008 Agua Micelar
+#   product-001 Perfume Floral Lumière       product-005 Labial Mate Carmín
+#   product-002 Eau de Parfum Nocturne       product-006 Base Fluida Natural
+#   product-003 Crema Hidratante Rosa        product-007 Shampoo Nutritivo Argán
+#   product-004 Protector Solar Facial FPS50 product-008 Acondicionador Nutritivo Argán
 # ------------------------------------------------------------
 
 # --- 1. Cache de recomendaciones (String JSON + TTL fijo) ---
 # Cliente identificado, contexto pagina principal.
 SET reco:user:user-123:home '{"generated_at":"2026-08-19T15:40:00Z","model_version":"v1","source":"motor","recommendations":[{"product_id":"product-004","score":0.94},{"product_id":"product-001","score":0.89},{"product_id":"product-003","score":0.81}]}' EX 600
 
-# Sesion anonima, contexto ficha de producto.
+# Recomendacion por sesion, con la identidad gestionada fuera de Redis.
 SET reco:sess:session-456:product '{"generated_at":"2026-08-19T15:41:00Z","model_version":"v1","source":"motor","recommendations":[{"product_id":"product-002","score":0.77},{"product_id":"product-008","score":0.71}]}' EX 600
 
-# --- 2. Sesion de visitante anonimo (Hash + TTL deslizante) ---
+# --- 2. Estado temporal de sesion (Hash + TTL deslizante) ---
 HSET session:session-456 started_at 2026-08-19T15:28:00Z last_seen_at 2026-08-19T15:41:00Z events_count 7 last_product_id product-002 preferred_category perfumes
 EXPIRE session:session-456 1800
 

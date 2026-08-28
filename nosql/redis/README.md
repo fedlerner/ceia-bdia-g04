@@ -86,7 +86,7 @@ información que deba sobrevivir puede residir únicamente en Redis.
 | Archivo | Contenido |
 | --- | --- |
 | [`01`](comandos/01_cache_recomendaciones.md) | Cache de recomendaciones: lectura, escritura con TTL, espacios de nombres, invalidación y métricas. |
-| [`02`](comandos/02_sesiones_anonimas.md) | Sesiones de visitantes anónimos y expiración deslizante. |
+| [`02`](comandos/02_sesiones_anonimas.md) | Sesiones con identidad desacoplada y expiración deslizante. |
 | [`03`](comandos/03_rankings_precalculados.md) | Rankings precalculados sobre Sorted Sets. |
 | [`04`](comandos/04_rate_limit_y_contadores.md) | Rate limit por ventana fija y contadores operativos. |
 | [`05`](comandos/05_expiracion_memoria_y_patrones.md) | Patrones de búsqueda, medición de memoria y descarte por límite. |
@@ -159,10 +159,12 @@ mediante `include:`, de modo que la capa puede levantarse de dos formas equivale
 directorio, o junto al resto de la solución desde la raíz del repositorio. **No conviene usar las dos
 a la vez**, porque los nombres de contenedor son los mismos y entran en conflicto.
 
-Para que la inclusión funcione sin modificar este archivo, los puertos salen de `.env`, los
-`container_name` llevan el prefijo `bdia_g04_` y la red se llama `bdia_g04_network` en lugar de un
-nombre propio de este componente. Al incluirse, el `name:` de este archivo se ignora y prevalece el
-del compose de la raíz.
+Para que la inclusión funcione sin modificar este archivo, los puertos salen de `.env` y los
+`container_name` llevan el prefijo `bdia_g04_`. Los tres servicios se conectan de forma explícita a
+`bdia_g04_network`, la misma red que declaran los compose de MongoDB y de PostgreSQL, de modo que al
+incluirlos desde la raíz los tres motores quedan en una sola. Al incluirse, el `name:` de este
+archivo se ignora y prevalece el del compose de la raíz, que prefija la red con el nombre del
+proyecto unificado.
 
 ## Problemas frecuentes
 

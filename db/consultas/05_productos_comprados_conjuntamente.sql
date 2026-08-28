@@ -11,7 +11,13 @@
 --           productos mediante pedidos, filtra disponibilidad y apoya recomendaciones de venta
 --           cruzada.
 
-WITH order_products AS (
+SET search_path TO bdia, public;
+
+WITH target_product AS (
+  SELECT product_id
+  FROM product
+  WHERE product_code = 'product-001'
+), order_products AS (
   SELECT DISTINCT
     o.order_id,
     s.product_id
@@ -19,8 +25,10 @@ WITH order_products AS (
   JOIN order_item oi ON oi.order_id = o.order_id
   JOIN sku s ON s.sku_id = oi.sku_id
   WHERE o.order_status = 'completed'
+    AND o.payment_status = 'approved'
 )
 SELECT
+  p2.product_code,
   p2.product_id,
   p2.name AS producto_recomendado,
   COUNT(*) AS pedidos_conjuntos
@@ -29,16 +37,13 @@ JOIN order_products op2
   ON op1.order_id = op2.order_id
  AND op1.product_id <> op2.product_id
 JOIN product p2 ON p2.product_id = op2.product_id
-WHERE op1.product_id = :product_id
+WHERE op1.product_id = (SELECT product_id FROM target_product)
   AND p2.active = TRUE
   AND EXISTS (
     SELECT 1
-    FROM sku s2
-    JOIN inventory i2 ON i2.sku_id = s2.sku_id
-    WHERE s2.product_id = p2.product_id
-      AND s2.active = TRUE
-      AND i2.available_qty > 0
+    FROM v_active_catalog vac
+    WHERE vac.product_id = p2.product_id
   )
-GROUP BY p2.product_id, p2.name
+GROUP BY p2.product_id, p2.product_code, p2.name
 ORDER BY pedidos_conjuntos DESC
 LIMIT 10;

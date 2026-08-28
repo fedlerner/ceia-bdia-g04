@@ -11,9 +11,12 @@
 --           productos próximos a agotarse. Podría justificar un índice sobre
 --           inventory(available_qty) si el volumen lo requiriera.
 
+SET search_path TO bdia, public;
+
 SELECT
   s.sku_id,
   s.sku_code,
+  p.product_code,
   p.name AS producto,
   b.name AS marca,
   i.available_qty,
@@ -23,5 +26,7 @@ JOIN sku s ON s.sku_id = i.sku_id
 JOIN product p ON p.product_id = s.product_id
 JOIN brand b ON b.brand_id = p.brand_id
 WHERE p.active = TRUE
+  AND b.active = TRUE
+  AND s.active = TRUE
   AND i.available_qty <= i.low_stock_threshold
 ORDER BY i.available_qty ASC, p.name;

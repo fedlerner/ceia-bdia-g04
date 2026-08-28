@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | **PostgreSQL** | Catálogo, SKU, inventario, clientes, pedidos, ítems, reseñas, recomendaciones persistidas | Datos relacionados, con restricciones de integridad y necesidad de consistencia |
 | **MongoDB** (`user_events`) | Eventos de interacción del usuario | Alto volumen de escritura, esquema variable por tipo de evento, consulta por rangos temporales |
-| **Redis** | Cache de recomendaciones por usuario y contexto | Evitar reejecutar el motor y las consultas ante solicitudes repetidas |
+| **Redis** | Cache de recomendaciones, estado de sesiones anónimas, rankings precalculados y contadores de rate limit | Datos temporales, descartables y sensibles a la latencia: evitan reejecutar el motor y recorrer `user_events` ante solicitudes repetidas |
 | **Motor de recomendaciones** | Consumidor de ambas fuentes | Combina estado del negocio y comportamiento observado |
 
 PostgreSQL aporta información sobre el **estado actual del negocio**; MongoDB aporta información

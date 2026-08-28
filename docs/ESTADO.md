@@ -11,75 +11,84 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | --- | --- | --- | --- | --- |
 | 1 | Análisis del caso de uso | Completo | [`informe.md` §1](informe.md) | Nada |
 | 2 | Relevamiento de datos necesarios | Completo | [`informe.md` §2–3](informe.md) | Nada |
-| 3 | Modelo conceptual | Parcial | [`modelo_conceptual.md`](modelo_conceptual.md) | Diagrama ER/UML exportado como `modelo_conceptual.png` |
-| 4 | Modelo lógico o equivalente | Parcial | [`informe.md` §5](informe.md), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | El modelo clave-valor y el documental están definidos. Falta el modelo lógico **relacional**: tablas, columnas, PK, FK, restricciones, N:M, criterios de normalización |
-| 5 | Normalización y decisiones de diseño | Parcial | [`informe.md` §6](informe.md) | La duplicación en Redis está justificada en §6.1. Falta justificar la normalización relacional y las decisiones de embebido/referencia en MongoDB |
-| 6 | Selección tecnológica | Parcial | [`informe.md` §7](informe.md) | Redis está justificado en §7.3, con sus alternativas descartadas. Falta la justificación de PostgreSQL según los 10 criterios de la consigna |
-| 7 | Modelo físico e implementación mínima | Parcial | [`../nosql/redis/`](../nosql/redis/), [`../nosql/mongodb/`](../nosql/mongodb/), [`../db/`](../db/) | Redis y MongoDB (`user_events`) están implementados. Falta DDL, carga de datos, índices y vistas en PostgreSQL |
-| 8 | Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/), [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) | Los comandos de Redis y las ocho consultas de MongoDB fueron ejecutados y verificados contra su estado inicial. Falta ajustar las SQL al modelo físico y ejecutarlas sobre datos reales |
+| 3 | Modelo conceptual | Completo | [`modelo_conceptual.md`](modelo_conceptual.md) | Nada (diagrama ER incorporado como Mermaid embebido; exportar a PNG es opcional para la entrega final) |
+| 4 | Modelo lógico o equivalente | Completo | [`informe.md` §5](informe.md), [`../db/estructura/`](../db/estructura/), diagrama UML en [`modelo_logico_relacional.md`](modelo_logico_relacional.md), [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md) | Nada |
+| 5 | Normalización y decisiones de diseño | Completo | [`informe.md` §6](informe.md) | Nada. §6 cubre la tercera forma normal del modelo relacional con sus dos redundancias controladas, la colección única de MongoDB con referencias en lugar de embebido, y la duplicación deliberada de Redis en §6.1 |
+| 6 | Selección tecnológica | Completo | [`informe.md` §7](informe.md) | Nada. Los tres motores están justificados: PostgreSQL en §7.1 contra los diez criterios que enumera la consigna, MongoDB en §7.2 y Redis en §7.3, este último con sus alternativas descartadas |
+| 7 | Modelo físico e implementación mínima | Completo | [`../nosql/redis/`](../nosql/redis/), [`../nosql/mongodb/`](../nosql/mongodb/), [`../db/`](../db/), diagrama en [`modelo_fisico.md`](modelo_fisico.md) | Los tres motores están implementados y verificados |
+| 8 | Consultas representativas | Completo | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/), [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) | Las cinco consultas de PostgreSQL se ejecutan durante la inicialización; los comandos de Redis y las ocho consultas de MongoDB fueron ejecutados y verificados contra su estado inicial |
 | 9 | Semiestructurados, no estructurados y vectorial | Parcial | [`../vectorial/modelo_vectorial.md`](../vectorial/modelo_vectorial.md) | Cerrar los cinco ítems que pide la consigna, en especial los riesgos |
 | 10 | Arquitectura de datos | Parcial | [`arquitectura.md`](arquitectura.md) | Ingesta, capa analítica, justificación del enfoque arquitectónico, `arquitectura.png` |
-| 11 | Seguridad, permisos y aislamiento | Parcial | [`informe.md` §13](informe.md) | La capa clave-valor está cubierta en §13.1. Falta la matriz de roles y permisos, las restricciones en PostgreSQL y el riesgo de exposición vía IA |
-| 12 | Escalabilidad y rendimiento | Parcial | [`informe.md` §14](informe.md) | La capa clave-valor está cubierta en §14.1, con mediciones. Falta el análisis de PostgreSQL y MongoDB: particionamiento, separación de componentes, compromisos |
+| 11 | Seguridad, permisos y aislamiento | Completo | [`informe.md` §13](informe.md), [`../db/seguridad/`](../db/seguridad/) | Los tres motores están cubiertos: PostgreSQL en §13.1, la capa clave-valor en §13.2 y la documental en §13.3. Las medidas para una futura aplicación conectada a IA quedan como propuesta porque esa aplicación está fuera del alcance |
+| 12 | Escalabilidad y rendimiento | Completo | [`informe.md` §14](informe.md) | Los tres motores tienen su análisis con evidencia medida: clave-valor en §14.1, documental en §14.2 y relacional en §14.3, cada uno con qué crece, qué lo acota, qué haría falta al escalar y el compromiso asumido |
 
 ## Entregables mínimos exigidos
 
 | Entregable | Estado | Dónde |
 | --- | --- | --- |
 | Informe técnico | Parcial | [`informe.md`](informe.md) → exportar a `informe.pdf` |
-| Modelo conceptual | Parcial | [`modelo_conceptual.md`](modelo_conceptual.md) + diagrama pendiente |
-| Modelo lógico relacional o equivalente | Parcial | Relacional pendiente; documental y clave-valor en [`../nosql/`](../nosql/) |
-| Modelo físico o equivalente | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/) y MongoDB en [`../nosql/mongodb/`](../nosql/mongodb/); relacional pendiente en [`../db/estructura/`](../db/estructura/) |
+| Modelo conceptual | Completo | [`modelo_conceptual.md`](modelo_conceptual.md) (incluye diagrama ER) |
+| Modelo lógico relacional o equivalente | Completo | Relacional en [`../db/estructura/`](../db/estructura/) y su diagrama UML en [`modelo_logico_relacional.md`](modelo_logico_relacional.md); documental y clave-valor en [`../nosql/`](../nosql/) |
+| Modelo físico o equivalente | Completo | PostgreSQL en [`../db/`](../db/) (diagrama en [`modelo_fisico.md`](modelo_fisico.md)), MongoDB en [`../nosql/mongodb/`](../nosql/mongodb/) y Redis en [`../nosql/redis/`](../nosql/redis/) |
 | Arquitectura general de datos | Parcial | [`arquitectura.md`](arquitectura.md) |
-| Archivos de implementación mínima | Parcial | Redis en [`../nosql/redis/`](../nosql/redis/) y MongoDB en [`../nosql/mongodb/`](../nosql/mongodb/); PostgreSQL pendiente |
-| Datos de ejemplo | Parcial | [`../data/ejemplos/`](../data/ejemplos/), [`../nosql/redis/datos/`](../nosql/redis/datos/) y [`../nosql/mongodb/`](../nosql/mongodb/); falta el catálogo relacional |
-| Consultas representativas | Parcial | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/) y [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) |
+| Archivos de implementación mínima | Completo | PostgreSQL en [`../db/`](../db/), MongoDB en [`../nosql/mongodb/`](../nosql/mongodb/) y Redis en [`../nosql/redis/`](../nosql/redis/) |
+| Datos de ejemplo | Completo | Catálogo y transacciones en [`../db/datos/`](../db/datos/), eventos en [`../data/ejemplos/`](../data/ejemplos/) y [`../nosql/mongodb/seed_data.json`](../nosql/mongodb/seed_data.json), y estado Redis en [`../nosql/redis/datos/`](../nosql/redis/datos/) |
+| Consultas representativas | Completo | [`../db/consultas/`](../db/consultas/), [`../nosql/redis/comandos/`](../nosql/redis/comandos/) y [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) |
 | README del proyecto | Parcial | [`../README.md`](../README.md), faltan los integrantes |
 
 ## Coherencia entre componentes
 
-- [x] Unificar los identificadores de producto entre los ejemplos de MongoDB
-  (`data/ejemplos/user_events.json`, `nosql/mongodb/seed_data.json` y `nosql/modelo_nosql.md`) y el
-  catálogo ficticio de ocho productos `product-001`–`product-008` que utilizan Redis y las consultas
-  SQL. Resuelto junto con la implementación de MongoDB.
+- [x] Unificados `product-001`–`product-008`, `user-123` y `session-456` entre PostgreSQL,
+  los ejemplos de MongoDB y Redis. PostgreSQL conserva claves internas separadas. También los códigos
+  de pedido: los eventos `purchase` usaban `order-1001` y `order-1002`, que no existían en
+  `sales_order`; ahora usan `order-321` y `order-322`, que son los pedidos completados de `user-123` y
+  `user-124` en PostgreSQL, en su mismo instante.
 
-- [ ] **Alinear las ventanas temporales de las sesiones entre PostgreSQL y MongoDB.** Las tres
-  sesiones que ambos motores comparten registran eventos fuera del período que `customer_session`
-  declara para ellas:
+  También las categorías. Tres productos estaban clasificados de otra forma en el seed de MongoDB que
+  en [`../db/datos/CATALOGO_CANONICO.md`](../db/datos/CATALOGO_CANONICO.md): `product-005` figuraba
+  como capilar en lugar de maquillaje, `product-007` como maquillaje en lugar de capilar y
+  `product-008` como skincare en lugar de capilar. La correspondencia entre el vocabulario de
+  `metadata.category_id` y las categorías principales de PostgreSQL quedó documentada en la sección
+  1.2 del modelo, para que no vuelva a desviarse al agregar eventos.
+
+- [x] **Alineadas las sesiones entre PostgreSQL y MongoDB.** PostgreSQL es el dueño de las sesiones y
+  MongoDB las referencia, según la sección 1.6 del modelo, de modo que los eventos deben caer dentro de
+  la ventana de su sesión y corresponder a su mismo cliente. Estado verificado sobre la pila levantada:
 
   | Sesión | `customer_session` (UTC) | Eventos en `user_events` |
   | --- | --- | --- |
-  | `session-456` | 08-19 15:28 a 15:45 | 08-13 10:05 a 10:12 |
-  | `session-457` | 08-23 15:00 a 15:25 | 08-18 16:00 a 16:05 |
-  | `session-460` | 08-24 23:00 a 23:30 | 08-21 11:12 a 11:15 |
+  | `session-461` | `user-123`, 08-18 15:55 a 16:10 | `user-123`, 08-18 16:00 a 16:05 |
+  | `session-456` | `user-123`, 08-19 15:28 a 15:45 | `user-123`, 08-19 15:35 a 15:42 |
+  | `session-457` | `user-124`, 08-23 15:00 a 15:25 | `user-124`, 08-23 15:00 a 15:10 |
+  | `session-458` | `user-125`, 08-24 21:00 a 21:40 | `user-125`, 08-24 21:00 a 21:03 |
+  | `session-460` | anónima, 08-24 23:00 a 23:30 | anónima, 08-24 23:00 a 23:03 |
 
-  PostgreSQL es el dueño de las sesiones y MongoDB las referencia, según la sección 1.6 del modelo,
-  de modo que los eventos deberían caer dentro de la ventana de su sesión. La validación de
-  PostgreSQL ya trata esa coherencia como una propiedad: comprueba que una recomendación no sea
-  posterior al cierre de su sesión.
+  El desajuste de fondo era que PostgreSQL definía una sola sesión por cliente y MongoDB registraba dos
+  para `user-123`, que es justamente el caso del cliente que vuelve y el que motiva la recomendación
+  personalizada. Se resolvió completando PostgreSQL con `session-461` en lugar de recortar el
+  historial documental. Los códigos inventados `session-502` y `session-901` desaparecieron: pasaron a
+  ser `session-457` y `session-458`, que sí existen.
 
-  MongoDB ya está en `main`; falta PostgreSQL. Conviene resolverlo **cuando PostgreSQL se integre**,
-  con los dos seeds a la vista, y no antes: ajustar las fechas del seed de MongoDB mueve los
-  resultados esperados de sus consultas, y hacerlo dos veces sería trabajo perdido. Al hacerlo hay
-  que actualizar esos resultados esperados en `nosql/mongodb/consultas/`.
+  Las dos compras quedaron dentro de la sesión que las origina y en el instante de su pedido:
+  `order-321` a las 08-19 15:42 en `session-456` y `order-322` a las 08-23 15:10 en `session-457`. Para
+  esto último se movió `order-322`, que estaba fuera de toda sesión de su cliente. `session-459` no
+  registra eventos, que es válido: no toda sesión genera interacciones seguidas.
 
-- [ ] **Resolver la consulta SQL 3, que asume los eventos en PostgreSQL.**
-  [`../db/consultas/03_productos_vistos_no_comprados.sql`](../db/consultas/03_productos_vistos_no_comprados.sql)
-  consulta una tabla `interaction_event` en PostgreSQL, mientras que el modelo asigna los eventos a
-  MongoDB y el esquema relacional no define esa tabla. El propio archivo declara el supuesto en un
-  comentario, pero el informe y el README la listan entre las cinco consultas representativas sin esa
-  salvedad. La rama de PostgreSQL ya tomó una decisión al respecto: reemplazó esa consulta por
-  `03_clientes_frecuencia_valor.sql`, sobre datos transaccionales, y ajustó su propio
-  `db/consultas/README.md`. Queda para resolver en esa rama antes de integrar. Cuando se defina, hay
-  que dejar alineadas las listas que enumeran las consultas en [`informe.md` §10](informe.md) y en
-  [`../README.md`](../README.md), y de paso hacer que
-  [`../db/consultas/README.md`](../db/consultas/README.md) apunte a
-  [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/), que hoy sigue enviando a
-  `modelo_nosql.md` y hablando de cuatro consultas en lugar de ocho.
+- [x] Resuelta la consulta SQL 3, que antes asumía los eventos en PostgreSQL. Consultaba una tabla
+  `interaction_event` que el modelo asigna a MongoDB y que el esquema relacional no define. Quedó
+  reemplazada por [`../db/consultas/03_clientes_frecuencia_valor.sql`](../db/consultas/03_clientes_frecuencia_valor.sql),
+  sobre datos transaccionales, y las listas de [`informe.md` §10](informe.md) y de
+  [`../README.md`](../README.md) ya la nombran.
 
-- [ ] **Definir si `session-502` y `session-901` deben existir en PostgreSQL.** El seed de MongoDB las
-  usa y `customer_session` solo define de la `session-456` a la `session-460`. Cumplen el formato que
-  exige el esquema, pero hoy apuntan a sesiones inexistentes en el motor que las posee.
+- [x] Unificado el criterio de red. PostgreSQL no declaraba ninguna y quedaba aislado en la red
+  predeterminada del proyecto, sin resolver los nombres de los otros motores. Ahora los tres declaran
+  `bdia_g04_network`, y su volumen lleva `name:` explícito como los otros dos. Comprobado sobre la
+  pila levantada desde la raíz: los seis contenedores quedan en `bdia_g04_tp_bdia_g04_network` y
+  `redis` resuelve `postgres` y `mongodb`.
+
+- [x] Resuelto el caso de `session-502` y `session-901`, los dos códigos que MongoDB usaba sin
+  respaldo en `customer_session`. Quedaron reemplazados por `session-457` y `session-458` al alinear
+  las sesiones, de modo que hoy todos los `session_code` del seed documental existen en PostgreSQL.
 
 ## Otros pendientes de entrega
 
@@ -95,18 +104,18 @@ Estados posibles: **Completo**, **Parcial** y **Pendiente**.
 | --- | --- | --- |
 | **Redis (capa clave-valor)** | Terminado y verificado | [`../nosql/redis/`](../nosql/redis/) |
 | MongoDB (eventos) | Terminado | [`../nosql/mongodb/`](../nosql/mongodb/) |
-| PostgreSQL (transaccional) | Pendiente | [`../db/`](../db/) |
+| PostgreSQL (transaccional) | Implementado y validado con Docker (23 controles de estado, 4 de comportamiento, 15 de integridad y 1 de concurrencia) | [`../db/`](../db/) |
 
-El [`docker-compose.yml`](../docker-compose.yml) de la raíz incorpora con `include:` los componentes
-ya implementados, hoy **Redis y MongoDB**. El bloque de PostgreSQL está escrito y comentado: cuando
-exista su archivo, alcanza con descomentarlo.
+El [`docker-compose.yml`](../docker-compose.yml) de la raíz incorpora los tres componentes mediante
+`include:`.
 
 Para que la inclusión funcione sin retoques, conviene que cada componente siga las mismas
 convenciones que [`../nosql/redis/`](../nosql/redis/):
 
 - compose propio con los puertos tomados de un `.env` local, nunca fijos;
 - `container_name` con el prefijo `bdia_g04_`, para que no colisionen;
-- red `bdia_g04_network`, la misma en los tres, en lugar de un nombre propio;
+- red `bdia_g04_network`, la misma en los tres, en lugar de un nombre propio o de la red
+  predeterminada del proyecto;
 - `.env.example` versionado y `.env` ignorado por git;
 - volúmenes con `name:` explícito, para que levantar desde el directorio del componente y levantar
   desde la raíz compartan los datos en lugar de crear uno por proyecto;
