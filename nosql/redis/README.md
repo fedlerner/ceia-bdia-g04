@@ -160,10 +160,11 @@ directorio, o junto al resto de la solución desde la raíz del repositorio. **N
 a la vez**, porque los nombres de contenedor son los mismos y entran en conflicto.
 
 Para que la inclusión funcione sin modificar este archivo, los puertos salen de `.env` y los
-`container_name` llevan el prefijo `bdia_g04_`. Cuando se ejecuta de forma aislada, Compose crea la
-red predeterminada del componente; cuando se incluye desde la raíz, los servicios usan la red
-predeterminada de la composición unificada. Al incluirse, el `name:` de este archivo se ignora y
-prevalece el del compose de la raíz.
+`container_name` llevan el prefijo `bdia_g04_`. Los tres servicios se conectan de forma explícita a
+`bdia_g04_network`, la misma red que declaran los compose de MongoDB y de PostgreSQL, de modo que al
+incluirlos desde la raíz los tres motores quedan en una sola. Al incluirse, el `name:` de este
+archivo se ignora y prevalece el del compose de la raíz, que prefija la red con el nombre del
+proyecto unificado.
 
 ## Problemas frecuentes
 

@@ -26,8 +26,16 @@ Además de reconstruir la base, el script ejecuta cuatro controles de
 comportamiento, quince pruebas de integridad y una prueba con dos inserciones
 concurrentes sobre el mismo pedido.
 
+El puerto se publica únicamente en `127.0.0.1`, con el valor de
+`POSTGRES_LISTEN_PORT` en `.env`, de modo que la base no queda expuesta fuera del
+equipo. Las credenciales son de entorno local y no deben reutilizarse.
+
 La opción `--reset` elimina solamente el contenedor y el volumen administrados
-por `db/docker-compose.yml`. No afecta Redis, MongoDB ni otros proyectos.
+por `db/docker-compose.yml`. No afecta a Redis ni a MongoDB, comprobado con la
+pila unificada levantada: sus contenedores y volúmenes quedan intactos. Sí
+conviene tener presente que el volumen `bdia_g04_postgres_data` lleva `name:`
+explícito y es el mismo que usa el arranque desde la raíz, igual que en los otros
+dos componentes, así que el `--reset` descarta también los datos de esa pila.
 
 Para repetir solamente los veintitrés controles de estado:
 
