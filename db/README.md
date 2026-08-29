@@ -78,6 +78,25 @@ docker compose up -d --wait
 El archivo `.env` no se versiona. Los valores de `.env.example` son únicamente
 locales y didácticos.
 
+## Conectarse a la base de datos desde DBeaver
+
+Una vez levantada la base de datos nos podemos conectar a la misma a travez de [DBeaver](https://dbeaver.io/):
+
+1. **Database → New Database Connection → PostgreSQL**.
+2. Completar con los valores de [`db/.env`](.env):
+
+   | Campo    | Valor en `.env`        |
+   | -------- | ---------------------- |
+   | Host     | `POSTGRES_DB`          
+   | Port     | `POSTGRES_LISTEN_PORT` |
+   | Database | `POSTGRES_DB`          |
+   | Username | `POSTGRES_USER`        |
+   | Password | `POSTGRES_PASSWORD`    |
+
+3. Marcar **Save password** para no reingresarla.
+4. **Test Connection** (DBeaver descarga el driver si hace falta) y **Finish**.
+
+
 ## Seguridad
 
 La matriz ejecutable de permisos está en
