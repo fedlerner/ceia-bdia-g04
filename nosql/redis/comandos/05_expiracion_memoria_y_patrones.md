@@ -125,7 +125,8 @@ INFO memory
 
 **Resultado esperado:** 268435456 bytes, la política `allkeys-lru` y el consumo actual.
 
-Para observar el descarte con evidencia medida se ejecuta, desde `nosql/redis`:
+Para observar el descarte con evidencia medida se ejecuta, desde la raíz, `make redis.demo-memory` (o,
+de forma equivalente, el comando siguiente desde `nosql/redis`):
 
 ```bash
 docker compose exec redis sh /scripts/demo_limite_memoria.sh

@@ -106,7 +106,8 @@ docker compose exec redis sh -c 'redis-cli --no-auth-warning -a "$REDIS_PASSWORD
 ```
 
 La coma separa las claves de los argumentos en la sintaxis `--eval` de `redis-cli`. El script está en
-[`../scripts/renovar_sesion.lua`](../scripts/renovar_sesion.lua).
+[`../scripts/renovar_sesion.lua`](../scripts/renovar_sesion.lua). Desde la raíz, `make redis.session-renew`
+ejecuta el mismo comando.
 
 **Resultado esperado:** `1` si renovó la sesión y `0` si ya no existía. Sobre el estado inicial
 devuelve `1`, `events_count` pasa de 7 a 8, el TTL vuelve a 1800 y la sesión conserva sus 5 campos.

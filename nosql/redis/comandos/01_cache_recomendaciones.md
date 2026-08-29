@@ -4,7 +4,8 @@ Los comandos de este archivo **se recorren en orden**: el comando 4 invalida la 
 comando 2. Ejecutado por su cuenta sobre una carga limpia, ese `DEL` devuelve `0` en lugar de `1`,
 porque la clave `reco:user:user-999:home` no forma parte del estado inicial.
 
-Los comandos se ejecutan en la consola de Redis:
+Los comandos se ejecutan en la consola de Redis, que desde la raíz se abre con `make redis.shell` (o,
+de forma equivalente, con el comando siguiente):
 
 ```bash
 docker compose exec redis sh -c 'redis-cli --no-auth-warning -a "$REDIS_PASSWORD"'

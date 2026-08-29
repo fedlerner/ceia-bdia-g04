@@ -3,7 +3,8 @@
 Estas consultas alimentan al motor de recomendaciones. Devuelven el comportamiento **reciente y
 relevante** de un usuario, por eso acotan explícitamente una ventana temporal sobre `timestamp`.
 
-Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`.
+Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`; desde la raíz, la consola se abre
+con `make mongo.shell`.
 
 Cada bloque se puede copiar y pegar tal cual. Las fechas son literales para que el resultado sea
 reproducible contra el estado inicial de [`../seed_data.json`](../seed_data.json), cuyos eventos van

@@ -29,7 +29,7 @@ de PostgreSQL continuó siendo `5432`.
 
 ## Procedimiento reproducible
 
-Desde la raíz del repositorio:
+La validación limpia completa se reproduce con el script autónomo:
 
 ```bash
 cd db
@@ -48,14 +48,19 @@ Después ejecutar:
 bash "scripts/validar_postgresql.sh" --reset
 ```
 
-Para repetir solamente los controles sobre un contenedor ya levantado:
+Para repetir las verificaciones sobre un contenedor ya levantado, el [`Makefile`](../../Makefile)
+general de la raíz expone:
 
 ```bash
-source ".env"
-docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
-  -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  < "validacion/01_validation.sql"
+make postgresql.queries      # re-ejecuta las 5 consultas
+make postgresql.checks       # 23 controles de estado
+make postgresql.integrity    # 15 pruebas de integridad
+make postgresql.concurrency  # 1 prueba de concurrencia
+make postgresql.verify       # las cuatro juntas
 ```
+
+`validar_postgresql.sh --reset` no forma parte del Makefile general porque es destructivo y gestiona
+el ciclo de vida del contenedor; queda disponible como script autónomo en modo componente.
 
 ## Controles incluidos
 

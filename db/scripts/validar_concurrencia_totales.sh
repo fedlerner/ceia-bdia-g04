@@ -15,8 +15,12 @@ set -a
 . ./.env
 set +a
 
+# Se dirige al contenedor por nombre y no con `docker compose exec`, de modo que
+# la prueba funciona igual si la pila se levanto desde la raiz del repositorio o
+# desde este directorio. Misma convencion que nosql/mongodb/Makefile y
+# nosql/redis/scripts/reiniciar_datos.sh.
 psql_base=(
-    docker compose exec -T postgres
+    docker exec -i bdia_g04_postgres
     psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 )
 
