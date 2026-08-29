@@ -257,13 +257,13 @@ PostgreSQL es el único motor con esquema relacional; Redis y MongoDB se modelan
 tienen tablas ni claves foráneas. El detalle completo está en
 [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md).
 
-**MongoDB, `user_events`** (implementado): colección única de tipo *Time
+**MongoDB, `user_events`**: colección única de tipo *Time
 Series* (`timeField: timestamp`), un documento por evento (`product_view`, `search`, `add_to_cart`,
 `purchase`), con `user_id` y/o `session_id`, `event_type` y `metadata` de forma libre. No tiene
 relaciones ni claves foráneas: el vínculo con PostgreSQL es lógico, a través de los códigos
 compartidos (ver sección 6).
 
-**Redis** (implementado): cuatro familias de claves, sin esquema ni índices secundarios propios; la
+**Redis**: cuatro familias de claves, sin esquema ni índices secundarios propios; la
 clave misma cumple ese rol.
 
 | Estructura | Clave | Tipo Redis |

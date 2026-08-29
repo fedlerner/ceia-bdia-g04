@@ -549,7 +549,7 @@ de tarjetas ni credenciales de clientes en el modelo. Las credenciales locales d
 toman de un `.env` ignorado por Git y los puertos de PostgreSQL y Redis se publican únicamente en
 `127.0.0.1`.
 
-### 13.1 Seguridad de PostgreSQL (implementado)
+### 13.1 Seguridad de PostgreSQL
 
 La matriz se implementa en
 [`../db/seguridad/01_roles_permisos.sql`](../db/seguridad/01_roles_permisos.sql).
@@ -602,7 +602,7 @@ de nombre, correo o teléfono y evitar registrar datos personales en prompts o l
 de integración documentadas; su ejecución queda fuera de esta entrega porque no se desarrolla una
 aplicación ni un modelo de IA.
 
-### 13.2 Seguridad de la capa clave-valor (implementado)
+### 13.2 Seguridad de la capa clave-valor
 
 | Aspecto | Decisión |
 | --- | --- |
@@ -634,7 +634,7 @@ para construir la clave.
 
 ---
 
-### 13.3 Seguridad de la capa documental (implementado)
+### 13.3 Seguridad de la capa documental
 
 | Aspecto | Decisión |
 | --- | --- |
@@ -671,7 +671,7 @@ eventos se mantienen separados del modelo transaccional para no sobrecargarlo co
 crece de forma continua y tiene propósito principalmente analítico. Cada capa se analiza por separado
 en las tres subsecciones siguientes, con la evidencia medida sobre la implementación.
 
-### 14.1 Escalabilidad de la capa clave-valor (implementado)
+### 14.1 Escalabilidad de la capa clave-valor
 
 **Qué crece:** las entradas de cache crecen con clientes activos × contextos; las sesiones, con
 visitantes concurrentes, aunque se autolimitan por el TTL de 30 minutos; los rankings están acotados
@@ -707,7 +707,7 @@ corresponde a esta capa, porque depende del motor que queda fuera del alcance, y
 por una espera fija de 250 ms. La relación entre ambos ilustra el orden de magnitud esperable, no un
 resultado verificado del camino completo.
 
-### 14.2 Escalabilidad de la capa documental (implementado)
+### 14.2 Escalabilidad de la capa documental
 
 **Qué crece:** `user_events` es la estructura de mayor crecimiento del diseño, porque los eventos se
 agregan de forma continua y no se modifican.
@@ -735,7 +735,7 @@ sesión exige acotar además la ventana temporal, y las consultas del modelo la 
 índice adicional sobre `session_id` aceleraría ese acceso a cambio de encarecer cada escritura, que es
 la operación dominante en esta colección.
 
-### 14.3 Escalabilidad de la capa relacional (implementado)
+### 14.3 Escalabilidad de la capa relacional
 
 **Qué crece:** `sales_order`, `order_item` e `inventory_movement`, que acumulan una fila por operación
 y no se depuran.

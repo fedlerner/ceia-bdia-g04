@@ -183,7 +183,7 @@ convenciones:
 - `.env.example` versionado y `.env` ignorado por git;
 - una carga que verifique lo que dejó y devuelva error si algo no cuadra.
 
-### Redis (implementado)
+### Redis
 
 Carga del estado inicial y verificación:
 
@@ -194,7 +194,7 @@ docker compose exec redis sh /scripts/00_cargar_datos.sh
 Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
 de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
 
-### MongoDB (implementado)
+### MongoDB
 
 Creación de la colección `user_events` y carga de los eventos de ejemplo:
 
@@ -206,7 +206,7 @@ El script verifica lo que cargó y devuelve error si algo no cuadra. Las consult
 están en [`nosql/mongodb/consultas/`](nosql/mongodb/consultas/) y el detalle de la puesta en marcha
 en [nosql/mongodb/README.md](nosql/mongodb/README.md).
 
-### PostgreSQL (implementado y validado)
+### PostgreSQL
 
 PostgreSQL puede levantarse junto con el resto desde la raíz o de manera aislada desde `db/`:
 
