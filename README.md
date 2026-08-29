@@ -167,6 +167,20 @@ docker compose up -d --wait
 
 Si falta algún `.env`, Compose corta e indica cuál.
 
+Ese comando deja los tres motores arriba, pero **solo PostgreSQL queda con datos**. Sus scripts se
+montan en `/docker-entrypoint-initdb.d/` y el motor los ejecuta en el primer arranque, de modo que el
+healthcheck no da la base por sana hasta que terminaron el esquema, los índices, los datos de ejemplo,
+los roles y la validación. Redis y MongoDB arrancan vacíos a propósito, y cargarlos es un paso
+explícito:
+
+```bash
+docker compose exec redis sh /scripts/00_cargar_datos.sh
+make -C nosql/mongodb generar-datos
+```
+
+Las dos cargas verifican lo que dejaron y devuelven error si algo no cuadra. Cada una se detalla más
+abajo, junto con las consultas y comandos de su motor.
+
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
 
