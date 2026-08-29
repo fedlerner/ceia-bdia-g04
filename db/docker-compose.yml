@@ -23,6 +23,7 @@ services:
       - ./consultas/03_clientes_frecuencia_valor.sql:/docker-entrypoint-initdb.d/04_03_clientes.sql:ro
       - ./consultas/04_stock_bajo.sql:/docker-entrypoint-initdb.d/04_04_stock.sql:ro
       - ./consultas/05_productos_comprados_conjuntamente.sql:/docker-entrypoint-initdb.d/04_05_compra_conjunta.sql:ro
+      - ./consultas/06_ranking_productos_por_ingresos.sql:/docker-entrypoint-initdb.d/04_06_ranking_ingresos.sql:ro
       - ./seguridad/01_roles_permisos.sql:/docker-entrypoint-initdb.d/05_roles_permisos.sql:ro
       - ./validacion/01_validation.sql:/docker-entrypoint-initdb.d/06_validation.sql:ro
     healthcheck:
