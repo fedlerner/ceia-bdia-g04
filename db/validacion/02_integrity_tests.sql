@@ -518,3 +518,59 @@ $$;
 
 ROLLBACK;
 \echo '15 | Rol analítico lee catálogo sin acceder a datos identificatorios | OK'
+
+BEGIN;
+SET LOCAL ROLE bdia_app;
+
+DO $$
+DECLARE
+    test_product_id BIGINT;
+    test_sku_id BIGINT;
+BEGIN
+    SELECT product_id INTO STRICT test_product_id
+    FROM product
+    WHERE product_code = 'product-001';
+
+    INSERT INTO sku (product_id, sku_code, presentation)
+    VALUES (test_product_id, 'TEST-AUTO-INV', 'SKU temporal de validación')
+    RETURNING sku_id INTO test_sku_id;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM inventory
+        WHERE sku_id = test_sku_id
+          AND available_qty = 0
+          AND low_stock_threshold = 0
+    ) THEN
+        RAISE EXCEPTION 'ERROR: el SKU nuevo no aprovisionó su fila de inventario';
+    END IF;
+END;
+$$;
+
+ROLLBACK;
+\echo '16 | Alta de SKU aprovisiona exactamente una fila de inventario | OK'
+
+DO $$
+DECLARE
+    test_sku_id BIGINT;
+BEGIN
+    SELECT sku_id INTO STRICT test_sku_id
+    FROM sku
+    WHERE sku_code = 'AUR-LUM-050';
+
+    BEGIN
+        DELETE FROM inventory
+        WHERE sku_id = test_sku_id;
+
+        RAISE EXCEPTION 'ERROR: se eliminó el inventario obligatorio de un SKU existente';
+    EXCEPTION
+        WHEN foreign_key_violation THEN
+            NULL;
+    END;
+
+    IF NOT EXISTS (SELECT 1 FROM inventory WHERE sku_id = test_sku_id) THEN
+        RAISE EXCEPTION 'ERROR: la fila de inventario no se restauró tras el rechazo';
+    END IF;
+END;
+$$;
+\echo '17 | Eliminación del inventario obligatorio rechazada | OK'

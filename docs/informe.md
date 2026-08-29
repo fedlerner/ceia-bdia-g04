@@ -221,7 +221,8 @@ tener precios y existencias distintos.
 Las cardinalidades que definen la forma del modelo son estas: una marca tiene muchos productos y un
 producto tiene muchos SKU, ambas 1:N; producto y categoría es N:M, porque un producto puede
 clasificarse en más de una, con una marcada como principal para no contar dos veces una misma venta;
-cada SKU tiene una fila de inventario, 1:1; y un cliente tiene muchos pedidos y muchas reseñas. Los
+cada SKU tiene obligatoriamente una fila de inventario, 1:1, creada automáticamente y protegida
+contra eliminación o reasignación mientras el SKU exista; y un cliente tiene muchos pedidos y muchas reseñas. Los
 eventos y las recomendaciones cuelgan del cliente **o de la sesión**, que es lo que permite atender
 también al visitante anónimo.
 
@@ -405,9 +406,9 @@ restricciones, índices y estructuras de acceso, está en [`modelo_fisico.md`](m
 | **MongoDB** (`user_events`) | **Implementada y verificada**, en [`../nosql/mongodb/`](../nosql/mongodb/) |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
-La validación actualizada de la capa relacional se ejecutó correctamente el 28/08/2026 con Docker
-Compose. El contenedor quedó `Up (healthy)` y pasaron veintitrés controles de estado, cuatro
-controles de comportamiento, quince pruebas de integridad y una prueba concurrente. El procedimiento
+La validación actualizada de la capa relacional se ejecutó correctamente el 29/08/2026 con Docker
+Compose. El contenedor quedó `Up (healthy)` y pasaron veinticuatro controles de estado, cuatro
+controles de comportamiento, diecisiete pruebas de integridad y una prueba concurrente. El procedimiento
 y la evidencia se encuentran en
 [`../db/validacion/README.md`](../db/validacion/README.md).
 
@@ -572,9 +573,9 @@ al administrador, y **todas las funciones disparadoras que consultan tablas fija
 `search_path`**, aunque no sean `SECURITY DEFINER`: sin eso, una sesión podía crear una tabla temporal
 que sombreara `order_item` y burlar la validación de ventas. Se revocó de `PUBLIC` el acceso al
 esquema, a tablas, secuencias y funciones, y se definieron privilegios predeterminados restrictivos
-para las funciones que se creen más adelante. Comprobado sobre la base: las ocho funciones del esquema
-quedan con el ACL `bdia_admin=X/bdia_admin`, ninguna es ejecutable por `PUBLIC`, y una función creada
-después del script nace con el mismo ACL restringido.
+para las funciones que se creen más adelante. El esquema define diez funciones; el DDL revoca de
+`PUBLIC` las funciones elevadas y el script de seguridad restringe nuevamente el conjunto completo,
+incluidas las funciones que se creen después mediante sus privilegios predeterminados.
 
 Los movimientos de inventario son además inmutables: el rol operativo solo puede insertarlos y el
 DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifican tanto los accesos
@@ -811,8 +812,8 @@ Redis completan la propuesta multi-motor, asignando cada tipo de información a 
 adecuada.
 
 La implementación mínima de PostgreSQL dispone de datos sintéticos, cinco consultas representativas
-y una validación Docker exitosa del 28/08/2026, con veintitrés controles de estado, cuatro controles
-de comportamiento, quince pruebas de integridad y una prueba de concurrencia. MongoDB y Redis
+y una validación Docker exitosa del 29/08/2026, con veinticuatro controles de estado, cuatro controles
+de comportamiento, diecisiete pruebas de integridad y una prueba de concurrencia. MongoDB y Redis
 tienen también su implementación mínima verificada, de modo que las tres capas del diseño están
 cubiertas y la propuesta multi-motor queda demostrada de punta a punta.
 

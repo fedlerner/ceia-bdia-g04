@@ -6,14 +6,14 @@ La implementación mínima de PostgreSQL fue ejecutada inicialmente el **25/08/2
 Compose y PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y los
 14 controles originales devolvieron `OK`.
 
-La ejecución actualizada se realizó correctamente el **28/08/2026** mediante Docker Compose y
+La ejecución actualizada se realizó correctamente el **29/08/2026** mediante Docker Compose y
 PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y pasaron las
-cinco consultas, 23 controles de estado, 4 controles de comportamiento, 15 pruebas de integridad y
+cinco consultas, 24 controles de estado, 4 controles de comportamiento, 17 pruebas de integridad y
 1 prueba de concurrencia. La salida final fue:
 
 ```text
-VALIDACIÓN COMPLETA: 5 consultas, 23 controles de estado,
-4 controles de comportamiento, 15 controles de integridad
+VALIDACIÓN COMPLETA: 5 consultas, 24 controles de estado,
+4 controles de comportamiento, 17 controles de integridad
 y 1 control de concurrencia OK.
 ```
 
@@ -73,7 +73,9 @@ códigos externos canónicos y atributos de las variantes. La ampliación agrega
 - separación entre lectura analítica y datos identificatorios;
 - salida no nula de `psql` cuando falla una invariante;
 - dependencia del healthcheck respecto de la validación completa;
-- conservación del total ante dos inserciones concurrentes.
+- conservación del total ante dos inserciones concurrentes;
+- obligatoriedad de una fila de inventario por SKU, incluido el aprovisionamiento automático al dar de alta un SKU;
+- rechazo de la eliminación del inventario obligatorio mientras exista el SKU.
 
 Los datos sintéticos esperados son 8 productos, 10 SKU, 5 clientes, 6 sesiones, 5 pedidos, 10 ítems,
 2 recomendaciones y 4 ítems de recomendación. La prueba concurrente crea un pedido temporal y lo

@@ -120,7 +120,7 @@ if printf '%s\n' "$resultado_compra_conjunta_no_vendible" | grep -Fq 'product-00
 fi
 echo "  - Compra conjunta exige marca activa y precio vigente | OK"
 
-echo "6/10 Ejecutando los veintitrés controles de estado..."
+echo "6/10 Ejecutando los veinticuatro controles de estado..."
 resultado="$({
     docker compose exec -T postgres \
         psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
@@ -134,8 +134,8 @@ if printf '%s\n' "$resultado" | grep -q '| ERROR'; then
 fi
 
 controles_ok="$(printf '%s\n' "$resultado" | grep -c '| OK' || true)"
-if [ "$controles_ok" -ne 23 ]; then
-    echo "ERROR: se esperaban 23 controles OK y se detectaron $controles_ok." >&2
+if [ "$controles_ok" -ne 24 ]; then
+    echo "ERROR: se esperaban 24 controles OK y se detectaron $controles_ok." >&2
     exit 1
 fi
 
@@ -208,8 +208,8 @@ resultado_integridad="$({
 printf '%s\n' "$resultado_integridad"
 
 controles_integridad_ok="$(printf '%s\n' "$resultado_integridad" | grep -c '| OK' || true)"
-if [ "$controles_integridad_ok" -ne 15 ]; then
-    echo "ERROR: se esperaban 15 controles de integridad OK y se detectaron $controles_integridad_ok." >&2
+if [ "$controles_integridad_ok" -ne 17 ]; then
+    echo "ERROR: se esperaban 17 controles de integridad OK y se detectaron $controles_integridad_ok." >&2
     exit 1
 fi
 
@@ -218,7 +218,7 @@ bash scripts/validar_concurrencia_totales.sh
 
 trap - EXIT
 echo ""
-echo "VALIDACIÓN COMPLETA: 5 consultas, 23 controles de estado,"
-echo "4 controles de comportamiento, 15 controles de integridad"
+echo "VALIDACIÓN COMPLETA: 5 consultas, 24 controles de estado,"
+echo "4 controles de comportamiento, 17 controles de integridad"
 echo "y 1 control de concurrencia OK."
 echo "PostgreSQL permanece levantado para revisión manual."

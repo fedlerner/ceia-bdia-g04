@@ -76,8 +76,8 @@ GRANT UPDATE (presentation, size_value, size_unit, attributes, active) ON sku TO
 GRANT INSERT (sku_id, amount, currency, valid_from, valid_to) ON sku_price TO bdia_app;
 GRANT UPDATE (valid_to) ON sku_price TO bdia_app;
 
--- available_qty nace en cero y solo cambia al insertar inventory_movement.
-GRANT INSERT (sku_id, low_stock_threshold) ON inventory TO bdia_app;
+-- La fila de inventario nace automáticamente con cada SKU; el rol operativo
+-- solo puede ajustar su umbral. available_qty cambia al insertar movimientos.
 GRANT UPDATE (low_stock_threshold) ON inventory TO bdia_app;
 GRANT INSERT (
     sku_id, order_id, movement_type, quantity_change, reason

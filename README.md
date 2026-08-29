@@ -240,9 +240,9 @@ El contenedor ejecuta en orden:
 5. `db/seguridad/`: creación de roles y privilegios mínimos.
 6. `db/validacion/`: controles automáticos y marca de inicialización correcta.
 
-La validación empírica actualizada se ejecutó correctamente el 28/08/2026 mediante Docker Compose
+La validación empírica actualizada se ejecutó correctamente el 29/08/2026 mediante Docker Compose
 con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las cinco
-consultas, veintitrés controles de estado, cuatro controles de comportamiento, quince pruebas de
+consultas, veinticuatro controles de estado, cuatro controles de comportamiento, diecisiete pruebas de
 integridad y una prueba de concurrencia. El procedimiento reproducible está documentado en
 [`db/validacion/README.md`](db/validacion/README.md).
 
