@@ -244,5 +244,5 @@ unicidad, 39 `CHECK` y una de exclusión. Las reglas del dominio que expresan so
 Tres de ellas no se pueden expresar con un `CHECK` de columna y por eso llevan un mecanismo propio: el
 precio vigente único por SKU usa la restricción de exclusión `sku_price_no_overlapping_periods_excl`;
 la categoría principal única usa un índice único parcial; y la inmutabilidad de los movimientos de
-inventario usa un trigger, porque debe rechazar la operación y no sólo evaluar una fila. El detalle de
+inventario usa un trigger, porque debe rechazar la operación y no solo evaluar una fila. El detalle de
 cada una está en [`modelo_fisico.md`](modelo_fisico.md).

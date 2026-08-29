@@ -30,7 +30,7 @@ clave no existe, la inicializa en cero antes de incrementar, y ese comportamient
 escribir el rate limit del comando siguiente sin comprobar previamente si la ventana ya existía.
 
 En un motor relacional, un `UPDATE contadores SET valor = valor + 1` requiere una fila, un bloqueo y
-una transacción. Acá el contador es la clave, y el costo de la operación es O(1).
+una transacción. Aquí el contador es la clave, y el costo de la operación es O(1).
 
 Estos contadores no tienen expiración, a diferencia del resto de las estructuras de la capa. Eso no
 los vuelve durables: al no haber persistencia se pierden con cada reinicio del contenedor y
@@ -95,7 +95,7 @@ con el formato `AAAAMMDDHHmm`. En el ejemplo, `202608191542` corresponde al minu
 propio contador y no hace falta borrar el anterior.
 
 Resolver esto en PostgreSQL exigiría una tabla de solicitudes con su marca temporal, un `COUNT(*)`
-con filtro por fecha en cada solicitud y un proceso de purga. Acá son dos operaciones O(1) y la purga
+con filtro por fecha en cada solicitud y un proceso de purga. Aquí son dos operaciones O(1) y la purga
 es automática.
 
 ### Limitación: el rate limit falla abierto bajo presión de memoria
@@ -109,7 +109,7 @@ Comprobado: con un contador en 30 de 30 y `maxmemory` forzado al límite, la cla
 `INCR` siguiente devolvió 1.
 
 Redis no permite asignar prioridad de desalojo por clave, de modo que dentro de una única instancia
-no hay forma de proteger estos contadores. Lo aceptamos en este alcance porque la función del rate limit
+no es posible proteger estos contadores. Lo aceptamos en este alcance porque la función del rate limit
 aquí es acotar el uso normal y evitar invocaciones repetidas al motor, no resistir un abuso
 deliberado. Una implementación en producción aislaría los contadores en una instancia o base
 independiente cuya política no los desaloje, o los complementaría con un mecanismo que falle cerrado
@@ -168,6 +168,6 @@ ninguno de los dos es directamente el valor de esas cabeceras:
   `restantes = limite - consumidas`.
 - `TTL` devuelve lo que le queda de vida a la clave, que **no coincide** con el momento en que se
   reinicia la cuota. La cuota se reinicia al cambiar de minuto, mientras que el TTL vence 60 segundos
-  después de la primera solicitud de la ventana. Sólo coinciden si esa primera solicitud cae justo en
+  después de la primera solicitud de la ventana. Solo coinciden si esa primera solicitud cae justo en
   el límite del minuto. El backend debe derivar el reinicio del próximo cambio de minuto, o bien
   alinear la expiración a ese borde en lugar de usar 60 segundos fijos.

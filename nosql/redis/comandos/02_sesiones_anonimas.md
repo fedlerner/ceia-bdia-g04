@@ -119,7 +119,7 @@ resultado es una sesión de tres campos que no registra cuándo empezó ni qué 
 dato que ensucia cualquier análisis de duración o de comportamiento.
 
 **Por qué un script y no una transacción.** `MULTI` garantiza que las escrituras se apliquen juntas,
-pero **no puede ramificar según un resultado intermedio**: no hay forma de decir "si la clave no
+pero **no puede ramificar según un resultado intermedio**: no es posible expresar "si la clave no
 existe, no hagas nada". Esa es exactamente la carencia. Redis ejecuta cada script de forma atómica, de
 modo que entre el `EXISTS` y las escrituras no puede intercalarse ninguna otra operación.
 
@@ -159,7 +159,7 @@ El TTL de cinco segundos se usa únicamente para hacer observable en una prueba 
 en la solución real tarda 30 minutos.
 
 Al vencer, `session:session-tmp` desaparece y la base vuelve a tener las seis claves de la carga
-inicial: esta comprobación no deja claves de más ni de menos. Lo que sí quedó modificado es
-`session:session-456`, porque el comando anterior le incrementó `events_count`, le cambió
+inicial: esta comprobación no deja claves de más ni de menos. En cambio, `session:session-456` sí
+quedó modificado, porque el comando anterior le incrementó `events_count`, le cambió
 `last_seen_at` y `last_product_id` y le renovó el TTL. Para volver a los valores originales,
 `scripts/reiniciar_datos.sh` recarga el estado inicial.

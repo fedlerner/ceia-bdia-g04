@@ -48,7 +48,7 @@ En Windows PowerShell, el primer comando es `Copy-Item .env.example .env`.
 
 RedisInsight se conecta con host `redis`, puerto `6379` y la contraseña definida en `REDIS_PASSWORD`
 (`bdia_local_pass` si no se modificó el `.env.example`). Al ser una interfaz gráfica, el valor se
-escribe a mano: no hay forma de expandir la variable. El host `redis` solo existe dentro de la red de
+se escribe manualmente: la interfaz no expande la variable. El host `redis` solo existe dentro de la red de
 Docker; el acceso desde el navegador es por `localhost:5540`.
 
 ## Configuración
@@ -128,7 +128,6 @@ scripts/reiniciar_datos.sh       restauracion del estado inicial
 scripts/renovar_sesion.lua       renovacion atomica de sesion sin revivirla
 scripts/demo_cache_aside.py      medicion de latencia MISS contra HIT
 scripts/demo_limite_memoria.sh   limite de memoria y descarte de claves
-scripts/renovar_sesion.lua       renovacion atomica de sesion
 scripts/requirements.txt         version de redis-py
 comandos/                        comandos representativos por estructura
 ```
@@ -143,6 +142,11 @@ Para volver al estado inicial sin recrear los contenedores:
 ```bash
 sh scripts/reiniciar_datos.sh
 ```
+
+Conviene tener presente que cuatro de las seis claves iniciales llevan TTL y vencen solas al cabo de
+entre 10 y 60 minutos. A partir de ese momento `DBSIZE` devuelve 2, porque quedan únicamente los dos
+contadores, que se crean sin vencimiento. No es una falla: es el comportamiento que el diseño
+describe, y el mismo script restaura las seis claves cuando hace falta reproducir los ejemplos.
 
 Para detener la pila conservando el volumen de RedisInsight:
 

@@ -64,7 +64,7 @@ valor de 600 segundos se ubica dentro del rango de 5 a 15 minutos definido en el
 
 La expiración automática es una de las razones por las que elegimos Redis para esta capa. En un
 motor relacional habría que agregar una columna de vencimiento y un proceso programado que eliminara
-las filas vencidas; acá el vencimiento es una propiedad de la clave.
+las filas vencidas; aquí el vencimiento es una propiedad de la clave.
 
 ## Comando 3. Distinguir cliente identificado de sesión anónima
 
@@ -107,7 +107,7 @@ GET reco:user:user-999:home
 **Justificación:** el TTL es la política por defecto y cubre el envejecimiento normal de la cache.
 `DEL` es la vía para los eventos que no pueden esperar al vencimiento.
 
-A diferencia de un `DELETE` relacional, acá no hay integridad referencial ni transacción que proteger:
+A diferencia de un `DELETE` relacional, aquí no hay integridad referencial ni transacción que proteger:
 el dato es descartable y se regenera con el motor.
 
 ## Comando 5. Invalidar la cache de un cliente tras una compra

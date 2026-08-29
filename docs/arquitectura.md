@@ -78,7 +78,7 @@ Este es el recorrido, con los elementos que enumera.
 | Datos preparados para IA | El contexto que se arma para el motor: el historial reciente del cliente que devuelve MongoDB, más el estado del negocio que aporta PostgreSQL. La salida del motor vuelve como recomendación persistida en PostgreSQL y como entrada de cache en Redis. |
 | Componentes de consulta | Las cinco consultas SQL de [`../db/consultas/`](../db/consultas/), las ocho de MongoDB en [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) y los comandos de Redis en [`../nosql/redis/comandos/`](../nosql/redis/comandos/). |
 | Consumidores de datos | El motor de recomendaciones, la aplicación que muestra el catálogo y las recomendaciones, y el analista que mira indicadores comerciales. |
-| Usuarios o aplicaciones | Cliente identificado y visitante anónimo, que acceden sólo a través de la aplicación; operador del negocio; analista; y administrador de la base. Ninguno se conecta directamente a los motores: la matriz de roles está en la sección 13 del informe. |
+| Usuarios o aplicaciones | Cliente identificado y visitante anónimo, que acceden solo a través de la aplicación; operador del negocio; analista; y administrador de la base. Ninguno se conecta directamente a los motores: la matriz de roles está en la sección 13 del informe. |
 
 ## 5. Por qué una arquitectura simple y no un Data Warehouse
 
@@ -87,7 +87,7 @@ Data Warehouse, un Data Lake, un Lakehouse u otro enfoque. Elegimos una **arquit
 multi-motor** y descartamos las otras por lo siguiente.
 
 Un **Data Warehouse** resuelve la consulta analítica sobre datos históricos integrados de varias
-fuentes, normalmente con un modelo dimensional y una carga periódica. Acá la fuente es una sola tienda,
+fuentes, normalmente con un modelo dimensional y una carga periódica. Aquí la fuente es una sola tienda,
 el horizonte útil son 90 días y las consultas analíticas del punto 8 se responden con agregaciones
 sobre los motores operacionales. Montarlo agregaría un proceso de carga, una latencia y un modelo más
 que mantener, sin resolver ninguna pregunta que hoy no se pueda contestar.
@@ -103,8 +103,11 @@ justificar en un caso cuyo volumen no exige distribución.
 Una **arquitectura por capas** con una capa analítica separada es la que primero haría falta si el
 caso creciera, y por eso queda anotada como el camino de evolución: la señal para construirla es
 necesitar un horizonte más largo que la retención, o que las agregaciones empiecen a competir con la
-operación. Mientras eso no ocurra, la separación por responsabilidad que ya existe entre los tres
-motores cumple el mismo objetivo con mucho menos costo.
+operación. Ante esta segunda señal, el primer paso previsto tiene un costo menor que el de
+una capa completa: una réplica de solo lectura de PostgreSQL para las consultas del analista, que
+separa el camino analítico del transaccional sin agregar un modelo nuevo ni un proceso de carga. Se
+analiza en la sección 14.3 del informe. Mientras nada de esto ocurra, la separación por
+responsabilidad que ya existe entre los tres motores cumple el mismo objetivo con mucho menos costo.
 
 ## 6. Diagramas
 

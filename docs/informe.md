@@ -9,6 +9,18 @@ Año 2026, Grupo 04
 
 > Este informe sigue el índice de 15 puntos exigido por la consigna.
 
+Los diagramas viven en archivos propios dentro de `docs/` y de `nosql/`, siguiendo la estructura que
+sugiere la consigna. Están escritos en Mermaid dentro del Markdown, de modo que se versionan como
+texto y se renderizan en el repositorio. Esta es su ubicación:
+
+| Diagrama | Dónde | Punto |
+| --- | --- | --- |
+| Entidad-relación del dominio | [`modelo_conceptual.md`](modelo_conceptual.md), sección 7 | 3 |
+| Clases UML del modelo lógico | [`modelo_logico_relacional.md`](modelo_logico_relacional.md) | 4 |
+| Modelo físico de PostgreSQL | [`modelo_fisico.md`](modelo_fisico.md), sección 1 | 7 |
+| Colecciones de MongoDB, integración con PostgreSQL y capa clave-valor | [`../nosql/modelo_nosql.md`](../nosql/modelo_nosql.md), secciones 1.1, 1.6 y 2 | 4 y 7 |
+| Integración entre motores y flujo de recomendación | [`arquitectura.md`](arquitectura.md), secciones 2 y 3 | 10 |
+
 ---
 
 ## Resumen ejecutivo
@@ -197,8 +209,8 @@ la generación de embeddings y la búsqueda vectorial (ver
 
 ## 4. Modelo conceptual
 
-El dominio se organiza en once entidades: usuario y rol; marca, categoría, producto y SKU;
-inventario; pedido e ítem de pedido; evento de interacción; reseña; y recomendación con sus ítems. El
+El dominio se organiza en once entidades: cliente y sesión; marca, categoría, producto y SKU;
+inventario; pedido con sus ítems; evento de interacción; reseña; y recomendación con sus ítems. El
 detalle de atributos está en [`modelo_conceptual.md`](modelo_conceptual.md), junto con el diagrama.
 
 La distinción que ordena el resto es la de **producto y SKU**. El producto es el concepto comercial,
@@ -209,15 +221,16 @@ tener precios y existencias distintos.
 Las cardinalidades que definen la forma del modelo son estas: una marca tiene muchos productos y un
 producto tiene muchos SKU, ambas 1:N; producto y categoría es N:M, porque un producto puede
 clasificarse en más de una, con una marcada como principal para no contar dos veces una misma venta;
-cada SKU tiene una fila de inventario, 1:1; y un cliente tiene muchos pedidos, muchos eventos, muchas
-reseñas y muchas recomendaciones.
+cada SKU tiene una fila de inventario, 1:1; y un cliente tiene muchos pedidos y muchas reseñas. Los
+eventos y las recomendaciones cuelgan del cliente **o de la sesión**, que es lo que permite atender
+también al visitante anónimo.
 
 Cinco reglas del dominio condicionan el diseño más que las demás. El código de SKU es único. El precio
 aplicado se conserva en el ítem de pedido aunque después cambie el precio vigente, porque perderlo
 sería perder la historia comercial. Un producto inactivo o sin stock no se recomienda para compra
 inmediata. Los pedidos cancelados no cuentan como compras efectivas. Y todo evento conserva fecha y
-hora y se asocia a un cliente o a una sesión, que es lo que permite atender también al visitante
-anónimo. Las diez reglas completas están en el documento del modelo.
+hora y se asocia a un cliente o a una sesión. Las doce reglas completas están en el documento del
+modelo.
 
 Resumen de la lógica general:
 
@@ -348,7 +361,7 @@ aceptable; servir un precio o un stock desactualizado no lo es, y por eso esos d
 Redis.
 
 El problema que resuelve es de latencia. El demo lo ilustra con 258 ms por el camino del motor contra
-0,60 ms desde Redis. **Sólo el segundo número es una medición**: el lado del MISS no ejecuta el motor
+0,60 ms desde Redis. **Solo el segundo número es una medición**: el lado del MISS no ejecuta el motor
 de recomendaciones, que queda fuera del alcance del trabajo, sino que lo sustituye por una espera fija
 de 250 ms elegida como valor plausible. Lo que la corrida demuestra es el mecanismo y el costo real de
 resolver desde Redis, que es lo que corresponde a esta capa. La magnitud de la mejora en un sistema
@@ -360,7 +373,7 @@ real dependerá de cuánto tarde el motor que se construya sobre ella.
 | --- | --- |
 | Cache en memoria del proceso backend | No se comparte entre instancias: cada réplica ejecutaría el motor por su cuenta y la tasa de aciertos caería al escalar horizontalmente. Tampoco sobrevive a un reinicio del proceso. |
 | Vista materializada en PostgreSQL | Sirve para el ranking agregado, pero no para recomendaciones personalizadas por cliente y contexto. Además cargaría de escrituras la base transaccional y no ofrece expiración automática. |
-| Memcached | Cubre la cache pura y también el rate limit, porque dispone de incremento atómico y de expiración. Lo que no ofrece son estructuras más allá del String: no resolvería la sesión como Hash ni el ranking como Sorted Set, que tendrían que serializarse y reescribirse enteros en cada actualización. |
+| Memcached | Cubre la cache pura y también el rate limit, porque dispone de incremento atómico y de expiración. No ofrece estructuras más allá del String: no resolvería la sesión como Hash ni el ranking como Sorted Set, que tendrían que serializarse y reescribirse enteros en cada actualización. |
 | No usar cache | Cada solicitud ejecutaría el motor y el modelo de IA, que son los componentes más costosos de la arquitectura. |
 
 **Complejidad operativa:** baja. La capa de datos es **un único servidor**, sin esquema que migrar y
@@ -378,7 +391,9 @@ ningún dato de esta capa es fuente de verdad.
 
 ## 8. Implementación mínima realizada
 
-Los tres motores tienen su implementación mínima ejecutada y verificada.
+Los tres motores tienen su implementación mínima ejecutada y verificada. El modelo físico que
+describe cómo se concreta el diseño en cada tecnología, con nombres de tablas, columnas, tipos,
+restricciones, índices y estructuras de acceso, está en [`modelo_fisico.md`](modelo_fisico.md).
 
 | Componente | Estado |
 | --- | --- |
@@ -520,7 +535,9 @@ La razón de fondo es que la fuente es una sola tienda, el horizonte útil son l
 de `user_events` y las consultas analíticas se responden con agregaciones sobre los motores
 operacionales. Una capa analítica separada es el camino de evolución previsto, con dos señales
 concretas para construirla: necesitar un horizonte más largo que la retención, o que las agregaciones
-empiecen a competir con la operación.
+empiecen a competir con la operación. Ante esa segunda señal, el primer paso previsto no es una capa
+nueva sino una réplica de solo lectura de PostgreSQL dedicada a las consultas del analista, que se
+analiza en la sección 14.3.
 
 ---
 
@@ -564,8 +581,8 @@ DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifi
 denegados como los caminos autorizados que actualizan stock y total mediante los triggers.
 
 **Aislamiento entre clientes, y por qué no se usa Row Level Security.** El caso es una única tienda,
-así que no hay múltiples empresas ni espacios de trabajo que aislar entre sí. Lo que sí hay es la
-pregunta de que un cliente no vea los pedidos ni las reseñas de otro. Hoy esa separación la aplica la
+así que no hay múltiples empresas ni espacios de trabajo que aislar entre sí. La separación que sí
+importa es que un cliente no vea los pedidos ni las reseñas de otro. Hoy esa separación la aplica la
 aplicación: `bdia_app` tiene `SELECT` sobre `customer` y `sales_order` a nivel tabla, y es el backend
 el que acota cada consulta al cliente de la sesión. Es una frontera única, y por eso conviene decir
 qué la reforzaría.
@@ -591,7 +608,7 @@ aplicación ni un modelo de IA.
 | --- | --- |
 | Minimización | La sesión anónima guarda comportamiento, no identidad: `started_at`, `last_seen_at`, `events_count`, `last_product_id` y `preferred_category`. **No** almacena dirección IP, user agent, correo ni teléfono. |
 | Retención | El TTL actúa como política de retención automática: la sesión desaparece sola a los 30 minutos de inactividad, sin proceso de purga. |
-| Qué se guarda del cliente | El valor está minimizado por atributos: sólo identificadores de producto y puntuaciones, sin nombre, correo ni teléfono. La clave sí incorpora el código externo seudónimo (`reco:user:{customer_code}:...`), acotado por el TTL como retención máxima y protegido por el control de acceso del backend. |
+| Qué se guarda del cliente | El valor está minimizado por atributos: solo identificadores de producto y puntuaciones, sin nombre, correo ni teléfono. La clave sí incorpora el código externo seudónimo (`reco:user:{customer_code}:...`), acotado por el TTL como retención máxima y protegido por el control de acceso del backend. |
 | Aislamiento | El prefijo de la clave separa los espacios de nombres, y el discriminador `user` / `sess` evita que una sesión anónima resuelva contra la entrada de un cliente registrado. |
 | Acceso | `requirepass` activo y puerto publicado únicamente en `127.0.0.1`. |
 | Protección del motor de IA | El rate limit por cliente y ventana acota cuántas veces puede invocarse el motor de recomendaciones y el modelo, que son los recursos más costosos. |
@@ -608,7 +625,7 @@ función del límite es acotar el uso normal y no resistir un abuso deliberado.
 componente que hable con Redis. Conviene precisar el alcance de esa limitación. Redis 8.2 sí dispone
 de ACL, con usuarios y permisos por patrón de clave y por comando: comprobamos que un usuario acotado
 a `~reco:user:user-123:*` con `+get` lee esa entrada, y recibe `NOPERM` tanto al pedir la clave de
-otro sujeto como al intentar escribir. Lo que ese mecanismo no da es un filtrado por contenido
+otro sujeto como al intentar escribir. Ese mecanismo no ofrece un filtrado por contenido
 equivalente al Row Level Security de PostgreSQL, que decide fila por fila según el resultado de la
 consulta: el ACL alcanza al nombre de la clave, no a lo que hay dentro del valor. En este alcance no
 se definen usuarios ACL porque el único cliente es el backend. Exponer Redis directamente a un cliente
@@ -623,18 +640,18 @@ para construir la clave.
 | --- | --- |
 | Autenticación | El usuario administrador se crea a partir de `MONGO_INITDB_ROOT_USERNAME` y `MONGO_INITDB_ROOT_PASSWORD`, tomados del `.env` del componente. Las siete variables del componente se interpolan con la sintaxis `${VAR:?mensaje}`, de modo que un `.env` ausente o incompleto aborta Compose en lugar de levantar el motor sin credenciales. |
 | Acceso | El puerto se publica únicamente en `127.0.0.1`, con el valor de `MONGO_LISTEN_PORT`. |
-| Visor web | `mongo-express` exige autenticación básica con credenciales propias, distintas de las del motor. Comprobado: sin credenciales responde `401`, con credenciales incorrectas también, y sólo con las correctas responde `200`. |
-| Minimización | El evento de un visitante anónimo se identifica sólo por `session_id`. La colección no almacena dirección IP, user agent, correo ni teléfono; los datos personales viven en PostgreSQL, protegidos por sus roles. |
+| Visor web | `mongo-express` exige autenticación básica con credenciales propias, distintas de las del motor. Comprobado: sin credenciales responde `401`, con credenciales incorrectas también, y solo con las correctas responde `200`. |
+| Minimización | El evento de un visitante anónimo se identifica solo por `session_id`. La colección no almacena dirección IP, user agent, correo ni teléfono; los datos personales viven en PostgreSQL, protegidos por sus roles. |
 | Retención | `expireAfterSeconds` de 90 días actúa como política de borrado automático: MongoDB elimina los buckets vencidos sin necesidad de un proceso de purga. |
 
 **Sobre el control de acceso.** MongoDB 8.0 dispone de roles por base de datos y por colección. Se
 comprobó creando un usuario con rol `read` sobre la base del componente: lee los 22 documentos y
-cualquier escritura devuelve `Unauthorized`. En este alcance sólo se define el usuario administrador,
+cualquier escritura devuelve `Unauthorized`. En este alcance solo se define el usuario administrador,
 porque el único cliente es el script de carga del propio componente. Un despliegue real separaría al
-menos dos roles: uno de sólo lectura para el motor de recomendaciones y uno de escritura para la
+menos dos roles: uno de solo lectura para el motor de recomendaciones y uno de escritura para la
 ingesta de eventos, para que el motor no pueda alterar el historial que consume.
 
-**Limitación reconocida.** Las credenciales sólo se aplican al inicializar `/data/db`. Comprobado:
+**Limitación reconocida.** Las credenciales solo se aplican al inicializar `/data/db`. Comprobado:
 tras cambiar la contraseña en `.env` y recrear el contenedor, la contraseña nueva falla, la anterior
 sigue siendo válida y el healthcheck deja el contenedor `unhealthy`. Rotarlas exige reinicializar el
 volumen, con la pérdida de los eventos cargados que eso implica. El procedimiento está documentado en
@@ -714,7 +731,7 @@ todos. El criterio de partición coincide con el de agrupamiento, así que la lo
 se conserva.
 
 **Compromiso asumido:** `session_id` es un campo medido y no lleva índice propio. Reconstruir una
-sesión exige acotar además la ventana temporal, cosa que las consultas del modelo hacen siempre. Un
+sesión exige acotar además la ventana temporal, y las consultas del modelo la acotan siempre. Un
 índice adicional sobre `session_id` aceleraría ese acceso a cambio de encarecer cada escritura, que es
 la operación dominante en esta colección.
 
@@ -743,8 +760,35 @@ con dos inserciones concurrentes sobre el mismo pedido que comprueba que el tota
 
 **Si el volumen creciera:** particionar por tiempo `sales_order` e `inventory_movement`, que son las
 tablas cuyo crecimiento es proporcional a la operación y cuyas consultas casi siempre acotan un
-período. Las consultas analíticas de la sección 10 podrían servirse desde una réplica de sólo lectura,
-separando el camino analítico del transaccional sin duplicar el modelo.
+período.
+
+**Réplica de solo lectura para la analítica:** la consigna distingue al analista que consulta
+indicadores comerciales del resto de los usuarios, y le asignamos un rol propio, `bdia_analyst`, de
+solo lectura. El paso siguiente es asignarle también una base propia: una réplica física por
+replicación en streaming que atienda las consultas analíticas de la sección 10, mientras la primaria
+queda dedicada al camino transaccional. No la implementamos en este alcance. La planteamos como la
+primera evolución prevista y de costo menor al de una capa analítica separada, porque no agrega un
+modelo nuevo ni un proceso de carga que mantener.
+
+**Qué aporta y qué cuesta:** aporta aislamiento de recursos. Las agregaciones sobre `sales_order`,
+`order_item` y `product_category` dejan de competir por CPU, memoria y buffers con el alta de pedidos
+y los movimientos de stock, de modo que una consulta de reporte extensa no degrada la operación en
+horario de mayor carga. El costo es la actualidad del dato: la réplica queda unos instantes por
+detrás de la primaria y la analítica lee un estado levemente desactualizado. Resulta admisible para
+indicadores comerciales y no lo sería para el stock disponible ni para el total de un pedido, que se
+siguen leyendo de la primaria porque son los valores que el diseño mantiene exactos con triggers y
+restricciones.
+
+**Efecto sobre el modelo y los permisos:** ninguno. La réplica es una copia física y hereda el mismo
+esquema y los mismos `GRANT`, de modo que la matriz de permisos de la sección 13 se mantiene sin
+cambios y `bdia_analyst` tampoco accede allí a `customer`, `customer_session` ni `review`. Queda una
+decisión de configuración: con `hot_standby_feedback` desactivado, la primaria se libera de la
+presión que las consultas largas ejercen sobre el `VACUUM`, a costa de que una consulta extensa en la
+réplica pueda cancelarse por conflicto con la aplicación de los cambios. Para un uso analítico, donde
+reintentar una consulta no tiene costo operativo, el intercambio es favorable. La señal para
+construirla es que las consultas de reporte aparezcan compitiendo con la operación en
+`pg_stat_statements`, o que el tiempo de respuesta transaccional se degrade en las ventanas de
+consulta de indicadores.
 
 **Compromiso asumido:** los índices y los 12 triggers encarecen cada escritura para abaratar la
 lectura y para sostener las invariantes dentro del motor. Es el intercambio que corresponde a un
@@ -772,6 +816,13 @@ de comportamiento, quince pruebas de integridad y una prueba de concurrencia. Mo
 tienen también su implementación mínima verificada, de modo que las tres capas del diseño están
 cubiertas y la propuesta multi-motor queda demostrada de punta a punta.
 
+El motor de recomendaciones y la aplicación que lo consumiría permanecen como contexto del problema.
+Analizamos qué debe entregarles la capa de datos, con qué latencia y bajo qué controles de acceso, y
+qué riesgos aparecen cuando un modelo consume esos datos, pero no los construimos: el trabajo diseña
+la base que los soportaría. Por la misma razón, la arquitectura contempla componentes que no se
+implementan, como la capa analítica separada o la búsqueda por similitud, cuyo diseño queda
+documentado con las condiciones que dispararían construirlos.
+
 ---
 
 ## Anexo. Decisiones para la primera versión y extensiones opcionales
@@ -792,10 +843,12 @@ cubiertas y la propuesta multi-motor queda demostrada de punta a punta.
 
 Una vez validado el alcance mínimo, podremos evaluar la incorporación de algunos elementos
 opcionales. Estas alternativas no son necesarias para que la primera versión responda a la consigna.
+JSONB no está entre ellas porque ya se usa: los atributos variables del catálogo viven en
+`product.attributes` y `sku.attributes`, y el contexto de la recomendación en
+`recommendation.context`, los tres con sus índices GIN.
 
 | Extensión | Posible uso |
 | --- | --- |
-| JSONB en PostgreSQL | Atributos variables de productos, parámetros de búsqueda, contexto de eventos o metadatos de recomendaciones. |
 | Embeddings y búsqueda vectorial | Similitud semántica entre descripciones, reseñas y preferencias. |
 | Modelo de recomendación | Generación automática de puntuaciones a partir de compras, navegación o contenido. |
 | Pagos y envíos detallados | Integración con proveedores, facturación, transportistas y seguimiento. |

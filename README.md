@@ -173,7 +173,7 @@ las dos formas a la vez: los nombres de contenedor son los mismos y entrarían e
 Para que las dos formas de arranque funcionen sin retoques, los tres componentes siguen las mismas
 convenciones:
 
-- compose propio, con los puertos tomados de un `.env` local y publicados sólo en `127.0.0.1`;
+- compose propio, con los puertos tomados de un `.env` local y publicados solo en `127.0.0.1`;
 - todas las variables interpoladas con `${VAR:?mensaje}`, para que un `.env` ausente o incompleto
   aborte Compose en lugar de levantar el motor mal configurado;
 - `container_name` con el prefijo `bdia_g04_`, para que no colisionen;
@@ -280,16 +280,19 @@ Las consultas SQL están en [db/consultas/](db/consultas/), las de MongoDB en
 Limitaciones asumidas en esta versión:
 
 - Alcance de una única tienda online.
-- Pagos y envíos sólo como estados simples del pedido.
+- Pagos y envíos solo como estados simples del pedido.
 - Sin procesamiento de imágenes, embeddings ni búsqueda vectorial.
 - Sin un flujo automático para vincular una sesión anónima con un cliente que se registra después.
 - Sin modelado de carritos ni promociones.
+
+JSONB en PostgreSQL no figura entre las extensiones porque ya está en uso: `product.attributes`,
+`sku.attributes` y `recommendation.context` guardan los atributos variables, con índices GIN que los
+hacen consultables.
 
 Extensiones posibles:
 
 | Extensión | Posible uso |
 | --- | --- |
-| JSONB en PostgreSQL | Atributos variables de productos, parámetros de búsqueda, metadatos de recomendaciones |
 | Embeddings y búsqueda vectorial | Similitud semántica entre descripciones, reseñas y preferencias |
 | Modelo de recomendación | Generación automática de puntuaciones a partir de compras, navegación o contenido |
 | Pagos y envíos detallados | Integración con proveedores, facturación, transportistas y seguimiento |

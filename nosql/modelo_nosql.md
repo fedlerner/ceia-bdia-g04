@@ -119,12 +119,12 @@ tecnología. La correspondencia es la siguiente:
 | `anonymous_session_id` | `session_id` |
 | `event_type` | `event_type` |
 | `product_id` | `product_id` |
-| `query_text` | `metadata.query`, sólo en los eventos `search` |
+| `query_text` | `metadata.query`, solo en los eventos `search` |
 | `context` | `metadata` |
 
 El atributo conceptual `sku_id` no se traslada: los eventos de navegación se registran sobre el
 producto y no sobre la variante vendible, que interviene recién en el pedido. La entidad conceptual
-"evento de interacción" se materializa únicamente acá, de modo que esta tabla es la única traducción
+"evento de interacción" se materializa únicamente aquí, de modo que esta tabla es la única traducción
 que hay que seguir para ir del modelo conceptual al físico.
 
 `metadata.category_id` merece una aclaración aparte. La categoría no forma parte de los códigos
@@ -196,8 +196,8 @@ de acceso habitual por sí solo.
 cliente. Eso no impide consultarlos: las consultas por sesión de la sección 1.4 acotan siempre una
 ventana temporal, y esa ventana permite descartar buckets por el índice aun sin `user_id`. Verificamos
 con `explain` que la consulta por sesión resuelve con `IXSCAN` tanto para un cliente identificado como
-para un visitante anónimo. Lo que sí sería un recorrido completo es filtrar por `session_id` sin
-ventana temporal, algo que ninguna de las consultas del modelo hace.
+para un visitante anónimo. El recorrido completo solo aparecería al filtrar por `session_id` sin
+ventana temporal, y ninguna de las consultas del modelo lo hace.
 
 ### Política de retención
 
@@ -511,7 +511,7 @@ motivo por el que conviene reservarla para el recálculo periódico y usar `ZINC
 O(log n), para las actualizaciones evento a evento.
 
 Las tres operaciones que escriben más de un comando van dentro de una transacción. No es una
-preferencia de estilo: emitirlos sueltos deja la clave sin TTL si el proceso cae entre medio, lo que
+preferencia de estilo: emitirlos sueltos deja la clave sin TTL si el proceso cae entre uno y otro, lo que
 produce una sesión parcial y permanente, un ranking que se sirve indefinidamente o una fuga de claves
 de rate limit. El detalle de cada caso está en los archivos de comandos correspondientes.
 
@@ -558,7 +558,7 @@ errores de escritura del backend; `allkeys-lfu` favorecería claves populares hi
 recomendaciones recientes, que es lo contrario de lo que necesita la personalización.
 
 `volatile-lru` no deja crecer sin control a las claves sin TTL: el límite de memoria las acota igual.
-Lo que hace es excluirlas del conjunto desalojable, de modo que cuando se agotan las claves con TTL
+Las excluye del conjunto desalojable, de modo que cuando se agotan las claves con TTL
 que sí puede descartar, Redis rechaza las escrituras que requieren memoria con
 `OOM command not allowed`. Es decir, termina en el mismo fallo operativo que `noeviction`, pero más
 tarde y de forma menos predecible. Comprobado: llenando la base únicamente con claves sin TTL, el

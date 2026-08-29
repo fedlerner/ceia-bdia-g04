@@ -141,7 +141,7 @@ CREATE INDEX product_embedding_cosine_idx
     ON product_embedding USING hnsw (embedding vector_cosine_ops);
 ```
 
-Y la consulta de "productos similares disponibles" combinaría similitud y estado en una sola
+La consulta de "productos similares disponibles" combinaría similitud y estado en una sola
 sentencia:
 
 ```sql

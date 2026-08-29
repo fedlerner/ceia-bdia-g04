@@ -40,8 +40,9 @@ dos componentes, así que el `--reset` descarta también los datos de esa pila.
 Para repetir solamente los veintitrés controles de estado:
 
 ```bash
+source .env
 docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
-  -U bdia_admin -d bdia_store \
+  -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
   < validacion/01_validation.sql
 ```
 

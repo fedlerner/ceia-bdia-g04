@@ -42,7 +42,7 @@ Superada esa validación recrea la colección y verifica contra la base siete pr
 visitante anónimo. Termina con error si alguna no se cumple, e informa cuántos días le quedan al
 evento más antiguo antes de alcanzar la retención.
 
-Conviene tener presente el alcance de esa garantía: **sólo la validación previa es no destructiva**.
+Conviene tener presente el alcance de esa garantía: **solo la validación previa es no destructiva**.
 Una vez que el script llega al `drop()`, un fallo posterior deja la colección recreada, y posiblemente
 sin todos los datos. En ese caso alcanza con volver a ejecutar `make generar-datos`.
 
@@ -154,7 +154,7 @@ las dos a la vez**, porque los nombres de contenedor son los mismos y entran en 
 
 - `MongoServerError: Authentication failed` suele aparecer tras cambiar las credenciales en `.env`.
   **Recrear el contenedor no alcanza**: la imagen de MongoDB aplica `MONGO_INITDB_ROOT_USERNAME` y
-  `MONGO_INITDB_ROOT_PASSWORD` sólo al inicializar `/data/db`, y ese directorio vive en un volumen que
+  `MONGO_INITDB_ROOT_PASSWORD` solo al inicializar `/data/db`, y ese directorio vive en un volumen que
   sobrevive a `docker compose up -d --force-recreate`. Comprobado: tras cambiar la contraseña y
   recrear, la nueva falla, la anterior sigue funcionando y el healthcheck deja el contenedor
   `unhealthy`. Hay dos salidas: volver a poner en `.env` las credenciales con las que se inicializó el
@@ -168,7 +168,7 @@ las dos a la vez**, porque los nombres de contenedor son los mismos y entran en 
 
   Se elimina el contenedor **por su nombre** y no con `docker compose down`, porque este último
   actúa sobre el proyecto del directorio desde el que se lo invoca: si la pila se levantó desde la
-  raíz y el comando se ejecuta acá, no detiene nada y el borrado del volumen falla con
+  raíz y el comando se ejecuta aquí, no detiene nada y el borrado del volumen falla con
   `volume is in use`. Por su nombre funciona con cualquiera de los dos modos de arranque, igual que
   el `Makefile` de este directorio y
   [`../redis/scripts/reiniciar_datos.sh`](../redis/scripts/reiniciar_datos.sh).
