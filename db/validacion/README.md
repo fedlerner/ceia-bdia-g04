@@ -8,8 +8,9 @@ Compose y PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `
 
 La ejecución actualizada se realizó correctamente el **29/08/2026** mediante Docker Compose y
 PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y pasaron las
-cinco consultas, 24 controles de estado, 4 controles de comportamiento, 17 pruebas de integridad y
-1 prueba de concurrencia. La salida final fue:
+cinco consultas que componían la suite en ese momento, 24 controles de estado, 4 controles de
+comportamiento, 17 pruebas de integridad y 1 prueba de concurrencia. La consulta 6 se incorporó
+posteriormente y se ejecutó correctamente de forma incremental sobre la misma base, completando la
 
 ```text
 VALIDACIÓN COMPLETA: 5 consultas, 24 controles de estado,

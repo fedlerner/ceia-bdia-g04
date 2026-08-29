@@ -11,7 +11,7 @@ docker compose up -d --wait
 docker compose logs postgres
 ```
 
-La primera inicialización ejecuta DDL, índices y vista, datos sintéticos, cinco
+La primera inicialización ejecuta DDL, índices y vista, datos sintéticos, seis
 consultas, roles con privilegios mínimos y veinticuatro controles de estado. Todos
 los controles deben devolver `OK`; solo entonces se crea la marca que exige el
 healthcheck.

@@ -76,7 +76,7 @@ Este es el recorrido, con los elementos que enumera.
 | Datos crudos | Los eventos tal como se registran, con su `metadata` sin normalizar, y los movimientos de inventario, que son inmutables y auditables. |
 | Datos procesados | Los que el sistema deriva y mantiene: el total del pedido, que sostienen los triggers desde los ítems; el stock, que se deriva de los movimientos; la vista `v_active_catalog`; y el ranking precalculado de Redis. |
 | Datos preparados para IA | El contexto que se arma para el motor: el historial reciente del cliente que devuelve MongoDB, más el estado del negocio que aporta PostgreSQL. La salida del motor vuelve como recomendación persistida en PostgreSQL y como entrada de cache en Redis. |
-| Componentes de consulta | Las cinco consultas SQL de [`../db/consultas/`](../db/consultas/), las ocho de MongoDB en [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) y los comandos de Redis en [`../nosql/redis/comandos/`](../nosql/redis/comandos/). |
+| Componentes de consulta | Las seis consultas SQL de [`../db/consultas/`](../db/consultas/), las ocho de MongoDB en [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/) y los comandos de Redis en [`../nosql/redis/comandos/`](../nosql/redis/comandos/). |
 | Consumidores de datos | El motor de recomendaciones, la aplicación que muestra el catálogo y las recomendaciones, y el analista que mira indicadores comerciales. |
 | Usuarios o aplicaciones | Cliente identificado y visitante anónimo, que acceden solo a través de la aplicación; operador del negocio; analista; y administrador de la base. Ninguno se conecta directamente a los motores: la matriz de roles está en la sección 13 del informe. |
 

@@ -35,7 +35,7 @@ cantidad mayor y flexible de productos, marcas, categorías y variantes sin modi
 Se diferencian el producto comercial y el SKU o variante vendible; el precio y el stock se controlan
 por SKU.
 
-La primera versión se limita a datos estructurados y a cinco consultas representativas sobre el
+La versión implementada se limita a datos estructurados y a seis consultas representativas sobre el
 modelo relacional, más el modelado documental de los eventos de interacción en MongoDB y una cache de
 recomendaciones en Redis.
 
@@ -401,7 +401,7 @@ restricciones, índices y estructuras de acceso, está en [`modelo_fisico.md`](m
 | DDL PostgreSQL | Implementado y validado, en [`../db/estructura/`](../db/estructura/) |
 | Carga de datos de ejemplo | Implementada y validada, en [`../db/datos/`](../db/datos/) |
 | Índices y vistas | Implementados y validados, en [`../db/indices_vistas/`](../db/indices_vistas/) |
-| Consultas SQL representativas | Cinco consultas implementadas y ejecutables, en [`../db/consultas/`](../db/consultas/) |
+| Consultas SQL representativas | Seis consultas implementadas y ejecutables, en [`../db/consultas/`](../db/consultas/) |
 | Roles y permisos PostgreSQL | Implementados y validados con Docker, en [`../db/seguridad/`](../db/seguridad/) |
 | **MongoDB** (`user_events`) | **Implementada y verificada**, en [`../nosql/mongodb/`](../nosql/mongodb/) |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
@@ -453,7 +453,7 @@ con sus tres regímenes de expiración: TTL fijo, TTL deslizante y sin vencimien
 
 ## 10. Consultas representativas
 
-Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/consultas/):
+Seis consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/consultas/):
 
 1. **Catálogo activo con disponibilidad.** ¿Qué productos activos están disponibles, indicando
    marca, precio y stock? Consulta operativa central. Se escribe con los `JOIN` explícitos para
@@ -468,6 +468,10 @@ Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/co
    un índice sobre `inventory(available_qty)`.
 5. **Productos comprados conjuntamente.** Venta cruzada basada en compras reales; usa CTE,
    agregación y subconsulta `EXISTS` para validar disponibilidad.
+6. **Ranking de productos por ingresos y moneda.** ¿Qué productos generan más ingresos y en qué
+   posición queda cada uno dentro de su moneda? Usa una CTE para agregar unidades e ingresos y una
+   función de ventana `RANK() OVER (PARTITION BY currency ORDER BY ingresos DESC)` para obtener la
+   posición dentro de cada moneda, sin una segunda consulta ni una autounión.
 
 Ocho consultas sobre MongoDB, en [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/), cada
 una con su pregunta de negocio, su justificación y el resultado esperado contra el estado inicial:
@@ -493,14 +497,14 @@ uno con la pregunta que responde y su comparación con el equivalente SQL:
 
 | Requisito | Consultas que lo cubren |
 | --- | --- |
-| Selección y filtrado | 1, 3 y 4 |
+| Selección y filtrado | 1, 2, 3, 4, 5 y 6 |
 | Relaciones entre entidades | Todas |
-| Agregaciones | 1, 2 y 5 |
-| Indicadores comerciales | 2 y 4 |
+| Agregaciones | 1, 2, 3, 5 y 6 |
+| Indicadores comerciales | 2, 3, 4 y 6 |
 | Personalización | 3 y 5 |
-| Subconsulta o CTE | 3, 4 y 5 |
+| Subconsulta o CTE | 5 y 6 |
 | Justificación de índices o vistas | 1, 3 y 4 |
-| Apoyo a decisiones | 2, 4 y 5 |
+| Apoyo a decisiones | 1, 2, 4, 5 y 6 |
 
 ---
 
@@ -742,7 +746,7 @@ la operación dominante en esta colección.
 y no se depuran.
 
 **Qué hay hoy:** las 15 tablas del modelo más `deployment_validation`, que es la marca de
-inicialización que exige el healthcheck, una vista, 12 triggers y 48 índices. De esos índices, 16 se
+inicialización que exige el healthcheck, una vista, 14 triggers y 48 índices. De esos índices, 16 se
 declaran explícitamente para los patrones de acceso y los 32 restantes respaldan claves primarias,
 restricciones únicas y la de exclusión. El esquema no delega en el orden de llegada de las consultas:
 los accesos previstos tienen su índice declarado.
@@ -791,7 +795,7 @@ construirla es que las consultas de reporte aparezcan compitiendo con la operaci
 `pg_stat_statements`, o que el tiempo de respuesta transaccional se degrade en las ventanas de
 consulta de indicadores.
 
-**Compromiso asumido:** los índices y los 12 triggers encarecen cada escritura para abaratar la
+**Compromiso asumido:** los índices y los 14 triggers encarecen cada escritura para abaratar la
 lectura y para sostener las invariantes dentro del motor. Es el intercambio que corresponde a un
 catálogo que se lee mucho más de lo que se modifica, y traslada al motor una integridad que de otro
 modo habría que confiar a la aplicación.
@@ -806,14 +810,17 @@ es suficientemente acotado para ser implementable y, al mismo tiempo, admite el 
 catálogo, de los clientes, de los pedidos y de los eventos.
 
 La separación entre producto y SKU, la conservación del precio histórico, el control de
-disponibilidad, el registro de interacciones y las cinco consultas representativas constituyen la
+disponibilidad, el registro de interacciones y las seis consultas representativas constituyen la
 base mínima para una solución robusta. El modelado documental de los eventos en MongoDB y la cache en
 Redis completan la propuesta multi-motor, asignando cada tipo de información a la tecnología más
 adecuada.
 
-La implementación mínima de PostgreSQL dispone de datos sintéticos, cinco consultas representativas
-y una validación Docker exitosa del 29/08/2026, con veinticuatro controles de estado, cuatro controles
-de comportamiento, diecisiete pruebas de integridad y una prueba de concurrencia. MongoDB y Redis
+La implementación mínima de PostgreSQL dispone de datos sintéticos y seis consultas representativas
+ejecutables. La validación Docker exitosa del 29/08/2026 cubrió las cinco consultas disponibles en ese
+momento, con veinticuatro controles de estado, cuatro controles de comportamiento, diecisiete pruebas
+de integridad y una prueba de concurrencia. La consulta 6 se incorporó posteriormente y se ejecutó
+correctamente de forma incremental sobre la misma base, completando la verificación de las seis
+consultas actuales. MongoDB y Redis
 tienen también su implementación mínima verificada, de modo que las tres capas del diseño están
 cubiertas y la propuesta multi-motor queda demostrada de punta a punta.
 

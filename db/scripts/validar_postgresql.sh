@@ -59,7 +59,7 @@ docker compose down -v --remove-orphans
 echo "3/10 Construyendo una instancia limpia de PostgreSQL 16..."
 docker compose up -d --wait
 
-echo "4/10 Ejecutando nuevamente las cinco consultas..."
+echo "4/10 Ejecutando nuevamente las seis consultas..."
 for consulta in consultas/*.sql; do
     echo "  - $consulta"
     docker compose exec -T postgres \
@@ -218,7 +218,7 @@ bash scripts/validar_concurrencia_totales.sh
 
 trap - EXIT
 echo ""
-echo "VALIDACIÓN COMPLETA: 5 consultas, 24 controles de estado,"
+echo "VALIDACIÓN COMPLETA: 6 consultas, 24 controles de estado,"
 echo "4 controles de comportamiento, 17 controles de integridad"
 echo "y 1 control de concurrencia OK."
 echo "PostgreSQL permanece levantado para revisión manual."

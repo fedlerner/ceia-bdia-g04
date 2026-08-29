@@ -236,14 +236,17 @@ El contenedor ejecuta en orden:
 1. `db/estructura/`: creación de tablas, claves y restricciones.
 2. `db/indices_vistas/`: creación de índices y vistas.
 3. `db/datos/`: carga del catálogo y datos sintéticos.
-4. `db/consultas/`: ejecución de las 5 consultas representativas.
+4. `db/consultas/`: ejecución de las 6 consultas representativas.
 5. `db/seguridad/`: creación de roles y privilegios mínimos.
 6. `db/validacion/`: controles automáticos y marca de inicialización correcta.
 
 La validación empírica actualizada se ejecutó correctamente el 29/08/2026 mediante Docker Compose
 con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las cinco
-consultas, veinticuatro controles de estado, cuatro controles de comportamiento, diecisiete pruebas de
-integridad y una prueba de concurrencia. El procedimiento reproducible está documentado en
+consultas que componían la suite en ese momento, veinticuatro controles de estado, cuatro controles
+de comportamiento, diecisiete pruebas de integridad y una prueba de concurrencia. La consulta 6,
+incorporada posteriormente, se ejecutó correctamente de forma incremental sobre la misma base, por lo
+que las seis consultas actuales quedaron verificadas.
+El procedimiento reproducible está documentado en
 [`db/validacion/README.md`](db/validacion/README.md).
 
 ## Principales decisiones de diseño
