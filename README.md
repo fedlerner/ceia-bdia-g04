@@ -284,6 +284,7 @@ Limitaciones asumidas en esta versión:
 - Sin procesamiento de imágenes, embeddings ni búsqueda vectorial.
 - Sin un flujo automático para vincular una sesión anónima con un cliente que se registra después.
 - Sin modelado de carritos ni promociones.
+- Las consultas analíticas se resuelven contra la misma instancia que atiende la operación.
 
 JSONB en PostgreSQL no figura entre las extensiones porque ya está en uso: `product.attributes`,
 `sku.attributes` y `recommendation.context` guardan los atributos variables, con índices GIN que los
@@ -297,3 +298,4 @@ Extensiones posibles:
 | Modelo de recomendación | Generación automática de puntuaciones a partir de compras, navegación o contenido |
 | Pagos y envíos detallados | Integración con proveedores, facturación, transportistas y seguimiento |
 | Carritos y promociones | Etapas previas a la compra y reglas comerciales más complejas |
+| Réplica de solo lectura de PostgreSQL | Atender las consultas del analista sin competir con la operación; analizada en [`docs/informe.md`](docs/informe.md) §14.3 |
