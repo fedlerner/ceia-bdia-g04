@@ -7,6 +7,7 @@
 | [`03_clientes_frecuencia_valor.sql`](03_clientes_frecuencia_valor.sql) | ¿Qué clientes concentran mayor frecuencia y valor de compra? |
 | [`04_stock_bajo.sql`](04_stock_bajo.sql) | ¿Qué SKU requieren reposición? |
 | [`05_productos_comprados_conjuntamente.sql`](05_productos_comprados_conjuntamente.sql) | ¿Qué productos se compran junto con `product-001`? |
+| [`06_ranking_productos_por_ingresos.sql`](06_ranking_productos_por_ingresos.sql) | ¿En qué posición queda cada producto por ingresos dentro de su moneda? |
 
 Las consultas de productos vistos, búsquedas e interacciones se mantienen en
 MongoDB. Esta separación elimina la contradicción anterior que consultaba en

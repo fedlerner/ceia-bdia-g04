@@ -237,7 +237,7 @@ El contenedor ejecuta en orden:
 1. `db/estructura/`: creación de tablas, claves y restricciones.
 2. `db/indices_vistas/`: creación de índices y vistas.
 3. `db/datos/`: carga del catálogo y datos sintéticos.
-4. `db/consultas/`: ejecución de las 5 consultas representativas.
+4. `db/consultas/`: ejecución de las 6 consultas representativas.
 5. `db/seguridad/`: creación de roles y privilegios mínimos.
 6. `db/validacion/`: controles automáticos y marca de inicialización correcta.
 
@@ -246,16 +246,16 @@ un contenedor ya levantado:
 
 ```bash
 make postgresql.shell        # consola psql
-make postgresql.queries      # re-ejecuta las 5 consultas
-make postgresql.checks       # 23 controles de estado
-make postgresql.integrity    # 15 pruebas de integridad
+make postgresql.queries      # re-ejecuta las 6 consultas
+make postgresql.checks       # 24 controles de estado
+make postgresql.integrity    # 17 pruebas de integridad
 make postgresql.concurrency  # 1 prueba de concurrencia
 make postgresql.verify       # las cuatro anteriores juntas
 ```
 
-La validación empírica actualizada se ejecutó correctamente el 28/08/2026 mediante Docker Compose
-con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las cinco
-consultas, veintitrés controles de estado, cuatro controles de comportamiento, quince pruebas de
+La validación empírica actualizada se ejecutó correctamente el 29/08/2026 mediante Docker Compose
+con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las seis
+consultas, veinticuatro controles de estado, cuatro controles de comportamiento, diecisiete pruebas de
 integridad y una prueba de concurrencia. El procedimiento reproducible está documentado en
 [`db/validacion/README.md`](db/validacion/README.md).
 
@@ -284,19 +284,20 @@ integridad y una prueba de concurrencia. El procedimiento reproducible está doc
 | 3 | ¿Qué clientes concentran mayor frecuencia y valor de compra? | PostgreSQL |
 | 4 | ¿Qué productos y SKU tienen stock bajo? | PostgreSQL |
 | 5 | ¿Qué productos suelen comprarse junto con un producto determinado? | PostgreSQL |
-| 6 | ¿Qué hizo un usuario en los últimos siete días? | MongoDB |
-| 7 | ¿Qué productos concentran el interés reciente de un usuario? | MongoDB |
-| 8 | ¿Qué recorrido hizo el usuario dentro de una sesión? | MongoDB |
-| 9 | ¿Qué productos reciben más visualizaciones? | MongoDB |
-| 10 | ¿Qué categorías concentran la atención de los usuarios? | MongoDB |
-| 11 | ¿Cuántas búsquedas realiza cada usuario? | MongoDB |
-| 12 | ¿Qué productos se ven mucho pero se agregan poco al carrito? | MongoDB |
-| 13 | ¿Cuánta actividad concentra cada sesión y cuánto dura? | MongoDB |
-| 14 | Servir e invalidar la cache de recomendaciones | Redis |
-| 15 | Sostener el estado de una sesión anónima | Redis |
-| 16 | Top de productos más vistos precalculado | Redis |
-| 17 | Acotar invocaciones al motor por cliente y ventana | Redis |
-| 18 | Patrones de búsqueda, memoria y descarte por límite | Redis |
+| 6 | ¿En qué posición queda cada producto por ingresos dentro de su moneda? | PostgreSQL |
+| 7 | ¿Qué hizo un usuario en los últimos siete días? | MongoDB |
+| 8 | ¿Qué productos concentran el interés reciente de un usuario? | MongoDB |
+| 9 | ¿Qué recorrido hizo el usuario dentro de una sesión? | MongoDB |
+| 10 | ¿Qué productos reciben más visualizaciones? | MongoDB |
+| 11 | ¿Qué categorías concentran la atención de los usuarios? | MongoDB |
+| 12 | ¿Cuántas búsquedas realiza cada usuario? | MongoDB |
+| 13 | ¿Qué productos se ven mucho pero se agregan poco al carrito? | MongoDB |
+| 14 | ¿Cuánta actividad concentra cada sesión y cuánto dura? | MongoDB |
+| 15 | Servir e invalidar la cache de recomendaciones | Redis |
+| 16 | Sostener el estado de una sesión anónima | Redis |
+| 17 | Top de productos más vistos precalculado | Redis |
+| 18 | Acotar invocaciones al motor por cliente y ventana | Redis |
+| 19 | Patrones de búsqueda, memoria y descarte por límite | Redis |
 
 Las consultas SQL están en [db/consultas/](db/consultas/), las de MongoDB en
 [nosql/mongodb/consultas/](nosql/mongodb/consultas/) y los comandos de Redis en

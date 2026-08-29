@@ -35,7 +35,7 @@ cantidad mayor y flexible de productos, marcas, categorías y variantes sin modi
 Se diferencian el producto comercial y el SKU o variante vendible; el precio y el stock se controlan
 por SKU.
 
-La primera versión se limita a datos estructurados y a cinco consultas representativas sobre el
+La primera versión se limita a datos estructurados y a seis consultas representativas sobre el
 modelo relacional, más el modelado documental de los eventos de interacción en MongoDB y una cache de
 recomendaciones en Redis.
 
@@ -221,7 +221,9 @@ tener precios y existencias distintos.
 Las cardinalidades que definen la forma del modelo son estas: una marca tiene muchos productos y un
 producto tiene muchos SKU, ambas 1:N; producto y categoría es N:M, porque un producto puede
 clasificarse en más de una, con una marcada como principal para no contar dos veces una misma venta;
-cada SKU tiene una fila de inventario, 1:1; y un cliente tiene muchos pedidos y muchas reseñas. Los
+cada SKU tiene obligatoriamente una fila de inventario, 1:1, creada automáticamente y protegida
+contra eliminación o reasignación mientras el SKU exista; y un cliente tiene muchos pedidos y
+muchas reseñas. Los
 eventos y las recomendaciones cuelgan del cliente **o de la sesión**, que es lo que permite atender
 también al visitante anónimo.
 
@@ -405,9 +407,9 @@ restricciones, índices y estructuras de acceso, está en [`modelo_fisico.md`](m
 | **MongoDB** (`user_events`) | **Implementada y verificada**, en [`../nosql/mongodb/`](../nosql/mongodb/) |
 | **Redis** | **Implementado y verificado**, en [`../nosql/redis/`](../nosql/redis/) |
 
-La validación actualizada de la capa relacional se ejecutó correctamente el 28/08/2026 con Docker
-Compose. El contenedor quedó `Up (healthy)` y pasaron veintitrés controles de estado, cuatro
-controles de comportamiento, quince pruebas de integridad y una prueba concurrente. El procedimiento
+La validación actualizada de la capa relacional se ejecutó correctamente el 29/08/2026 con Docker
+Compose. El contenedor quedó `Up (healthy)` y pasaron veinticuatro controles de estado, cuatro
+controles de comportamiento, diecisiete pruebas de integridad y una prueba concurrente. El procedimiento
 y la evidencia se encuentran en
 [`../db/validacion/README.md`](../db/validacion/README.md).
 
@@ -452,7 +454,7 @@ con sus tres regímenes de expiración: TTL fijo, TTL deslizante y sin vencimien
 
 ## 10. Consultas representativas
 
-Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/consultas/):
+Seis consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/consultas/):
 
 1. **Catálogo activo con disponibilidad.** ¿Qué productos activos están disponibles, indicando
    marca, precio y stock? Consulta operativa central. Se escribe con los `JOIN` explícitos para
@@ -467,6 +469,9 @@ Cinco consultas SQL sobre el modelo relacional, en [`../db/consultas/`](../db/co
    un índice sobre `inventory(available_qty)`.
 5. **Productos comprados conjuntamente.** Venta cruzada basada en compras reales; usa CTE,
    agregación y subconsulta `EXISTS` para validar disponibilidad.
+6. **Ranking de productos por ingresos y moneda.** ¿En qué posición queda cada producto por ingresos
+   dentro de su moneda? Combina una CTE agregada con `RANK() OVER (PARTITION BY currency)`, de modo
+   que el orden se calcula dentro de cada moneda y no mezcla unidades distintas.
 
 Ocho consultas sobre MongoDB, en [`../nosql/mongodb/consultas/`](../nosql/mongodb/consultas/), cada
 una con su pregunta de negocio, su justificación y el resultado esperado contra el estado inicial:
@@ -494,12 +499,12 @@ uno con la pregunta que responde y su comparación con el equivalente SQL:
 | --- | --- |
 | Selección y filtrado | 1, 3 y 4 |
 | Relaciones entre entidades | Todas |
-| Agregaciones | 1, 2 y 5 |
-| Indicadores comerciales | 2 y 4 |
+| Agregaciones | 1, 2, 5 y 6 |
+| Indicadores comerciales | 2, 4 y 6 |
 | Personalización | 3 y 5 |
-| Subconsulta o CTE | 3, 4 y 5 |
+| Subconsulta o CTE | 3, 4, 5 y 6 |
 | Justificación de índices o vistas | 1, 3 y 4 |
-| Apoyo a decisiones | 2, 4 y 5 |
+| Apoyo a decisiones | 2, 4, 5 y 6 |
 
 ---
 
@@ -572,9 +577,9 @@ al administrador, y **todas las funciones disparadoras que consultan tablas fija
 `search_path`**, aunque no sean `SECURITY DEFINER`: sin eso, una sesión podía crear una tabla temporal
 que sombreara `order_item` y burlar la validación de ventas. Se revocó de `PUBLIC` el acceso al
 esquema, a tablas, secuencias y funciones, y se definieron privilegios predeterminados restrictivos
-para las funciones que se creen más adelante. Comprobado sobre la base: las ocho funciones del esquema
-quedan con el ACL `bdia_admin=X/bdia_admin`, ninguna es ejecutable por `PUBLIC`, y una función creada
-después del script nace con el mismo ACL restringido.
+para las funciones que se creen más adelante. El esquema define diez funciones; el DDL revoca de
+`PUBLIC` las funciones elevadas y el script de seguridad restringe nuevamente el conjunto completo,
+incluidas las funciones que se creen después mediante sus privilegios predeterminados.
 
 Los movimientos de inventario son además inmutables: el rol operativo solo puede insertarlos y el
 DDL rechaza su modificación o borrado. Las pruebas ejecutan `SET ROLE` y verifican tanto los accesos
@@ -741,7 +746,7 @@ la operación dominante en esta colección.
 y no se depuran.
 
 **Qué hay hoy:** las 15 tablas del modelo más `deployment_validation`, que es la marca de
-inicialización que exige el healthcheck, una vista, 12 triggers y 48 índices. De esos índices, 16 se
+inicialización que exige el healthcheck, una vista, 14 triggers y 48 índices. De esos índices, 16 se
 declaran explícitamente para los patrones de acceso y los 32 restantes respaldan claves primarias,
 restricciones únicas y la de exclusión. El esquema no delega en el orden de llegada de las consultas:
 los accesos previstos tienen su índice declarado.
@@ -790,7 +795,7 @@ construirla es que las consultas de reporte aparezcan compitiendo con la operaci
 `pg_stat_statements`, o que el tiempo de respuesta transaccional se degrade en las ventanas de
 consulta de indicadores.
 
-**Compromiso asumido:** los índices y los 12 triggers encarecen cada escritura para abaratar la
+**Compromiso asumido:** los índices y los 14 triggers encarecen cada escritura para abaratar la
 lectura y para sostener las invariantes dentro del motor. Es el intercambio que corresponde a un
 catálogo que se lee mucho más de lo que se modifica, y traslada al motor una integridad que de otro
 modo habría que confiar a la aplicación.
@@ -805,14 +810,14 @@ es suficientemente acotado para ser implementable y, al mismo tiempo, admite el 
 catálogo, de los clientes, de los pedidos y de los eventos.
 
 La separación entre producto y SKU, la conservación del precio histórico, el control de
-disponibilidad, el registro de interacciones y las cinco consultas representativas constituyen la
+disponibilidad, el registro de interacciones y las seis consultas representativas constituyen la
 base mínima para una solución robusta. El modelado documental de los eventos en MongoDB y la cache en
 Redis completan la propuesta multi-motor, asignando cada tipo de información a la tecnología más
 adecuada.
 
-La implementación mínima de PostgreSQL dispone de datos sintéticos, cinco consultas representativas
-y una validación Docker exitosa del 28/08/2026, con veintitrés controles de estado, cuatro controles
-de comportamiento, quince pruebas de integridad y una prueba de concurrencia. MongoDB y Redis
+La implementación mínima de PostgreSQL dispone de datos sintéticos, seis consultas representativas
+y una validación Docker exitosa del 29/08/2026, con veinticuatro controles de estado, cuatro controles
+de comportamiento, diecisiete pruebas de integridad y una prueba de concurrencia. MongoDB y Redis
 tienen también su implementación mínima verificada, de modo que las tres capas del diseño están
 cubiertas y la propuesta multi-motor queda demostrada de punta a punta.
 

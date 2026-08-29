@@ -24,7 +24,7 @@ erDiagram
     category ||--o{ product_category : "agrupa"
     product ||--o{ sku : "tiene"
     sku ||--o{ sku_price : "tiene"
-    sku ||--o| inventory : "posee"
+    sku ||--|| inventory : "posee"
     sku ||--o{ order_item : "vendido_en"
     sku ||--o{ inventory_movement : "afectado_en"
     sku ||--o{ recommendation_item : "recomendado_en"
@@ -187,6 +187,7 @@ El detalle exacto y ejecutable de cada tipo, restricción y valor por defecto es
 | `product_brand_name_uq` | `product` | El nombre del producto es único dentro de su marca. |
 | `sku_one_open_ended_price_uq` | `sku_price` | Un SKU tiene, como máximo, un precio sin fecha de cierre (índice único parcial `WHERE valid_to IS NULL`). |
 | `sku_price_no_overlapping_periods_excl` | `sku_price` | Los períodos de precio de un mismo SKU no pueden superponerse (restricción de exclusión `gist`). |
+| `inventory_sku_fk` / `inventory_required_for_sku_ctrg` | `inventory` | La clave primaria impide más de un inventario por SKU; el alta automática y la restricción diferible garantizan que tampoco falte mientras el SKU exista. |
 | `order_item_order_sku_uq` | `order_item` | Un SKU aparece, como máximo, una vez por pedido. |
 | `review_customer_product_uq` | `review` | Un cliente escribe, como máximo, una reseña por producto. |
 | `customer_email_lower_uq` (índice) | `customer` | El correo es único sin distinguir mayúsculas y minúsculas. |
@@ -227,6 +228,8 @@ Fuente: [`../db/estructura/01_schema.sql`](../db/estructura/01_schema.sql).
 | Función / trigger | Tabla | Qué garantiza |
 | --- | --- | --- |
 | `set_updated_at` | `product`, `sku`, `customer`, `sales_order`, `review` | Actualiza `updated_at` en cada modificación. |
+| `create_inventory_for_sku` / `sku_create_inventory_trg` | `sku` → `inventory` | Aprovisiona con valores cero la única fila de inventario al crear un SKU, incluso cuando el alta la realiza `bdia_app`. |
+| `enforce_sku_inventory_required` / `inventory_required_for_sku_ctrg` | `inventory` | Rechaza eliminar o reasignar la fila de inventario mientras exista el SKU asociado. |
 | `apply_order_total_delta` | `order_item` → `sales_order` | Mantiene `total_amount` del pedido por deltas atómicos al insertar, actualizar o eliminar ítems. |
 | `validate_sale_inventory_movement` | `inventory_movement` | Una salida de tipo venta exige un pedido completado y pagado que respalde esa cantidad del SKU. |
 | `validate_compensating_inventory_movement` | `inventory_movement` | Una devolución o cancelación solo compensa unidades previamente vendidas del mismo pedido y SKU, sin superar la cantidad vendida. |

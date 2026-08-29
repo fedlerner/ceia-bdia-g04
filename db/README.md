@@ -4,7 +4,7 @@ Implementación relacional del TP sobre PostgreSQL 16.
 
 ## Ejecución aislada
 
-Con la pila unificada levantada desde la raíz, el [`Makefile`](../../Makefile) general expone los
+Con la pila unificada levantada desde la raíz, el [`Makefile`](../Makefile) general expone los
 targets de este componente (`make postgresql.shell`, `make postgresql.checks`, etc.), que operan
 sobre el contenedor por nombre y sirven igual en cualquiera de los dos modos de arranque.
 
@@ -18,7 +18,7 @@ docker compose logs postgres
 ```
 
 La primera inicialización ejecuta DDL, índices y vista, datos sintéticos, cinco
-consultas, roles con privilegios mínimos y veintitrés controles de estado. Todos
+consultas, roles con privilegios mínimos y veinticuatro controles de estado. Todos
 los controles deben devolver `OK`; solo entonces se crea la marca que exige el
 healthcheck.
 
@@ -29,7 +29,7 @@ La validación limpia completa puede ejecutarse desde Git Bash:
 ```
 
 Además de reconstruir la base, el script ejecuta cuatro controles de
-comportamiento, quince pruebas de integridad y una prueba con dos inserciones
+comportamiento, diecisiete pruebas de integridad y una prueba con dos inserciones
 concurrentes sobre el mismo pedido.
 
 El puerto se publica únicamente en `127.0.0.1`, con el valor de
@@ -46,11 +46,21 @@ dos componentes, así que el `--reset` descarta también los datos de esa pila.
 Para repetir las verificaciones sobre un contenedor ya levantado, desde la raíz:
 
 ```bash
-make postgresql.queries      # re-ejecuta las 5 consultas
-make postgresql.checks       # 23 controles de estado
-make postgresql.integrity    # 15 pruebas de integridad
+make postgresql.queries      # re-ejecuta las 6 consultas
+make postgresql.checks       # 24 controles de estado
+make postgresql.integrity    # 17 pruebas de integridad
 make postgresql.concurrency  # 1 prueba de concurrencia
 make postgresql.verify       # las cuatro juntas
+```
+
+Desde este directorio, sin pasar por la raíz, el mismo control se ejecuta apuntando al contenedor por
+nombre. Esa forma funciona con la pila levantada de cualquiera de las dos maneras, porque no depende
+del proyecto de Compose que resuelva el directorio actual:
+
+```bash
+docker exec -i bdia_g04_postgres \
+  sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < validacion/01_validation.sql
 ```
 
 El script `scripts/validar_postgresql.sh --reset` (validación limpia completa) no forma parte del

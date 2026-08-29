@@ -143,6 +143,62 @@ CREATE TABLE inventory (
     CONSTRAINT inventory_threshold_nonnegative_ck CHECK (low_stock_threshold >= 0)
 );
 
+-- La cardinalidad obligatoria SKU--inventario se implementa en ambos sentidos:
+-- al crear un SKU se aprovisiona su única fila de inventario y una restricción
+-- diferible impide eliminarla o reasignarla mientras el SKU siga existiendo.
+CREATE OR REPLACE FUNCTION create_inventory_for_sku()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, bdia, pg_temp
+AS $$
+BEGIN
+    INSERT INTO inventory (sku_id)
+    VALUES (NEW.sku_id);
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER sku_create_inventory_trg
+AFTER INSERT ON sku
+FOR EACH ROW EXECUTE FUNCTION create_inventory_for_sku();
+
+CREATE OR REPLACE FUNCTION enforce_sku_inventory_required()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = pg_catalog, bdia, pg_temp
+AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM sku
+        WHERE sku_id = OLD.sku_id
+    ) AND NOT EXISTS (
+        SELECT 1
+        FROM inventory
+        WHERE sku_id = OLD.sku_id
+    ) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23503',
+            MESSAGE = format(
+                'El SKU %s debe conservar exactamente una fila de inventario',
+                OLD.sku_id
+            );
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER inventory_required_for_sku_ctrg
+AFTER DELETE OR UPDATE OF sku_id ON inventory
+DEFERRABLE INITIALLY IMMEDIATE
+FOR EACH ROW EXECUTE FUNCTION enforce_sku_inventory_required();
+
+REVOKE EXECUTE ON FUNCTION create_inventory_for_sku() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION enforce_sku_inventory_required() FROM PUBLIC;
+
 -- ---------------------------------------------------------------------------
 -- Clientes, sesiones y comportamiento
 -- ---------------------------------------------------------------------------
