@@ -235,6 +235,9 @@ WITH validations AS (
     SELECT 22,
            'El rol de aplicación no puede escribir el stock derivado',
            NOT has_column_privilege(
+               'bdia_app', 'bdia.inventory', 'sku_id', 'INSERT'
+           )
+           AND NOT has_column_privilege(
                'bdia_app', 'bdia.inventory', 'available_qty', 'INSERT'
            )
            AND NOT has_column_privilege(
@@ -270,6 +273,18 @@ WITH validations AS (
            AND NOT has_table_privilege('bdia_analyst', 'bdia.customer_session', 'SELECT')
            AND NOT has_table_privilege('bdia_analyst', 'bdia.review', 'SELECT')
            AND has_table_privilege('bdia_analyst', 'bdia.v_active_catalog', 'SELECT')
+
+    UNION ALL
+
+    SELECT 24,
+           'Cada SKU tiene exactamente una fila de inventario',
+           NOT EXISTS (
+               SELECT s.sku_id
+               FROM sku s
+               LEFT JOIN inventory i ON i.sku_id = s.sku_id
+               GROUP BY s.sku_id
+               HAVING COUNT(i.sku_id) <> 1
+           )
 )
 SELECT
     sort_order,

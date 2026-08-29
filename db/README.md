@@ -12,7 +12,7 @@ docker compose logs postgres
 ```
 
 La primera inicialización ejecuta DDL, índices y vista, datos sintéticos, cinco
-consultas, roles con privilegios mínimos y veintitrés controles de estado. Todos
+consultas, roles con privilegios mínimos y veinticuatro controles de estado. Todos
 los controles deben devolver `OK`; solo entonces se crea la marca que exige el
 healthcheck.
 
@@ -23,7 +23,7 @@ La validación limpia completa puede ejecutarse desde Git Bash:
 ```
 
 Además de reconstruir la base, el script ejecuta cuatro controles de
-comportamiento, quince pruebas de integridad y una prueba con dos inserciones
+comportamiento, diecisiete pruebas de integridad y una prueba con dos inserciones
 concurrentes sobre el mismo pedido.
 
 El puerto se publica únicamente en `127.0.0.1`, con el valor de
@@ -37,7 +37,7 @@ conviene tener presente que el volumen `bdia_g04_postgres_data` lleva `name:`
 explícito y es el mismo que usa el arranque desde la raíz, igual que en los otros
 dos componentes, así que el `--reset` descarta también los datos de esa pila.
 
-Para repetir solamente los veintitrés controles de estado:
+Para repetir solamente los veinticuatro controles de estado:
 
 ```bash
 source .env

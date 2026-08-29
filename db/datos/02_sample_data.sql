@@ -172,15 +172,18 @@ SELECT sku_id, 125000, 'ARS', TIMESTAMPTZ '2099-01-01 00:00:00-03'
 FROM sku
 WHERE sku_code = 'AUR-LUM-050';
 
-INSERT INTO inventory (sku_id, available_qty, low_stock_threshold)
-SELECT sku_id,
-       0,
-       CASE sku_code
+-- Cada SKU ya aprovisionó su fila de inventario mediante el trigger del DDL.
+-- La carga inicial solo configura el umbral; el stock sigue derivándose de
+-- los movimientos auditables que se insertan a continuación.
+UPDATE inventory i
+   SET low_stock_threshold = CASE s.sku_code
            WHEN 'AUR-LUM-100' THEN 4
            WHEN 'CHR-BAS-030-N' THEN 3
            ELSE 2
-       END
-FROM sku;
+       END,
+       updated_at = CURRENT_TIMESTAMP
+  FROM sku s
+ WHERE s.sku_id = i.sku_id;
 
 -- Los ingresos iniciales alimentan el stock mediante el trigger auditable.
 INSERT INTO inventory_movement (sku_id, movement_type, quantity_change, reason, occurred_at)
