@@ -8,6 +8,10 @@ sección 2. Este directorio contiene la implementación y los comandos represent
 
 ## Puesta en marcha
 
+Con la pila unificada levantada desde la raíz, el [`Makefile`](../../Makefile) general expone los
+targets de esta capa (`make redis.seed`, `make redis.shell`, `make redis.demo-cache`, etc.), que
+operan sobre los contenedores por nombre y sirven igual en cualquiera de los dos modos de arranque.
+
 Requiere Docker Desktop o Docker Engine con Docker Compose. Desde `nosql/redis`:
 
 ```bash
@@ -18,7 +22,14 @@ cp .env.example .env
 docker compose up -d --wait
 ```
 
-Una vez que el servicio `redis` figure como saludable, se carga el estado inicial:
+Una vez que el servicio `redis` figure como saludable, se carga el estado inicial. Desde la raíz,
+con la pila unificada levantada:
+
+```bash
+make redis.seed
+```
+
+Desde este directorio, de forma equivalente:
 
 ```bash
 docker compose exec redis sh /scripts/00_cargar_datos.sh
@@ -27,7 +38,8 @@ docker compose exec redis sh /scripts/00_cargar_datos.sh
 El script termina con `Carga completa y consistente en la base 0 de Redis.` y devuelve un código de
 error si alguna verificación falla, de modo que sirve también para comprobar el entorno.
 
-La consola de Redis se abre con:
+La consola de Redis se abre con `make redis.shell` desde la raíz, o de forma equivalente desde este
+directorio:
 
 ```bash
 docker compose exec redis sh -c 'redis-cli --no-auth-warning -a "$REDIS_PASSWORD"'
@@ -99,14 +111,18 @@ la decisión de diseño asociada.
 Latencia de la cache, contrastando MISS contra HIT:
 
 ```bash
-docker compose exec demo python /workspace/scripts/demo_cache_aside.py
+make redis.demo-cache
 ```
 
 Comportamiento al alcanzar el límite de memoria:
 
 ```bash
-docker compose exec redis sh /scripts/demo_limite_memoria.sh
+make redis.demo-memory
 ```
+
+Ambos se invocan desde la raíz; equivalen a `docker compose exec demo python
+/workspace/scripts/demo_cache_aside.py` y `docker compose exec redis sh /scripts/demo_limite_memoria.sh`
+respectivamente.
 
 El segundo reduce `maxmemory` de forma temporal, llena la base e informa `evicted_keys`. La
 configuración se restaura mediante un `trap`, de modo que vuelve a los valores declarados tanto al
@@ -140,8 +156,10 @@ lectura.
 Para volver al estado inicial sin recrear los contenedores:
 
 ```bash
-sh scripts/reiniciar_datos.sh
+make redis.seed
 ```
+
+Equivale a `sh scripts/reiniciar_datos.sh`, que recarga el estado inicial.
 
 Conviene tener presente que cuatro de las seis claves iniciales llevan TTL y vencen solas al cabo de
 entre 10 y 60 minutos. A partir de ese momento `DBSIZE` devuelve 2, porque quedan únicamente los dos

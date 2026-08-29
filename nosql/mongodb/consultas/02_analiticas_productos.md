@@ -3,7 +3,8 @@
 Consultas analíticas generales sobre `user_events`, para entender el comportamiento agregado de los
 usuarios y detectar oportunidades comerciales.
 
-Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`.
+Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`; desde la raíz, la consola se abre
+con `make mongo.shell`.
 
 Cada bloque se puede copiar y pegar tal cual.
 

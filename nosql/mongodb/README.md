@@ -70,6 +70,10 @@ make generar-datos
 make shell
 ```
 
+El [`Makefile`](../../Makefile) general de la raíz expone los mismos atajos con nombres consistentes
+con el resto de las bases: `make mongo.seed` (equivalente a `make generar-datos`) y `make mongo.shell`
+(equivalente a `make shell`). Conviene usarlos cuando la pila se levanta desde la raíz.
+
 ## Mongo Express
 
 El visor web está disponible en <http://localhost:8081> (el puerto corresponde a

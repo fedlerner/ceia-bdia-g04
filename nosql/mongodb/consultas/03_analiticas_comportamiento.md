@@ -3,7 +3,8 @@
 Consultas sobre `user_events` para analizar el comportamiento general de los usuarios: búsquedas,
 relación entre visualizaciones y carrito, y actividad por sesión.
 
-Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`.
+Se ejecutan en `mongosh`, conectado a la base `bdia_g04_mongodb`; desde la raíz, la consola se abre
+con `make mongo.shell`.
 
 Cada bloque se puede copiar y pegar tal cual.
 

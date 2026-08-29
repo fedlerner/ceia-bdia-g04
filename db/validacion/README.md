@@ -8,11 +8,11 @@ Compose y PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `
 
 La ejecución actualizada se realizó correctamente el **29/08/2026** mediante Docker Compose y
 PostgreSQL 16 (`postgres:16-alpine`). El contenedor quedó en estado `Up (healthy)` y pasaron las
-cinco consultas, 24 controles de estado, 4 controles de comportamiento, 17 pruebas de integridad y
+seis consultas, 24 controles de estado, 4 controles de comportamiento, 17 pruebas de integridad y
 1 prueba de concurrencia. La salida final fue:
 
 ```text
-VALIDACIÓN COMPLETA: 5 consultas, 24 controles de estado,
+VALIDACIÓN COMPLETA: 6 consultas, 24 controles de estado,
 4 controles de comportamiento, 17 controles de integridad
 y 1 control de concurrencia OK.
 ```
@@ -29,7 +29,7 @@ de PostgreSQL continuó siendo `5432`.
 
 ## Procedimiento reproducible
 
-Desde la raíz del repositorio:
+La validación limpia completa se reproduce con el script autónomo:
 
 ```bash
 cd db
@@ -48,14 +48,19 @@ Después ejecutar:
 bash "scripts/validar_postgresql.sh" --reset
 ```
 
-Para repetir solamente los controles sobre un contenedor ya levantado:
+Para repetir las verificaciones sobre un contenedor ya levantado, el [`Makefile`](../../Makefile)
+general de la raíz expone:
 
 ```bash
-source ".env"
-docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
-  -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  < "validacion/01_validation.sql"
+make postgresql.queries      # re-ejecuta las 6 consultas
+make postgresql.checks       # 24 controles de estado
+make postgresql.integrity    # 17 pruebas de integridad
+make postgresql.concurrency  # 1 prueba de concurrencia
+make postgresql.verify       # las cuatro juntas
 ```
+
+`validar_postgresql.sh --reset` no forma parte del Makefile general porque es destructivo y gestiona
+el ciclo de vida del contenedor; queda disponible como script autónomo en modo componente.
 
 ## Controles incluidos
 
@@ -74,7 +79,8 @@ códigos externos canónicos y atributos de las variantes. La ampliación agrega
 - salida no nula de `psql` cuando falla una invariante;
 - dependencia del healthcheck respecto de la validación completa;
 - conservación del total ante dos inserciones concurrentes;
-- obligatoriedad de una fila de inventario por SKU, incluido el aprovisionamiento automático al dar de alta un SKU;
+- obligatoriedad de una fila de inventario por SKU, incluido el aprovisionamiento automático
+  al dar de alta un SKU;
 - rechazo de la eliminación del inventario obligatorio mientras exista el SKU.
 
 Los datos sintéticos esperados son 8 productos, 10 SKU, 5 clientes, 6 sesiones, 5 pedidos, 10 ítems,

@@ -81,6 +81,7 @@ está en [vectorial/modelo_vectorial.md](vectorial/modelo_vectorial.md).
 ```text
 .
 ├── README.md                       # Este archivo
+├── Makefile                        # Atajos make para levantar, cargar y validar
 ├── docker-compose.yml              # Compose unificado (include de cada componente)
 ├── docs/
 │   ├── informe.md                  # Informe técnico (15 puntos de la consigna)
@@ -153,33 +154,31 @@ de su propio directorio.
 > antes de levantar ningún servicio. La versión instalada se comprueba con `docker compose version`;
 > si es más antigua, cada componente puede levantarse por separado desde su propio directorio.
 
-Antes de levantar la pila, cada componente necesita su `.env` creado a partir de su `.env.example`:
+El [`Makefile`](Makefile) de la raíz envuelve la puesta en marcha, la carga de datos de prueba y las
+verificaciones de los tres motores. Con `make help` se listan todos los targets disponibles.
+
+Para levantar la pila, crear los datos de prueba de las tres bases y validarlos de una vez:
 
 ```bash
-cp nosql/redis/.env.example nosql/redis/.env
-cp nosql/mongodb/.env.example nosql/mongodb/.env
-cp db/.env.example db/.env
+make setup
 ```
+
+Ese comando crea los `.env` faltantes, levanta los tres motores y, en orden, verifica PostgreSQL,
+recrea y carga la colección de MongoDB y restaura y verifica el estado inicial de Redis.
+
+Los targets individuales equivalentes son:
 
 ```bash
-docker compose up -d --wait
+make env      # crea los .env a partir de los .env.example (solo si faltan)
+make up       # docker compose up -d --wait
+make down     # docker compose down
 ```
 
-Si falta algún `.env`, Compose corta e indica cuál.
-
-Ese comando deja los tres motores arriba, pero **solo PostgreSQL queda con datos**. Sus scripts se
-montan en `/docker-entrypoint-initdb.d/` y el motor los ejecuta en el primer arranque, de modo que el
-healthcheck no da la base por sana hasta que terminaron el esquema, los índices, los datos de ejemplo,
-los roles y la validación. Redis y MongoDB arrancan vacíos a propósito, y cargarlos es un paso
-explícito:
-
-```bash
-docker compose exec redis sh /scripts/00_cargar_datos.sh
-make -C nosql/mongodb generar-datos
-```
-
-Las dos cargas verifican lo que dejaron y devuelven error si algo no cuadra. Cada una se detalla más
-abajo, junto con las consultas y comandos de su motor.
+`up` deja los tres motores arriba, pero **solo PostgreSQL queda con datos**. Sus scripts se montan en
+`/docker-entrypoint-initdb.d/` y el motor los ejecuta en el primer arranque, de modo que el healthcheck
+no da la base por sana hasta que terminaron el esquema, los índices, los datos de ejemplo, los roles y
+la validación. Redis y MongoDB arrancan vacíos a propósito, y cargarlos es un paso explícito
+(`make setup` lo hace). Si falta algún `.env`, Compose corta e indica cuál.
 
 Cada componente puede levantarse también por separado, desde su propio directorio. Conviene no correr
 las dos formas a la vez: los nombres de contenedor son los mismos y entrarían en conflicto.
@@ -199,10 +198,18 @@ convenciones:
 
 ### Redis
 
-Carga del estado inicial y verificación:
+Carga del estado inicial y verificación, y consola interactiva:
 
 ```bash
-docker compose exec redis sh /scripts/00_cargar_datos.sh
+make redis.seed
+make redis.shell
+```
+
+Demos con medición:
+
+```bash
+make redis.demo-cache    # latencia MISS vs HIT (patron cache-aside)
+make redis.demo-memory   # eviccion al alcanzar el limite de memoria
 ```
 
 Los comandos representativos están en [`nosql/redis/comandos/`](nosql/redis/comandos/) y el detalle
@@ -210,10 +217,11 @@ de la puesta en marcha en [nosql/redis/README.md](nosql/redis/README.md).
 
 ### MongoDB
 
-Creación de la colección `user_events` y carga de los eventos de ejemplo:
+Creación de la colección `user_events`, carga de los eventos de ejemplo y consola `mongosh`:
 
 ```bash
-make -C nosql/mongodb generar-datos
+make mongo.seed
+make mongo.shell
 ```
 
 El script verifica lo que cargó y devuelve error si algo no cuadra. Las consultas representativas
@@ -222,26 +230,31 @@ en [nosql/mongodb/README.md](nosql/mongodb/README.md).
 
 ### PostgreSQL
 
-PostgreSQL puede levantarse junto con el resto desde la raíz o de manera aislada desde `db/`:
-
-```bash
-cd db
-cp .env.example .env
-docker compose up -d --wait
-docker compose logs postgres
-```
+PostgreSQL puede levantarse junto con el resto desde la raíz o de manera aislada desde `db/`.
 
 El contenedor ejecuta en orden:
 
 1. `db/estructura/`: creación de tablas, claves y restricciones.
 2. `db/indices_vistas/`: creación de índices y vistas.
 3. `db/datos/`: carga del catálogo y datos sintéticos.
-4. `db/consultas/`: ejecución de las 5 consultas representativas.
+4. `db/consultas/`: ejecución de las 6 consultas representativas.
 5. `db/seguridad/`: creación de roles y privilegios mínimos.
 6. `db/validacion/`: controles automáticos y marca de inicialización correcta.
 
+Los datos se cargan en el primer arranque. Para re-ejecutar las consultas y las verificaciones sobre
+un contenedor ya levantado:
+
+```bash
+make postgresql.shell        # consola psql
+make postgresql.queries      # re-ejecuta las 6 consultas
+make postgresql.checks       # 24 controles de estado
+make postgresql.integrity    # 17 pruebas de integridad
+make postgresql.concurrency  # 1 prueba de concurrencia
+make postgresql.verify       # las cuatro anteriores juntas
+```
+
 La validación empírica actualizada se ejecutó correctamente el 29/08/2026 mediante Docker Compose
-con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las cinco
+con PostgreSQL 16. El contenedor quedó `Up (healthy)` y finalizaron correctamente las seis
 consultas, veinticuatro controles de estado, cuatro controles de comportamiento, diecisiete pruebas de
 integridad y una prueba de concurrencia. El procedimiento reproducible está documentado en
 [`db/validacion/README.md`](db/validacion/README.md).
@@ -271,19 +284,20 @@ integridad y una prueba de concurrencia. El procedimiento reproducible está doc
 | 3 | ¿Qué clientes concentran mayor frecuencia y valor de compra? | PostgreSQL |
 | 4 | ¿Qué productos y SKU tienen stock bajo? | PostgreSQL |
 | 5 | ¿Qué productos suelen comprarse junto con un producto determinado? | PostgreSQL |
-| 6 | ¿Qué hizo un usuario en los últimos siete días? | MongoDB |
-| 7 | ¿Qué productos concentran el interés reciente de un usuario? | MongoDB |
-| 8 | ¿Qué recorrido hizo el usuario dentro de una sesión? | MongoDB |
-| 9 | ¿Qué productos reciben más visualizaciones? | MongoDB |
-| 10 | ¿Qué categorías concentran la atención de los usuarios? | MongoDB |
-| 11 | ¿Cuántas búsquedas realiza cada usuario? | MongoDB |
-| 12 | ¿Qué productos se ven mucho pero se agregan poco al carrito? | MongoDB |
-| 13 | ¿Cuánta actividad concentra cada sesión y cuánto dura? | MongoDB |
-| 14 | Servir e invalidar la cache de recomendaciones | Redis |
-| 15 | Sostener el estado de una sesión anónima | Redis |
-| 16 | Top de productos más vistos precalculado | Redis |
-| 17 | Acotar invocaciones al motor por cliente y ventana | Redis |
-| 18 | Patrones de búsqueda, memoria y descarte por límite | Redis |
+| 6 | ¿En qué posición queda cada producto por ingresos dentro de su moneda? | PostgreSQL |
+| 7 | ¿Qué hizo un usuario en los últimos siete días? | MongoDB |
+| 8 | ¿Qué productos concentran el interés reciente de un usuario? | MongoDB |
+| 9 | ¿Qué recorrido hizo el usuario dentro de una sesión? | MongoDB |
+| 10 | ¿Qué productos reciben más visualizaciones? | MongoDB |
+| 11 | ¿Qué categorías concentran la atención de los usuarios? | MongoDB |
+| 12 | ¿Cuántas búsquedas realiza cada usuario? | MongoDB |
+| 13 | ¿Qué productos se ven mucho pero se agregan poco al carrito? | MongoDB |
+| 14 | ¿Cuánta actividad concentra cada sesión y cuánto dura? | MongoDB |
+| 15 | Servir e invalidar la cache de recomendaciones | Redis |
+| 16 | Sostener el estado de una sesión anónima | Redis |
+| 17 | Top de productos más vistos precalculado | Redis |
+| 18 | Acotar invocaciones al motor por cliente y ventana | Redis |
+| 19 | Patrones de búsqueda, memoria y descarte por límite | Redis |
 
 Las consultas SQL están en [db/consultas/](db/consultas/), las de MongoDB en
 [nosql/mongodb/consultas/](nosql/mongodb/consultas/) y los comandos de Redis en

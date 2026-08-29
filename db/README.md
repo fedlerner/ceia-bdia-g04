@@ -4,6 +4,12 @@ Implementación relacional del TP sobre PostgreSQL 16.
 
 ## Ejecución aislada
 
+Con la pila unificada levantada desde la raíz, el [`Makefile`](../Makefile) general expone los
+targets de este componente (`make postgresql.shell`, `make postgresql.checks`, etc.), que operan
+sobre el contenedor por nombre y sirven igual en cualquiera de los dos modos de arranque.
+
+Para levantar este componente por separado:
+
 ```bash
 cd db
 cp .env.example .env
@@ -37,14 +43,29 @@ conviene tener presente que el volumen `bdia_g04_postgres_data` lleva `name:`
 explícito y es el mismo que usa el arranque desde la raíz, igual que en los otros
 dos componentes, así que el `--reset` descarta también los datos de esa pila.
 
-Para repetir solamente los veinticuatro controles de estado:
+Para repetir las verificaciones sobre un contenedor ya levantado, desde la raíz:
 
 ```bash
-source .env
-docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
-  -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+make postgresql.queries      # re-ejecuta las 6 consultas
+make postgresql.checks       # 24 controles de estado
+make postgresql.integrity    # 17 pruebas de integridad
+make postgresql.concurrency  # 1 prueba de concurrencia
+make postgresql.verify       # las cuatro juntas
+```
+
+Desde este directorio, sin pasar por la raíz, el mismo control se ejecuta apuntando al contenedor por
+nombre. Esa forma funciona con la pila levantada de cualquiera de las dos maneras, porque no depende
+del proyecto de Compose que resuelva el directorio actual:
+
+```bash
+docker exec -i bdia_g04_postgres \
+  sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < validacion/01_validation.sql
 ```
+
+El script `scripts/validar_postgresql.sh --reset` (validación limpia completa) no forma parte del
+Makefile general porque es destructivo y gestiona el ciclo de vida del contenedor; queda disponible
+como script autónomo en modo componente.
 
 Para reconstruir desde cero se debe eliminar exclusivamente el volumen de esta
 práctica y volver a levantar el componente:
